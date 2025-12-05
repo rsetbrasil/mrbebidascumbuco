@@ -283,33 +283,43 @@ const PresalesPage = () => {
                                             {formatCurrency(presale.total)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
-                                            {presale.priceType === 'cold' && (
-                                                <span style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    background: 'var(--color-primary)',
-                                                    color: '#fff',
-                                                    fontSize: 'var(--font-size-xs)',
-                                                    fontWeight: 500,
-                                                    border: '1px solid var(--color-primary)'
-                                                }}>
-                                                    Gelada
-                                                </span>
-                                            )}
-                                            {(presale.priceType === 'wholesale' || presale.customerPriceType === 'wholesale') && (
-                                                <span style={{
-                                                    padding: '4px 8px',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    background: 'var(--color-success)',
-                                                    color: '#fff',
-                                                    fontSize: 'var(--font-size-xs)',
-                                                    fontWeight: 500,
-                                                    border: '1px solid var(--color-success)',
-                                                    marginLeft: presale.priceType === 'cold' ? '8px' : 0
-                                                }}>
-                                                    Atacado
-                                                </span>
-                                            )}
+                                            {(() => {
+                                                const approxEq = (a, b) => Math.abs(Number(a||0) - Number(b||0)) < 0.005;
+                                                const items = presale.items || [];
+                                                const hasCold = items.some(i => !!i.isCold);
+                                                const hasWholesale = (presale.customerPriceType === 'wholesale') || items.some(i => approxEq(i.unitPrice, i.wholesalePrice));
+                                                return (
+                                                    <>
+                                                        {hasCold && (
+                                                            <span style={{
+                                                                padding: '4px 8px',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                background: 'var(--color-primary)',
+                                                                color: '#fff',
+                                                                fontSize: 'var(--font-size-xs)',
+                                                                fontWeight: 500,
+                                                                border: '1px solid var(--color-primary)'
+                                                            }}>
+                                                                Gelada
+                                                            </span>
+                                                        )}
+                                                        {hasWholesale && (
+                                                            <span style={{
+                                                                padding: '4px 8px',
+                                                                borderRadius: 'var(--radius-sm)',
+                                                                background: 'var(--color-success)',
+                                                                color: '#fff',
+                                                                fontSize: 'var(--font-size-xs)',
+                                                                fontWeight: 500,
+                                                                border: '1px solid var(--color-success)',
+                                                                marginLeft: hasCold ? '8px' : 0
+                                                            }}>
+                                                                Atacado
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <span style={{

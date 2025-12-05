@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, setLogLevel } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
@@ -12,6 +12,8 @@ const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+setLogLevel('silent');
 
 // Check if config is valid
 const isConfigured = firebaseConfig.apiKey &&
@@ -31,7 +33,9 @@ if (isConfigured && !isDemoMode) {
         app = initializeApp(firebaseConfig);
         db = initializeFirestore(app, {
             experimentalForceLongPolling: true,
-            useFetchStreams: false
+            experimentalAutoDetectLongPolling: false,
+            useFetchStreams: false,
+            ignoreUndefinedProperties: true
         });
         auth = getAuth(app);
         signInAnonymously(auth).catch(() => {});

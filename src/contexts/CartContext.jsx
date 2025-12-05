@@ -40,17 +40,20 @@ export const CartProvider = ({ children }) => {
     }, []);
 
     // Add item to cart
-    const addItem = useCallback((product, quantity = 1, unit = null) => {
+    const addItem = useCallback((product, quantity = 1, unit = null, options = {}) => {
         setItems(prevItems => {
-            // Check if item already exists (same product AND same unit)
+            // Check if item already exists (same product, same unit choice, same cold flag)
+            const type = options.itemPriceType ? options.itemPriceType : priceType;
+            const isCold = type === 'cold';
+
             const existingIndex = prevItems.findIndex(item =>
                 item.id === product.id &&
-                ((!item.unit && !unit) || (item.unit && unit && item.unit.name === unit.name))
+                ((!item.unit && !unit) || (item.unit && unit && item.unit.name === unit.name)) &&
+                ((item.isCold || false) === isCold)
             );
 
             // Determine price based on current price type
-            const isWholesale = priceType === 'wholesale';
-            const isCold = priceType === 'cold';
+            const isWholesale = type === 'wholesale';
 
             let priceToUse = product.wholesalePrice || product.price;
             let costToUse = product.cost || 0;
@@ -69,6 +72,10 @@ export const CartProvider = ({ children }) => {
                 if (isCold && product.coldPrice) priceToUse = product.coldPrice;
             }
 
+            if (options.customPrice !== undefined) {
+                priceToUse = Number(options.customPrice);
+            }
+
             if (existingIndex >= 0) {
                 // Update quantity if item already exists
                 const updatedItems = [...prevItems];
@@ -78,8 +85,10 @@ export const CartProvider = ({ children }) => {
                     ...item,
                     quantity: item.quantity + quantity,
                     // If it's a unit, price is fixed. If base product, it follows priceType
-                    unitPrice: unit ? unit.price : priceToUse,
-                    stockDeduction: (item.quantity + quantity) * stockDeduction
+                    unitPrice: unit ? (options.customPrice !== undefined ? Number(options.customPrice) : unit.price) : priceToUse,
+                    stockDeduction: (item.quantity + quantity) * stockDeduction,
+                    isCold,
+                    isWholesale
                 };
 
                 // Recalculate total for this item
@@ -106,6 +115,7 @@ export const CartProvider = ({ children }) => {
                 stockDeductionPerUnit: stockDeduction, // How much to deduct from stock per 1 quantity
                 unit: unit, // Store the unit details if any
                 isCold: isCold, // Track if this is a cold item
+                isWholesale,
                 discount: 0,
                 total: (quantity * priceToUse)
             }];
@@ -144,9 +154,22 @@ export const CartProvider = ({ children }) => {
         setItems(prevItems => {
             return prevItems.map(item => {
                 if (item.id === productId) {
-                    // Check stock limit
-                    if (item.stock !== undefined && quantity > item.stock) {
-                        return item; // Do not update if exceeds stock
+                    const perUnit = item.stockDeductionPerUnit ?? (item.unit?.multiplier ?? 1);
+                    const isCold = !!item.isCold;
+                    const available = isCold ? (item.coldStock ?? 0) : (item.stock ?? 0);
+
+                    // Total deduction of other items of same product and same stock type (cold/natural)
+                    const otherDeduction = prevItems.reduce((acc, it) => {
+                        if (it.id !== productId) return acc;
+                        if (!!it.isCold !== isCold) return acc;
+                        const dpu = it.stockDeductionPerUnit ?? (it.unit?.multiplier ?? 1);
+                        if (it === item) return acc; // exclude current item
+                        return acc + dpu * it.quantity;
+                    }, 0);
+
+                    const required = quantity * perUnit;
+                    if (available && otherDeduction + required > available) {
+                        return item; // exceed available stock, do not update
                     }
 
                     const itemDiscount = item.discount || 0;
@@ -258,7 +281,9 @@ export const CartProvider = ({ children }) => {
             ...item,
             retailPrice: item.retailPrice || item.unitPrice,
             wholesalePrice: item.wholesalePrice || item.unitPrice,
-            coldPrice: item.coldPrice || item.unitPrice
+            coldPrice: item.coldPrice || item.unitPrice,
+            isCold: item.isCold || presale.priceType === 'cold',
+            isWholesale: !!item.isWholesale
         })));
 
         if (presale.customer) {
@@ -293,7 +318,8 @@ export const CartProvider = ({ children }) => {
             coldStock: undefined,
             stockDeductionPerUnit: item.unit?.multiplier ? item.unit.multiplier : 1,
             unit: item.unit || null,
-            isCold: sale.priceType === 'cold',
+            isCold: !!item.isCold || sale.priceType === 'cold',
+            isWholesale: !!item.isWholesale,
             discount: Number(item.discount) || 0,
             total: Number(item.total) || (Number(item.quantity) * Number(item.unitPrice))
         })));

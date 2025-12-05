@@ -145,20 +145,52 @@ export const printReceipt = (sale, settings = {}) => {
     const address = sanitize(settings.companyAddress) || 'Rua Firmo Ananias Cardoso, 269';
     const phone = sanitize(settings.companyPhone) || 'Tel: (11) 1234-5678';
     const dateStr = formatDateTime(sale.createdAt || new Date());
-    const isColdSale = sale.priceType === 'cold';
+    
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
 
     let itemsHtml = '';
+    const approxEq = (a, b) => {
+        const na = Number(a || 0);
+        const nb = Number(b || 0);
+        return Math.abs(na - nb) < 0.005; // ~0.5 centavos
+    };
+
+    const hasCold = (sale.items || []).some(i => !!i.isCold);
+    const hasWholesale = (sale.items || []).some(i => !!i.isWholesale);
+    const wholesaleSavings = (sale.items || []).reduce((sum, item) => {
+        if (item.isCold) return sum;
+        if (item.isWholesale) {
+            const retail = Number(item.retailPrice || item.unitPrice || 0);
+            const wholesale = Number(item.wholesalePrice || item.unitPrice || 0);
+            const diff = Math.max(0, retail - wholesale);
+            return sum + diff * Number(item.quantity || 0);
+        }
+        return sum;
+    }, 0);
+
     sale.items.forEach((item, index) => {
         const total = formatCurrency(item.total).replace('R$', '').trim();
-        const unit = formatCurrency(item.unitPrice).replace('R$', '').trim();
+        const unitPriceStr = formatCurrency(item.unitPrice).replace('R$', '').trim();
         const qty = formatNumber(item.quantity, 0);
+
+        let typeBadge = '';
+        if (item.isCold) {
+            typeBadge = ' • Gelada';
+        }
+
+        const unitName = (item.unit && (item.unit.abbreviation || item.unit.name))
+            ? (item.unit.abbreviation || item.unit.name)
+            : ((item.isWholesale && !item.isCold) ? (settings.wholesaleUnitLabel || 'FD') : 'un');
+        let displayName = item.productName || item.name || 'Item';
+        if (item.unit && item.unit.name && !String(displayName).includes(item.unit.name)) {
+            displayName = `${displayName} (${item.unit.name})`;
+        }
 
         itemsHtml += `
             <div class="mb-1">
-                <div class="item-name">${index + 1}. ${item.productName}</div>
+                <div class="item-name">${index + 1}. ${displayName}</div>
                 <div class="flex">
-                    <span class="item-meta">${qty} un x ${unit}</span>
+                    <span class="item-meta">${qty} ${unitName} x ${unitPriceStr}${typeBadge}</span>
                     <span class="item-total">${total}</span>
                 </div>
             </div>
@@ -185,21 +217,12 @@ export const printReceipt = (sale, settings = {}) => {
     }
 
     let savingsHtml = '';
-    if (!isColdSale && sale.totalSavings && sale.totalSavings > 0) {
-        const retailTotal = sale.total + sale.totalSavings;
+    if (wholesaleSavings && wholesaleSavings > 0) {
         savingsHtml = `
             <div class="totals-section text-sm">
-                <div class="flex">
-                    <span>Preço Varejo:</span>
-                    <span>${formatCurrency(retailTotal)}</span>
-                </div>
-                <div class="flex">
-                    <span>Preço Atacado:</span>
-                    <span>${formatCurrency(sale.total)}</span>
-                </div>
                 <div class="flex font-bold mt-1">
-                    <span>Você Economizou:</span>
-                    <span>${formatCurrency(sale.totalSavings)}</span>
+                    <span>Economia no Atacado:</span>
+                    <span>${formatCurrency(wholesaleSavings)}</span>
                 </div>
             </div>
         `;
@@ -230,6 +253,7 @@ export const printReceipt = (sale, settings = {}) => {
             <div class="details-row"><span>Pedido:</span><span>#${sale.saleNumber || '0'}</span></div>
             <div class="details-row"><span>Cliente:</span><span>${(sale.customerName || 'Consumidor Final').substring(0, 24)}</span></div>
             <div class="details-row"><span>Data:</span><span>${dateStr}</span></div>
+            <div class="details-row"><span>Tipos:</span><span>${[hasCold ? 'Gelada' : null, hasWholesale ? 'Atacado' : null].filter(Boolean).join(' + ') || '-'}</span></div>
         </div>
         
         <div class="items-section">

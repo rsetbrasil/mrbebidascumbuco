@@ -52,6 +52,8 @@ const SalesPage = () => {
     const [quantityModalOpen, setQuantityModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantityInput, setQuantityInput] = useState('1');
+    const [itemPriceType, setItemPriceType] = useState('wholesale');
+    const [priceInput, setPriceInput] = useState('');
 
     // Customer Selection Modal
     const [customerSelectionOpen, setCustomerSelectionOpen] = useState(false);
@@ -67,6 +69,9 @@ const SalesPage = () => {
 
     const searchInputRef = useRef(null);
     const quantityInputRef = useRef(null);
+    const atacadoBtnRef = useRef(null);
+    const geladaBtnRef = useRef(null);
+    const priceInputRef = useRef(null);
 
     const isManager = user?.role === 'admin' || user?.role === 'manager';
     const totals = calculateTotals();
@@ -224,6 +229,11 @@ const SalesPage = () => {
 
         setSelectedProduct(product);
         setQuantityInput('1');
+        setItemPriceType(priceType === 'cold' ? 'cold' : 'wholesale');
+        const defaultPrice = (priceType === 'cold')
+            ? (product.coldPrice || product.price)
+            : (product.wholesalePrice || product.price);
+        setPriceInput(defaultPrice);
         setQuantityModalOpen(true);
         setSearchTerm('');
         setFilteredProducts([]);
@@ -263,6 +273,9 @@ const SalesPage = () => {
 
         addItem(product, 1, unit);
         showNotification('success', 'Produto adicionado!');
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, 50);
     };
 
     const handleConfirmQuantity = () => {
@@ -296,10 +309,18 @@ const SalesPage = () => {
             return;
         }
 
-        addItem(selectedProduct, qty);
+        const customPrice = typeof priceInput === 'string' ? parseFloat(String(priceInput).replace(/[^0-9.,]/g, '').replace('.', '').replace(',', '.')) : Number(priceInput);
+        addItem(selectedProduct, qty, null, {
+            itemPriceType,
+            customPrice: !isNaN(customPrice) && customPrice > 0 ? customPrice : undefined
+        });
         setQuantityModalOpen(false);
         setQuantityInput('1');
+        setPriceInput('');
         showNotification('Produto adicionado!', 'success');
+        setTimeout(() => {
+            searchInputRef.current?.focus();
+        }, 100);
     };
 
     const handleCheckout = () => {
@@ -373,7 +394,12 @@ const SalesPage = () => {
                     unitPrice: Number(item.unitPrice) || 0,
                     discount: Number(item.discount) || 0,
                     total: Number(item.total) || 0,
-                    unit: item.unit || null
+                    unit: item.unit || null,
+                    isCold: !!item.isCold,
+                    isWholesale: !!item.isWholesale,
+                    retailPrice: Number(item.retailPrice || item.unitPrice) || 0,
+                    wholesalePrice: Number(item.wholesalePrice || item.unitPrice) || 0,
+                    coldPrice: Number(item.coldPrice || item.unitPrice) || 0
                 })),
                 subtotal: totals.subtotal,
                 discount: totals.discount + totals.itemsDiscount,
@@ -436,19 +462,28 @@ const SalesPage = () => {
             }, 0);
 
             // Verify stock
+            const productMap = new Map();
+            const getDeduction = (it) => {
+                if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * it.quantity;
+                if (it.unit && it.unit.multiplier) return it.quantity * it.unit.multiplier;
+                return it.quantity;
+            };
             for (const item of items) {
                 if (!item.id) continue;
 
                 const product = await productService.getById(item.id);
+                if (product) productMap.set(item.id, product);
                 if (!product) {
                     showNotification(`Produto não encontrado: ${item.name}`, 'error');
                     setProcessing(false);
                     return;
                 }
 
-                const deduction = item.stockDeduction || item.quantity;
-                if (product.stock < deduction) {
-                    showNotification(`Estoque insuficiente para ${item.name}. Disponível: ${product.stock}`, 'error');
+                const deduction = getDeduction(item);
+                const available = item.isCold ? (product.coldStock || 0) : product.stock;
+                if (available < deduction) {
+                    const stockType = item.isCold ? 'gelado' : 'natural';
+                    showNotification(`Estoque ${stockType} insuficiente para ${item.name}. Disponível: ${available}`, 'error');
                     setProcessing(false);
                     return;
                 }
@@ -466,14 +501,16 @@ const SalesPage = () => {
                 customerName: customer?.name || 'Cliente Padrão',
                 items: items.map(item => ({
                     productId: item.id || null,
-                    productName: item.name || 'Produto Sem Nome',
+                    productName: item.name || productMap.get(item.id)?.name || 'Produto Sem Nome',
                     quantity: Number(item.quantity) || 0,
                     unitPrice: Number(item.unitPrice) || 0,
                     unitCost: Number(item.unitCost) || 0,
                     retailPrice: Number(item.retailPrice || item.unitPrice) || 0,
                     discount: Number(item.discount) || 0,
                     total: Number(item.total) || 0,
-                    unit: item.unit || null
+                    unit: item.unit || null,
+                    isCold: !!item.isCold,
+                    isWholesale: !!item.isWholesale
                 })),
                 subtotal: Number(totals.subtotal) || 0,
                 discount: Number(totals.discount + totals.itemsDiscount) || 0,
@@ -557,7 +594,7 @@ const SalesPage = () => {
                     const product = await productService.getById(item.id);
                     if (!product) continue;
 
-                    const deduction = item.stockDeduction || item.quantity;
+                    const deduction = getDeduction(item);
 
                     // Deduct from cold stock or regular stock based on isCold flag
                     if (item.isCold) {
@@ -684,7 +721,7 @@ const SalesPage = () => {
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                                     {items.map(item => (
-                                        <div key={item.id} style={{
+                                        <div key={`${item.id}-${item.unit?.name || 'base'}-${item.isCold ? 'cold' : 'nat'}`} style={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
@@ -870,9 +907,82 @@ const SalesPage = () => {
                         value={quantityInput}
                         onChange={(e) => setQuantityInput(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleConfirmQuantity();
+                            if (e.key === 'Enter') {
+                                atacadoBtnRef.current?.focus();
+                            }
                         }}
                         autoFocus
+                    />
+                    <div>
+                        <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
+                            Tipo de Preço (por item)
+                        </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <Button
+                                ref={atacadoBtnRef}
+                                variant={itemPriceType === 'wholesale' ? 'primary' : 'secondary'}
+                                onClick={() => {
+                                    setItemPriceType('wholesale');
+                                    if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        setItemPriceType('wholesale');
+                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                        priceInputRef.current?.focus();
+                                    } else if (e.key === 'ArrowRight') {
+                                        setItemPriceType('cold');
+                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                        geladaBtnRef.current?.focus();
+                                    } else if (e.key === 'ArrowLeft') {
+                                        setItemPriceType('wholesale');
+                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                    }
+                                }}
+                            >
+                                Atacado
+                            </Button>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Estoque: <strong>{selectedProduct?.stock ?? 0}</strong></span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <Button
+                                ref={geladaBtnRef}
+                                variant={itemPriceType === 'cold' ? 'primary' : 'secondary'}
+                                onClick={() => {
+                                    setItemPriceType('cold');
+                                    if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        setItemPriceType('cold');
+                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                        priceInputRef.current?.focus();
+                                    } else if (e.key === 'ArrowLeft') {
+                                        setItemPriceType('wholesale');
+                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                        atacadoBtnRef.current?.focus();
+                                    } else if (e.key === 'ArrowRight') {
+                                        setItemPriceType('cold');
+                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                        geladaBtnRef.current?.focus();
+                                    }
+                                }}
+                            >
+                                Gelada
+                            </Button>
+                                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Estoque: <strong>{selectedProduct?.coldStock ?? 0}</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <CurrencyInput
+                        ref={priceInputRef}
+                        label="Preço (opcional)"
+                        value={priceInput}
+                        onChange={(e) => setPriceInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmQuantity(); }}
+                        placeholder="0,00"
+                        className="no-margin"
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
                         <Button variant="ghost" onClick={() => setQuantityModalOpen(false)}>Cancelar</Button>

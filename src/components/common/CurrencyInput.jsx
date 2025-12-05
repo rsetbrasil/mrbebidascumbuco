@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Input from './Input';
 
-const CurrencyInput = ({ value, onChange, ...props }) => {
+const CurrencyInput = React.forwardRef(({ value, onChange, ...props }, ref) => {
     const [displayValue, setDisplayValue] = useState('');
 
     useEffect(() => {
@@ -39,6 +39,7 @@ const CurrencyInput = ({ value, onChange, ...props }) => {
 
     return (
         <Input
+            ref={ref}
             {...props}
             type="text"
             value={displayValue}
@@ -46,6 +47,6 @@ const CurrencyInput = ({ value, onChange, ...props }) => {
             placeholder="0,00"
         />
     );
-};
+});
 
 export default CurrencyInput;

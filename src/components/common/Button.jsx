@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Button = ({
+const Button = React.forwardRef(({ 
     children,
     onClick,
     variant = 'primary',
@@ -12,7 +12,7 @@ const Button = ({
     className = '',
     fullWidth = false,
     ...props
-}) => {
+}, ref) => {
     const baseClass = 'btn';
     const variantClass = `btn-${variant}`;
     const sizeClass = size !== 'md' ? `btn-${size}` : '';
@@ -35,6 +35,7 @@ const Button = ({
 
     return (
         <button
+            ref={ref}
             type={type}
             className={classes}
             onClick={onClick}
@@ -45,6 +46,6 @@ const Button = ({
             {children}
         </button>
     );
-};
+});
 
 export default Button;
