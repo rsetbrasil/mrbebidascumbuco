@@ -1028,6 +1028,32 @@ const SalesPage = () => {
                 size="sm"
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    {(priceType === 'cold' || (customer && customer.priceType === 'wholesale')) && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            {priceType === 'cold' && (
+                                <span style={{
+                                    fontSize: 'var(--font-size-xs)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: 'var(--color-primary-light)',
+                                    color: 'var(--color-primary)'
+                                }}>
+                                    Gelada
+                                </span>
+                            )}
+                            {customer && customer.priceType === 'wholesale' && (
+                                <span style={{
+                                    fontSize: 'var(--font-size-xs)',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    background: 'var(--color-success-light)',
+                                    color: 'var(--color-success)'
+                                }}>
+                                    Atacado
+                                </span>
+                            )}
+                        </div>
+                    )}
                     <Input
                         label="Nome do Cliente (Opcional)"
                         value={presaleCustomerName}
