@@ -362,6 +362,7 @@ const SalesPage = () => {
             setProcessing(true);
             const totals = calculateTotals();
 
+            const presaleType = priceType === 'cold' ? 'cold' : (customer?.priceType === 'wholesale' ? 'wholesale' : null);
             const presaleData = {
                 customerId: customer?.id || null,
                 customerName: presaleCustomerName || 'Cliente Balcão',
@@ -377,7 +378,8 @@ const SalesPage = () => {
                 subtotal: totals.subtotal,
                 discount: totals.discount + totals.itemsDiscount,
                 total: totals.total,
-                priceType: priceType,
+                priceType: presaleType,
+                customerPriceType: customer?.priceType || null,
                 status: 'pending',
                 createdBy: user?.name || 'Operador'
             };
@@ -1035,8 +1037,9 @@ const SalesPage = () => {
                                     fontSize: 'var(--font-size-xs)',
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    background: 'var(--color-primary-light)',
-                                    color: 'var(--color-primary)'
+                                    background: 'var(--color-primary)',
+                                    color: '#fff',
+                                    border: '1px solid var(--color-primary)'
                                 }}>
                                     Gelada
                                 </span>
@@ -1046,8 +1049,9 @@ const SalesPage = () => {
                                     fontSize: 'var(--font-size-xs)',
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    background: 'var(--color-success-light)',
-                                    color: 'var(--color-success)'
+                                    background: 'var(--color-success)',
+                                    color: '#fff',
+                                    border: '1px solid var(--color-success)'
                                 }}>
                                     Atacado
                                 </span>

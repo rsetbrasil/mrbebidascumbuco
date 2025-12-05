@@ -283,17 +283,33 @@ const PresalesPage = () => {
                                             {formatCurrency(presale.total)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: presale.priceType === 'wholesale' ? 'var(--color-info-bg)' : 'var(--color-bg-secondary)',
-                                                color: presale.priceType === 'wholesale' ? 'var(--color-info)' : 'var(--color-text-secondary)',
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 500,
-                                                border: presale.priceType === 'wholesale' ? '1px solid var(--color-info-border)' : '1px solid var(--color-border)'
-                                            }}>
-                                                {presale.priceType === 'wholesale' ? 'Atacado' : 'Varejo'}
-                                            </span>
+                                            {presale.priceType === 'cold' && (
+                                                <span style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    background: 'var(--color-primary)',
+                                                    color: '#fff',
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 500,
+                                                    border: '1px solid var(--color-primary)'
+                                                }}>
+                                                    Gelada
+                                                </span>
+                                            )}
+                                            {(presale.priceType === 'wholesale' || presale.customerPriceType === 'wholesale') && (
+                                                <span style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    background: 'var(--color-success)',
+                                                    color: '#fff',
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 500,
+                                                    border: '1px solid var(--color-success)',
+                                                    marginLeft: presale.priceType === 'cold' ? '8px' : 0
+                                                }}>
+                                                    Atacado
+                                                </span>
+                                            )}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <span style={{
