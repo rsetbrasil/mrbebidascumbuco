@@ -305,6 +305,11 @@ const SalesPage = () => {
     const handleCheckout = () => {
 
 
+        if (!isManager) {
+            showNotification('Apenas gerente pode finalizar vendas', 'warning');
+            return;
+        }
+
         if (!currentCashRegister) {
             showNotification('Abra o caixa antes de realizar vendas', 'warning');
             return;
@@ -401,6 +406,12 @@ const SalesPage = () => {
     const handleFinalizeSale = async () => {
         try {
             setProcessing(true);
+
+            if (!isManager) {
+                showNotification('Permissão negada: somente gerente pode finalizar', 'error');
+                setProcessing(false);
+                return;
+            }
 
             const totals = calculateTotals();
             const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -811,7 +822,7 @@ const SalesPage = () => {
                                 size="lg"
                                 icon={<CreditCard size={20} />}
                                 onClick={handleCheckout}
-                                disabled={items.length === 0}
+                                disabled={items.length === 0 || !isManager}
                             >
                                 Finalizar Venda (F2)
                             </Button>
@@ -992,7 +1003,14 @@ const SalesPage = () => {
                         <Button
                             variant="success"
                             onClick={handleFinalizeSale}
-                            disabled={processing || (isEditingSale ? (payments.reduce((sum, p) => sum + p.amount, 0) < Math.max(0, totals.total - (editingSale?.originalTotal || 0))) : (payments.reduce((sum, p) => sum + p.amount, 0) < totals.total))}
+                            disabled={
+                                !isManager ||
+                                processing ||
+                                (isEditingSale
+                                    ? (payments.reduce((sum, p) => sum + p.amount, 0) < Math.max(0, totals.total - (editingSale?.originalTotal || 0)))
+                                    : (payments.reduce((sum, p) => sum + p.amount, 0) < totals.total)
+                                )
+                            }
                             loading={processing}
                             icon={<Printer size={18} />}
                         >

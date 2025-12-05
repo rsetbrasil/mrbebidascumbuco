@@ -17,7 +17,7 @@ const firebaseConfig = {
 const isConfigured = firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== 'your_api_key_here';
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const forceDemo = import.meta.env.VITE_USE_DEMO === 'true' || isLocalhost;
+const forceDemo = import.meta.env.VITE_USE_DEMO === 'true';
 
 export const isDemoMode = forceDemo || !isConfigured;
 
