@@ -1032,6 +1032,7 @@ const SalesPage = () => {
                         label="Nome do Cliente (Opcional)"
                         value={presaleCustomerName}
                         onChange={(e) => setPresaleCustomerName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') confirmSavePresale(); }}
                         placeholder="Identificação do cliente"
                         autoFocus
                     />
