@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PDV MR Bebidas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script>
+    (function(){
+      var patterns=['google.firestore.v1.Firestore/Listen','google.firestore.v1.Firestore/Write','net::ERR_ABORTED','firestore.googleapis.com'];
+      function suppress(args){
+        try{ return Array.prototype.some.call(args,function(a){return patterns.some(function(p){return String(a).indexOf(p)!==-1;});}); }catch(e){ return false; }
+      }
+      ['error','warn','info','log'].forEach(function(fn){
+        var orig=console[fn];
+        console[fn]=function(){ if(suppress(arguments)) return; return orig.apply(console,arguments); };
+      });
+      window.addEventListener('error',function(e){ var msg=String(e.message||''); var src=String(e.filename||''); if(patterns.some(function(p){return msg.indexOf(p)!==-1 || src.indexOf(p)!==-1;})){ e.preventDefault(); return false; } },true);
+      window.addEventListener('unhandledrejection',function(e){ var r=e&&e.reason?String(e.reason.message||e.reason):''; if(patterns.some(function(p){return r.indexOf(p)!==-1;})){ e.preventDefault(); return false; } });
+    })();
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>

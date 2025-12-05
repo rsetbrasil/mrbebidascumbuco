@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Cupom</title>
+    <style>
+        /* Base styles from receiptPrinter.js */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 100%;
+            margin: 20px auto;
+            /* Centered for preview */
+            padding: 0;
+            font-size: 12px;
+            color: #000;
+            line-height: 1.2;
+            background: #fff;
+            border: 1px solid #ccc;
+            /* Border to show paper edge */
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .text-sm {
+            font-size: 11px;
+        }
+
+        .text-xs {
+            font-size: 10px;
+        }
+
+        .mb-1 {
+            margin-bottom: 2px;
+        }
+
+        .mb-2 {
+            margin-bottom: 4px;
+        }
+
+        .border-b {
+            border-bottom: 1px dashed #000;
+        }
+
+        .border-t {
+            border-top: 1px dashed #000;
+        }
+
+        .py-1 {
+            padding-top: 1px;
+            padding-bottom: 1px;
+        }
+
+        .flex {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        /* Improved Layout Classes */
+        .header {
+            margin-bottom: 10px;
+        }
+
+        .company-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .receipt-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin: 5px 0;
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 5px 0;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 3px;
+        }
+
+        .item-name {
+            flex: 1;
+            padding-right: 5px;
+            font-weight: bold;
+        }
+
+        .item-meta {
+            font-size: 11px;
+            color: #333;
+        }
+
+        .item-total {
+            text-align: right;
+            min-width: 60px;
+            font-weight: bold;
+        }
+
+        .totals-section {
+            margin-top: 10px;
+            border-top: 1px dashed #000;
+            padding-top: 5px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .final-total {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 5px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+        }
+
+        .payment-section {
+            margin-top: 10px;
+            border-top: 1px dashed #000;
+            padding-top: 5px;
+        }
+
+        .footer {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 10px;
+            border-top: 1px dashed #000;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header text-center">
+        <div class="company-name">MR BEBIDAS DISTRIBUIDORA</div>
+        <div class="text-xs">Rua Firmo Ananias Cardoso, 269</div>
+        <div class="text-xs">Tel: (11) 1234-5678</div>
+    </div>
+
+    <div class="text-center receipt-title">
+        CUPOM NÃO FISCAL
+    </div>
+
+    <div class="mb-2 text-sm">
+        <div class="flex"><span>Data:</span><span>04/12/2025 19:58</span></div>
+        <div class="flex"><span>Pedido:</span><span>#12345</span></div>
+        <div class="flex"><span>Cliente:</span><span>Rafael Silva</span></div>
+    </div>
+
+    <div class="items-section">
+        <!-- Item 1 -->
+        <div class="mb-1">
+            <div class="item-name">1. Coca Cola 2L</div>
+            <div class="flex">
+                <span class="item-meta">2 un x R$ 10,00</span>
+                <span class="item-total">R$ 20,00</span>
+            </div>
+        </div>
+        <!-- Item 2 -->
+        <div class="mb-1">
+            <div class="item-name">2. Cerveja Heineken 350ml</div>
+            <div class="flex">
+                <span class="item-meta">6 un x R$ 5,50</span>
+                <span class="item-total">R$ 33,00</span>
+            </div>
+        </div>
+        <!-- Item 3 -->
+        <div class="mb-1">
+            <div class="item-name">3. Água Mineral 500ml</div>
+            <div class="flex">
+                <span class="item-meta">1 un x R$ 3,00</span>
+                <span class="item-total">R$ 3,00</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="totals-section">
+        <div class="total-row text-sm">
+            <span>Subtotal:</span>
+            <span>R$ 56,00</span>
+        </div>
+        <div class="total-row text-sm">
+            <span>Descontos:</span>
+            <span>R$ 0,00</span>
+        </div>
+        <div class="total-row final-total">
+            <span>TOTAL:</span>
+            <span>R$ 56,00</span>
+        </div>
+    </div>
+
+    <div class="payment-section">
+        <div class="font-bold text-sm mb-1">FORMA DE PAGAMENTO</div>
+        <div class="flex text-sm">
+            <span>Dinheiro</span>
+            <span>R$ 60,00</span>
+        </div>
+        <div class="flex text-sm mt-1 font-bold">
+            <span>TROCO:</span>
+            <span>R$ 4,00</span>
+        </div>
+    </div>
+
+    <div class="footer">
+        Obrigado e volte sempre!<br>
+        Sistema PDV MR Bebidas
+    </div>
+
+    <script>
+        // Auto print for testing if needed, but we just want to view it
+        // window.print();
+    </script>
+</body>
+
+</html>

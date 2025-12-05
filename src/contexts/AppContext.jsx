@@ -1,0 +1,164 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { cashRegisterService, settingsService } from '../services/firestore';
+
+const AppContext = createContext();
+
+export const useApp = () => {
+    const context = useContext(AppContext);
+    if (!context) {
+        throw new Error('useApp must be used within AppProvider');
+    }
+    return context;
+};
+
+export const AppProvider = ({ children }) => {
+    const [currentCashRegister, setCurrentCashRegister] = useState(null);
+    const [settings, setSettings] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
+
+    // Load current cash register and settings on mount
+    useEffect(() => {
+        loadInitialData();
+    }, []);
+
+    const loadInitialData = async () => {
+        try {
+            setLoading(true);
+
+            // Load current cash register
+            const cashRegister = await cashRegisterService.getCurrent();
+            setCurrentCashRegister(cashRegister);
+
+            // Load settings
+            const allSettings = await settingsService.getAll();
+            const settingsObj = {};
+            allSettings.forEach(setting => {
+                settingsObj[setting.key] = setting.value;
+            });
+            setSettings(settingsObj);
+
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            showNotification('Erro ao carregar dados iniciais', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const showNotification = (message, type = 'info') => {
+        if (!message) {
+            setNotification(null);
+            return;
+        }
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 5000);
+    };
+
+    const updateSettings = async (key, value) => {
+        try {
+            await settingsService.set(key, value);
+            setSettings(prev => ({ ...prev, [key]: value }));
+            showNotification('Configuração atualizada com sucesso', 'success');
+        } catch (error) {
+            console.error('Error updating setting:', error);
+            showNotification('Erro ao atualizar configuração', 'error');
+            throw error;
+        }
+    };
+
+    const openCashRegister = async (openingBalance, openedBy) => {
+        try {
+            const cashRegister = await cashRegisterService.open({
+                openingBalance,
+                openedBy
+            });
+            setCurrentCashRegister(cashRegister);
+            showNotification('Caixa aberto com sucesso', 'success');
+            return cashRegister;
+        } catch (error) {
+            console.error('Error opening cash register:', error);
+            showNotification('Erro ao abrir caixa', 'error');
+            throw error;
+        }
+    };
+
+    const closeCashRegister = async (closingBalance, closedBy, notes = '') => {
+        try {
+            if (!currentCashRegister) {
+                throw new Error('Nenhum caixa aberto');
+            }
+
+            if (!currentCashRegister.id) {
+                console.error('Cash register missing ID:', currentCashRegister);
+                throw new Error('Erro: ID do caixa não encontrado. Por favor, recarregue a página.');
+            }
+
+            const difference = closingBalance - (currentCashRegister.expectedBalance || 0);
+
+            await cashRegisterService.close(currentCashRegister.id, {
+                closingBalance,
+                closedBy,
+                difference,
+                notes
+            });
+
+            setCurrentCashRegister(null);
+            showNotification('Caixa fechado com sucesso', 'success');
+        } catch (error) {
+            console.error('Error closing cash register:', error);
+
+            // Provide more specific error messages
+            if (error.code === 'permission-denied') {
+                showNotification('Erro: Permissão negada para fechar o caixa', 'error');
+            } else if (error.message.includes('ID do caixa')) {
+                showNotification(error.message, 'error');
+            } else {
+                showNotification('Erro ao fechar caixa. Tente novamente.', 'error');
+            }
+
+            throw error;
+        }
+    };
+
+    const addCashMovement = async (type, amount, description, createdBy) => {
+        try {
+            if (!currentCashRegister) {
+                throw new Error('Nenhum caixa aberto');
+            }
+
+            await cashRegisterService.addMovement({
+                cashRegisterId: currentCashRegister.id,
+                type,
+                amount,
+                description,
+                createdBy
+            });
+
+            // Reload cash register to update expected balance
+            const updated = await cashRegisterService.getCurrent();
+            setCurrentCashRegister(updated);
+
+            showNotification('Movimento registrado com sucesso', 'success');
+        } catch (error) {
+            console.error('Error adding cash movement:', error);
+            showNotification('Erro ao registrar movimento', 'error');
+            throw error;
+        }
+    };
+
+    const value = {
+        currentCashRegister,
+        settings,
+        loading,
+        notification,
+        showNotification,
+        updateSettings,
+        openCashRegister,
+        closeCashRegister,
+        addCashMovement,
+        refreshCashRegister: loadInitialData
+    };
+
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
