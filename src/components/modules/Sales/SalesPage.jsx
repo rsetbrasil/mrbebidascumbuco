@@ -77,19 +77,12 @@ const SalesPage = () => {
     const totals = calculateTotals();
     const isEditingSale = !!editingSale;
 
-    // Auto-fill payment amount when modal opens or payments change
+    // Payment input starts at 0; user types given amount to compute troco
     useEffect(() => {
         if (paymentModalOpen) {
-            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-            const targetTotal = isEditingSale ? Math.max(0, totals.total - (editingSale?.originalTotal || 0)) : totals.total;
-            const remaining = targetTotal - totalPaid;
-            if (remaining > 0) {
-                setPaymentAmount(remaining);
-            } else {
-                setPaymentAmount('');
-            }
+            setPaymentAmount(0);
         }
-    }, [paymentModalOpen, payments, totals.total, isEditingSale, editingSale]);
+    }, [paymentModalOpen]);
 
     useEffect(() => {
         loadProducts();
@@ -184,45 +177,71 @@ const SalesPage = () => {
             }
         } else if (e.key === 'Enter') {
             e.preventDefault();
+            const term = String(searchTerm || '').trim();
 
-            if (selectedIndex >= 0 && selectedIndex < filteredProducts.length) {
-                handleProductSelect(filteredProducts[selectedIndex]);
-            } else if (searchTerm) {
-                // Check for exact barcode match (product or unit)
-                const exactProduct = products.find(p => p.barcode === searchTerm);
+            if (term) {
+                // Priorize exact barcode match (product or unit)
+                const exactProduct = products.find(p => String(p.barcode || '').trim() === term);
 
                 if (exactProduct) {
-                    addToCart(exactProduct);
-                    setSearchTerm('');
-                    setFilteredProducts([]);
-                } else {
-                    // Check unit barcodes
-                    let foundUnit = null;
-                    let foundProduct = null;
+                    handleProductSelect(exactProduct);
+                    return;
+                }
 
-                    for (const p of products) {
-                        if (p.units && p.units.length > 0) {
-                            const unit = p.units.find(u => u.barcode === searchTerm);
-                            if (unit) {
-                                foundProduct = p;
-                                foundUnit = unit;
-                                break;
-                            }
+                let foundUnit = null;
+                let foundProduct = null;
+                for (const p of products) {
+                    if (p.units && p.units.length > 0) {
+                        const unit = p.units.find(u => String(u.barcode || '').trim() === term);
+                        if (unit) {
+                            foundProduct = p;
+                            foundUnit = unit;
+                            break;
                         }
                     }
+                }
+                if (foundProduct && foundUnit) {
+                    addToCart(foundProduct, foundUnit);
+                    setSearchTerm('');
+                    setFilteredProducts([]);
+                    return;
+                }
 
-                    if (foundProduct && foundUnit) {
-                        addToCart(foundProduct, foundUnit);
-                        setSearchTerm('');
-                        setFilteredProducts([]);
+                // If numeric code typed, try prefix match to add directly
+                if (/^\d+$/.test(term)) {
+                    const isColdReq = priceType === 'cold';
+                    const hasStock = (p) => isColdReq ? ((p.coldStock || 0) > 0) : ((p.stock || 0) > 0);
+                    const pref = products.find(p => String(p.barcode || '').trim().startsWith(term) && hasStock(p));
+                    if (pref) {
+                        handleProductSelect(pref);
+                        return;
                     }
+                }
+            }
+
+            // If not barcode, open modal for the selected product or the first available result
+            if (filteredProducts.length > 0) {
+                let idx = selectedIndex >= 0 && selectedIndex < filteredProducts.length ? selectedIndex : 0;
+                const isColdReq = priceType === 'cold';
+                let candidate = filteredProducts[idx];
+                const hasStock = (p) => isColdReq ? ((p.coldStock || 0) > 0) : ((p.stock || 0) > 0);
+                if (!hasStock(candidate)) {
+                    const alt = filteredProducts.find(hasStock);
+                    if (alt) candidate = alt;
+                }
+                if (candidate && hasStock(candidate)) {
+                    handleProductSelect(candidate);
+                } else {
+                    showNotification('Nenhum produto com estoque disponível', 'warning');
                 }
             }
         }
     };
 
     const handleProductSelect = (product) => {
-        if (product.stock <= 0) {
+        const requiredCold = priceType === 'cold';
+        const available = requiredCold ? (product.coldStock || 0) : (product.stock || 0);
+        if (available <= 0) {
             showNotification('Produto sem estoque', 'warning');
             return;
         }
@@ -417,8 +436,31 @@ const SalesPage = () => {
                 await presalesService.update(presaleId, cleanPresaleData);
                 showNotification('Pré-venda atualizada com sucesso!', 'success');
             } else {
-                await presalesService.create(cleanPresaleData);
-                showNotification('Pré-venda salva com sucesso!', 'success');
+                // Reserva de estoque para pré-venda
+                const getDeduction = (it) => {
+                    if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * it.quantity;
+                    if (it.unit && it.unit.multiplier) return it.quantity * it.unit.multiplier;
+                    return it.quantity;
+                };
+                for (const item of items) {
+                    try {
+                        const product = await productService.getById(item.id);
+                        if (!product) continue;
+                        const deduction = getDeduction(item);
+                        if (item.isCold) {
+                            const newCold = (product.coldStock || 0) - deduction;
+                            await productService.update(product.id, { coldStock: Math.max(0, newCold) });
+                        } else {
+                            const newStock = (product.stock || 0) - deduction;
+                            await productService.update(product.id, { stock: Math.max(0, newStock) });
+                        }
+                    } catch (e) {
+                        console.error('Error reserving stock for presale item', item.name, e);
+                    }
+                }
+
+                await presalesService.create({ ...cleanPresaleData, reserved: true, reservedAt: new Date() });
+                showNotification('Pré-venda salva e estoque reservado!', 'success');
             }
 
             clearCart();
@@ -469,6 +511,7 @@ const SalesPage = () => {
                 return it.quantity;
             };
             for (const item of items) {
+                if (cartData.presaleId) break; // estoque já reservado na pré-venda
                 if (!item.id) continue;
 
                 const product = await productService.getById(item.id);
@@ -501,7 +544,7 @@ const SalesPage = () => {
                 customerName: customer?.name || 'Cliente Padrão',
                 items: items.map(item => ({
                     productId: item.id || null,
-                    productName: item.name || productMap.get(item.id)?.name || 'Produto Sem Nome',
+                    productName: item.name || item.productName || productMap.get(item.id)?.name || 'Produto',
                     quantity: Number(item.quantity) || 0,
                     unitPrice: Number(item.unitPrice) || 0,
                     unitCost: Number(item.unitCost) || 0,
@@ -524,6 +567,7 @@ const SalesPage = () => {
                 priceType: priceType || 'retail',
                 totalPaid: isEditingSale ? Number((editingSale?.originalTotal || 0) + totalPaid) : Number(totalPaid) || 0,
                 paymentStatus: 'paid',
+                change: Number(change) || 0,
                 createdBy: user?.name || 'Operador'
             };
 
@@ -586,10 +630,10 @@ const SalesPage = () => {
                 }
             }
 
-            // Update stock
+            // Update stock (se não veio de pré-venda)
             for (const item of items) {
                 try {
-                    if (!item.id) continue;
+                    if (!item.id || cartData.presaleId) continue;
 
                     const product = await productService.getById(item.id);
                     if (!product) continue;
@@ -698,7 +742,7 @@ const SalesPage = () => {
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{product.name}</div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                                {product.barcode || 'Sem código'} | Estoque: {product.stock}
+                                                {product.barcode || 'Sem código'} | Atacado: {product.stock ?? 0} | Gelada: {product.coldStock ?? 0}
                                             </div>
                                         </div>
                                         <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>

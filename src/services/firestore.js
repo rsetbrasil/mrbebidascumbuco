@@ -389,15 +389,9 @@ export const customerService = {
 // Sales-specific operations
 export const salesService = {
     async create(sale) {
-        // Generate sale number based on timestamp (avoids Firestore quota issues)
-        const timestamp = Date.now();
-        const random = Math.floor(Math.random() * 1000);
-        const saleNumber = `${timestamp}${random}`.slice(-10); // Last 10 digits
-
-        const saleWithNumber = {
-            ...sale,
-            saleNumber: saleNumber
-        };
+        // Sequential sale number starting at 1
+        const nextNumber = await counterService.getNextNumber('sales');
+        const saleWithNumber = { ...sale, saleNumber: String(nextNumber) };
         return firestoreService.create(COLLECTIONS.SALES, saleWithNumber);
     },
 

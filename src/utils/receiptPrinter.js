@@ -181,7 +181,7 @@ export const printReceipt = (sale, settings = {}) => {
         const unitName = (item.unit && (item.unit.abbreviation || item.unit.name))
             ? (item.unit.abbreviation || item.unit.name)
             : ((item.isWholesale && !item.isCold) ? (settings.wholesaleUnitLabel || 'FD') : 'un');
-        let displayName = item.productName || item.name || 'Item';
+        let displayName = item.productName || item.name || `Produto ${index + 1}`;
         if (item.unit && item.unit.name && !String(displayName).includes(item.unit.name)) {
             displayName = `${displayName} (${item.unit.name})`;
         }
@@ -194,6 +194,7 @@ export const printReceipt = (sale, settings = {}) => {
                     <span class="item-total">${total}</span>
                 </div>
             </div>
+            ${index < ((sale.items || []).length - 1) ? '<div class="border-b mb-1"></div>' : ''}
         `;
     });
 
@@ -255,6 +256,7 @@ export const printReceipt = (sale, settings = {}) => {
             <div class="details-row"><span>Data:</span><span>${dateStr}</span></div>
             <div class="details-row"><span>Tipos:</span><span>${[hasCold ? 'Gelada' : null, hasWholesale ? 'Atacado' : null].filter(Boolean).join(' + ') || '-'}</span></div>
         </div>
+        <div class="border-b mb-2"></div>
         
         <div class="items-section">
             ${itemsHtml}

@@ -8,14 +8,16 @@ import {
     CheckCircle,
     Clock,
     Printer,
-    Edit
+    Edit,
+    Eye
 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { presalesService } from '../../../services/firestore';
+import Modal from '../../common/Modal';
+import { presalesService, productService } from '../../../services/firestore';
 import { useCart } from '../../../contexts/CartContext';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
@@ -30,6 +32,8 @@ const PresalesPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('pending'); // pending, completed, cancelled, all
     const [notification, setNotification] = useState(null);
+    const [viewModalOpen, setViewModalOpen] = useState(false);
+    const [viewPresale, setViewPresale] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -86,7 +90,30 @@ const PresalesPage = () => {
         if (!window.confirm('Tem certeza que deseja cancelar este pedido?')) return;
 
         try {
-            await presalesService.updateStatus(id, 'cancelled');
+            const presale = await presalesService.getById(id);
+            const getDeduction = (it) => {
+                if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * (Number(it.quantity) || 0);
+                if (it.unit && it.unit.multiplier) return (Number(it.quantity) || 0) * it.unit.multiplier;
+                return Number(it.quantity) || 0;
+            };
+            for (const item of (presale.items || [])) {
+                try {
+                    const product = await productService.getById(item.productId);
+                    if (!product) continue;
+                    const deduction = getDeduction(item);
+                    if (item.isCold) {
+                        const newCold = (product.coldStock || 0) + deduction;
+                        await productService.update(product.id, { coldStock: newCold });
+                    } else {
+                        const newStock = (product.stock || 0) + deduction;
+                        await productService.update(product.id, { stock: newStock });
+                    }
+                } catch (e) {
+                    console.error('Error restoring stock for cancelled presale item:', e);
+                }
+            }
+
+            await presalesService.update(id, { status: 'cancelled', reserved: false, cancelledAt: new Date() });
             showNotification('success', 'Pedido cancelado com sucesso');
             loadData();
         } catch (error) {
@@ -120,6 +147,11 @@ const PresalesPage = () => {
             console.error('Error loading presale for edit:', error);
             showNotification('error', 'Erro ao carregar pré-venda');
         }
+    };
+
+    const handleViewPresale = (presale) => {
+        setViewPresale(presale);
+        setViewModalOpen(true);
     };
 
     const filteredPresales = presales.filter(p => {
@@ -358,6 +390,23 @@ const PresalesPage = () => {
                                                     >
                                                         <Edit size={18} />
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleViewPresale(presale)}
+                                                        style={{
+                                                            padding: '8px',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            color: 'var(--color-text-secondary)',
+                                                            cursor: 'pointer',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            transition: 'background var(--transition-fast)'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        title="Ver"
+                                                    >
+                                                        <Eye size={18} />
+                                                    </button>
                                                     <Button
                                                         size="sm"
                                                         variant="primary"
@@ -401,6 +450,78 @@ const PresalesPage = () => {
                     </table>
                 </div>
             </Card>
+            {/* View Presale Modal */}
+            <Modal
+                isOpen={viewModalOpen}
+                onClose={() => setViewModalOpen(false)}
+                title={`Pré-venda ${viewPresale ? '#' + viewPresale.id.substring(0,8).toUpperCase() : ''}`}
+                size="md"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    {viewPresale && (
+                        <>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)' }}>
+                                <div>
+                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Cliente</div>
+                                    <div style={{ fontWeight: 600 }}>{viewPresale.customerName || 'Cliente Balcão'}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Data</div>
+                                    <div style={{ fontWeight: 600 }}>{formatDateTime(viewPresale.createdAt)}</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                {(viewPresale.items || []).some(i => !!i.isCold) && (
+                                    <span style={{
+                                        padding: '4px 8px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: 'var(--color-primary)',
+                                        color: '#fff',
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 500,
+                                        border: '1px solid var(--color-primary)'
+                                    }}>Gelada</span>
+                                )}
+                                {((viewPresale.customerPriceType === 'wholesale') || (viewPresale.items || []).some(i => !!i.isWholesale)) && (
+                                    <span style={{
+                                        padding: '4px 8px',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: 'var(--color-success)',
+                                        color: '#fff',
+                                        fontSize: 'var(--font-size-xs)',
+                                        fontWeight: 500,
+                                        border: '1px solid var(--color-success)'
+                                    }}>Atacado</span>
+                                )}
+                            </div>
+                            <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                                {(viewPresale.items || []).map((item, idx) => (
+                                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 90px', gap: '8px', padding: '8px 12px', borderBottom: '1px solid var(--color-divider)' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{item.productName}</div>
+                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                                {item.quantity} {(item.unit?.abbreviation || item.unit?.name || 'un')} x {formatCurrency(item.unitPrice)}
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', color: 'var(--color-text-secondary)' }}>{formatCurrency(item.unitPrice)}</div>
+                                        <div style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(item.total)}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-sm)' }}>
+                                <div>
+                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Subtotal</div>
+                                    <div style={{ fontWeight: 600 }}>{formatCurrency(viewPresale.subtotal || viewPresale.total)}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Total</div>
+                                    <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{formatCurrency(viewPresale.total)}</div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 };

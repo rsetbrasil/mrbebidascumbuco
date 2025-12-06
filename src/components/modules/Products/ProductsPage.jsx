@@ -148,18 +148,18 @@ const ProductsPage = () => {
 
                             setLoading(true);
                             try {
-                                // Ordena por nome (asc) e gera códigos sequenciais 001..N (atacado)
+                                // Ordena por nome (asc) e gera códigos sequenciais 1..N (atacado)
                                 const sorted = [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
                                 let updatedCount = 0;
 
                                 for (let i = 0; i < sorted.length; i++) {
                                     const product = sorted[i];
-                                    const seq = String(i + 1).padStart(3, '0');
+                                    const seq = String(i + 1);
                                     await productService.update(product.id, { barcode: seq });
                                     updatedCount++;
                                 }
 
-                                showNotification('success', `${updatedCount} códigos redefinidos (001… em ordem alfabética)`);
+                                showNotification('success', `${updatedCount} códigos redefinidos (1… em ordem alfabética)`);
                                 loadData();
                             } catch (error) {
                                 console.error('Error resetting codes:', error);

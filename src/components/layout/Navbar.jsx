@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DollarSign, User, Menu, LogOut } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,6 +6,17 @@ import { useAuth } from '../../contexts/AuthContext';
 const Navbar = ({ onMenuClick }) => {
     const { currentCashRegister } = useApp();
     const { user, logout } = useAuth();
+
+    const [time, setTime] = useState('');
+    useEffect(() => {
+        const tick = () => {
+            const now = new Date();
+            setTime(now.toLocaleTimeString('pt-BR', { hour12: false }));
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, []);
 
     return (
         <nav style={{
@@ -18,9 +29,9 @@ const Navbar = ({ onMenuClick }) => {
             backdropFilter: 'blur(10px)'
         }}>
             <div style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: '1fr auto 1fr',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 maxWidth: '1400px',
                 margin: '0 auto'
             }}>
@@ -61,8 +72,28 @@ const Navbar = ({ onMenuClick }) => {
                     </h1>
                 </div>
 
+                {/* Middle: Digital Clock */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                }}>
+                    <div style={{
+                        fontFamily: 'Courier New, monospace',
+                        fontSize: onMenuClick ? 'var(--font-size-md)' : '1.25rem',
+                        fontWeight: 700,
+                        color: 'var(--color-text-primary)',
+                        background: 'var(--color-bg-primary)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '6px 12px',
+                        minWidth: '120px',
+                        textAlign: 'center'
+                    }}>{time}</div>
+                </div>
+
                 {/* Right side */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
                     {/* Cash Register Status */}
                     {currentCashRegister ? (
                         <div style={{
