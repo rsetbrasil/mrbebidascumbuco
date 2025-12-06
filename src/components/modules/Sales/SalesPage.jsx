@@ -745,8 +745,13 @@ const SalesPage = () => {
                                                 {product.barcode || 'Sem código'} | Atacado: {product.stock ?? 0} | Gelada: {product.coldStock ?? 0}
                                             </div>
                                         </div>
-                                        <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
-                                            {formatCurrency(product.wholesalePrice || product.price)}
+                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <div style={{ fontWeight: 600, color: 'var(--color-success)' }}>
+                                                Atacado: {formatCurrency(product.wholesalePrice || product.price)}
+                                            </div>
+                                            <div style={{ fontWeight: 600, color: '#3b82f6' }}>
+                                                Gelada: {formatCurrency(product.coldPrice || product.price)}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
