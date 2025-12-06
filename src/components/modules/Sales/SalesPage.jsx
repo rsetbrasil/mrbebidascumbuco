@@ -719,26 +719,32 @@ const SalesPage = () => {
                                 borderRadius: 'var(--radius-md)'
                             }}>
                                 {filteredProducts.map((product, index) => (
-                                    <div
-                                        key={product.id}
-                                        onClick={() => handleProductSelect(product)}
-                                        style={{
-                                            padding: 'var(--spacing-md)',
-                                            borderBottom: '1px solid var(--color-divider)',
-                                            cursor: 'pointer',
-                                            transition: 'background var(--transition-fast)',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            background: index === selectedIndex ? 'var(--color-bg-hover)' : 'transparent'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            if (index !== selectedIndex) e.currentTarget.style.background = 'var(--color-bg-hover)'
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            if (index !== selectedIndex) e.currentTarget.style.background = 'transparent'
-                                        }}
-                                    >
+                                        <div
+                                            key={product.id}
+                                            onClick={() => handleProductSelect(product)}
+                                            style={{
+                                                padding: 'var(--spacing-md)',
+                                                borderBottom: '1px solid var(--color-divider)',
+                                                cursor: 'pointer',
+                                                transition: 'all var(--transition-fast)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                background: index === selectedIndex ? 'var(--color-bg-hover)' : 'transparent',
+                                                borderRadius: 'var(--radius-md)',
+                                                boxShadow: index === selectedIndex ? 'var(--shadow-md)' : 'var(--shadow-sm)'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (index !== selectedIndex) e.currentTarget.style.background = 'var(--color-bg-hover)';
+                                                e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                if (index !== selectedIndex) e.currentTarget.style.background = 'transparent';
+                                                e.currentTarget.style.boxShadow = index === selectedIndex ? 'var(--shadow-md)' : 'var(--shadow-sm)';
+                                                e.currentTarget.style.transform = 'translateY(0)';
+                                            }}
+                                        >
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{product.name}</div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
