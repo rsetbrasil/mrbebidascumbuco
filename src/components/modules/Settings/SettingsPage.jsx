@@ -90,7 +90,7 @@ const SettingsPage = () => {
             return;
         }
 
-        const targetLabel = bulkTarget === 'stock' ? 'Estoque Natural' : 'Estoque Gelado';
+        const targetLabel = bulkTarget === 'stock' ? 'Estoque Atacado' : 'Estoque Gelado';
         const modeLabel = bulkMode === 'set' ? 'DEFINIR' : 'SOMAR';
 
         if (!window.confirm(`Confirmar: ${modeLabel} ${targetLabel} para ${qty} em TODOS os produtos?`)) {
@@ -379,7 +379,7 @@ const SettingsPage = () => {
                                             onClick={() => setBulkTarget('stock')}
                                             className="flex-1"
                                         >
-                                            Estoque Natural
+                                            Estoque Atacado
                                         </Button>
                                         <Button
                                             type="button"

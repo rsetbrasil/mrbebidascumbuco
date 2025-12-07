@@ -8,6 +8,7 @@ const Navbar = ({ onMenuClick }) => {
     const { user, logout } = useAuth();
 
     const [time, setTime] = useState('');
+    const [isCompact, setIsCompact] = useState(false);
     useEffect(() => {
         const tick = () => {
             const now = new Date();
@@ -16,6 +17,15 @@ const Navbar = ({ onMenuClick }) => {
         tick();
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
+    }, []);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsCompact(window.innerWidth < 1024);
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     return (
@@ -100,31 +110,33 @@ const Navbar = ({ onMenuClick }) => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 'var(--spacing-sm)',
-                            padding: '8px 12px',
+                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
                             background: 'var(--color-success)',
                             borderRadius: 'var(--radius-full)',
-                            fontSize: onMenuClick ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
                             color: 'white',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
                         }}>
-                            <DollarSign size={onMenuClick ? 14 : 16} />
-                            <span style={{ display: onMenuClick ? 'none' : 'inline' }}>Caixa Aberto</span>
-                            <span style={{ display: onMenuClick ? 'inline' : 'none' }}>Aberto</span>
+                            <DollarSign size={(onMenuClick || isCompact) ? 14 : 16} />
+                            <span style={{ display: (onMenuClick || isCompact) ? 'none' : 'inline' }}>Caixa Aberto</span>
+                            <span style={{ display: (onMenuClick || isCompact) ? 'inline' : 'none' }}>Aberto</span>
                         </div>
                     ) : (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: 'var(--spacing-sm)',
-                            padding: '8px 12px',
+                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
                             background: 'var(--color-danger)',
                             borderRadius: 'var(--radius-full)',
-                            fontSize: onMenuClick ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
                             color: 'white',
-                            fontWeight: 600
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
                         }}>
-                            <DollarSign size={onMenuClick ? 14 : 16} />
-                            <span>Fechado</span>
+                            <DollarSign size={(onMenuClick || isCompact) ? 14 : 16} />
+                            <span style={{ display: (onMenuClick || isCompact) ? 'inline' : 'inline' }}>{(onMenuClick || isCompact) ? 'Fech.' : 'Fechado'}</span>
                         </div>
                     )}
 
