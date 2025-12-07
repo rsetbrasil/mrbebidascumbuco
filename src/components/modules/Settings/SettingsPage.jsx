@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Printer, Building, AlertTriangle, Trash2 } from 'lucide-react';
+import { Save, Printer, Building, AlertTriangle, Trash2, Package } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -16,6 +16,10 @@ const SettingsPage = () => {
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [bulkQty, setBulkQty] = useState('');
+    const [bulkTarget, setBulkTarget] = useState('stock'); // 'stock' | 'coldStock'
+    const [bulkMode, setBulkMode] = useState('set'); // 'set' | 'add'
     const [settings, setSettings] = useState({
         receiptHeader: '',
         receiptFooter: '',
@@ -76,6 +80,39 @@ const SettingsPage = () => {
             showNotification('error', 'Erro ao salvar configurações');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleApplyBulkStock = async () => {
+        const qty = parseFloat(bulkQty);
+        if (isNaN(qty) || qty < 0) {
+            showNotification('error', 'Informe uma quantidade válida');
+            return;
+        }
+
+        const targetLabel = bulkTarget === 'stock' ? 'Estoque Natural' : 'Estoque Gelado';
+        const modeLabel = bulkMode === 'set' ? 'DEFINIR' : 'SOMAR';
+
+        if (!window.confirm(`Confirmar: ${modeLabel} ${targetLabel} para ${qty} em TODOS os produtos?`)) {
+            return;
+        }
+
+        setBulkLoading(true);
+        try {
+            const products = await productService.getAll();
+            let updated = 0;
+            for (const p of products) {
+                const current = Number(p[bulkTarget] || 0);
+                const next = bulkMode === 'set' ? qty : current + qty;
+                await productService.update(p.id, { [bulkTarget]: next });
+                updated++;
+            }
+            showNotification('success', `Quantidade aplicada em ${updated} produto(s)`);
+        } catch (error) {
+            console.error('Bulk stock update error:', error);
+            showNotification('error', 'Erro ao aplicar quantidade em massa');
+        } finally {
+            setBulkLoading(false);
         }
     };
 
@@ -313,6 +350,81 @@ const SettingsPage = () => {
                                     Restaurar Backup
                                 </Button>
                             </div>
+                        </div>
+                    </Card>
+
+                    {/* Estoque em Massa */}
+                    <Card title="Estoque em Massa" icon={Package}>
+                        <div className="space-y-4 p-4">
+                            <p className="text-gray-400 text-sm">
+                                Defina ou some uma quantidade de estoque para todos os produtos.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Input
+                                    label="Quantidade"
+                                    name="bulkQty"
+                                    type="number"
+                                    value={bulkQty}
+                                    onChange={(e) => setBulkQty(e.target.value)}
+                                    placeholder="Ex: 10"
+                                />
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
+                                        Alvo
+                                    </label>
+                                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                                        <Button
+                                            type="button"
+                                            variant={bulkTarget === 'stock' ? 'primary' : 'secondary'}
+                                            onClick={() => setBulkTarget('stock')}
+                                            className="flex-1"
+                                        >
+                                            Estoque Natural
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={bulkTarget === 'coldStock' ? 'primary' : 'secondary'}
+                                            onClick={() => setBulkTarget('coldStock')}
+                                            className="flex-1"
+                                        >
+                                            Estoque Gelado
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
+                                        Modo
+                                    </label>
+                                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                                        <Button
+                                            type="button"
+                                            variant={bulkMode === 'set' ? 'primary' : 'secondary'}
+                                            onClick={() => setBulkMode('set')}
+                                            className="flex-1"
+                                        >
+                                            Definir
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant={bulkMode === 'add' ? 'primary' : 'secondary'}
+                                            onClick={() => setBulkMode('add')}
+                                            className="flex-1"
+                                        >
+                                            Somar
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="success"
+                                onClick={handleApplyBulkStock}
+                                loading={bulkLoading}
+                                className="w-full justify-center"
+                            >
+                                Aplicar nos Produtos
+                            </Button>
                         </div>
                     </Card>
                 </div>
