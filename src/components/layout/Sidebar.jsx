@@ -18,16 +18,16 @@ const Sidebar = ({ onClose }) => {
 
     const menuItems = [
         { path: '/', icon: Home, label: 'Painel', restricted: true },
-        { path: '/sales', icon: ShoppingCart, label: 'PDV' },
-        { path: '/sales-history', icon: ClipboardList, label: 'Vendas' },
-        { path: '/products', icon: Package, label: 'Produtos' },
-        { path: '/categories', icon: Database, label: 'Categorias' },
-        { path: '/customers', icon: Users, label: 'Clientes' },
-        { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
-        { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
-        { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
-        { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
-        { path: '/reset-data', icon: Database, label: 'Resetar Dados', restricted: true }
+        { path: '/pdv', icon: ShoppingCart, label: 'PDV' },
+        { path: '/vendas', icon: ClipboardList, label: 'Vendas' },
+        { path: '/produtos', icon: Package, label: 'Produtos' },
+        { path: '/categorias', icon: Database, label: 'Categorias' },
+        { path: '/clientes', icon: Users, label: 'Clientes' },
+        { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
+        { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
+        { path: '/financeiro', icon: BarChart3, label: 'Financeiro', restricted: true },
+        { path: '/configuracoes', icon: Settings, label: 'Configurações', restricted: true },
+        { path: '/zerar-dados', icon: Database, label: 'Resetar Dados', restricted: true }
     ];
 
     const filteredItems = menuItems.filter(item => !item.restricted || isManager);

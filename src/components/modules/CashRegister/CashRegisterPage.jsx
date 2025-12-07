@@ -238,7 +238,7 @@ const CashRegisterPage = () => {
                 <div className="flex gap-3">
                     <Button
                         variant="secondary"
-                        onClick={() => navigate('/cash-register-history')}
+                        onClick={() => navigate('/historico-caixa')}
                         icon={History}
                     >
                         Histórico

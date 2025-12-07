@@ -60,7 +60,7 @@ const CashRegisterHistoryPage = () => {
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
-                        onClick={() => navigate('/cash-register')}
+                        onClick={() => navigate('/caixa')}
                         icon={ArrowLeft}
                     >
                         Voltar

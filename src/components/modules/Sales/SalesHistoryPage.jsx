@@ -503,7 +503,7 @@ const SalesHistoryPage = () => {
                             >
                                 Cancelar Venda
                             </Button>
-                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
+                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/pdv'); }}>
                                 Editar no PDV
                             </Button>
                         </div>
