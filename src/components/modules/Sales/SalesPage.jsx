@@ -369,15 +369,16 @@ const SalesPage = () => {
     };
 
     const handleAddPayment = () => {
-        const amount = parseFloat(paymentAmount);
+        const amount = Number(paymentAmount);
         if (!amount || amount <= 0) {
             showNotification('Informe um valor válido', 'warning');
             return;
         }
 
-        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        const totalPaid = Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+        const totalDue = Math.round(totals.total * 100) / 100;
 
-        if (totalPaid + amount > totals.total + 1000) {
+        if (totalPaid + amount > totalDue + 1000) {
             showNotification('Valor muito alto', 'warning');
             return;
         }
@@ -492,9 +493,10 @@ const SalesPage = () => {
             }
 
             const totals = calculateTotals();
-            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+            const totalPaid = Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+            const totalDue = Math.round(totals.total * 100) / 100;
 
-            if (totalPaid < totals.total) {
+            if (totalPaid + 0.001 < totalDue) {
                 showNotification('Valor pago insuficiente', 'error');
                 setProcessing(false);
                 return;
@@ -1216,8 +1218,8 @@ const SalesPage = () => {
                                 !canCheckout ||
                                 processing ||
                                 (isEditingSale
-                                    ? (payments.reduce((sum, p) => sum + p.amount, 0) < Math.max(0, totals.total - (editingSale?.originalTotal || 0)))
-                                    : (payments.reduce((sum, p) => sum + p.amount, 0) < totals.total)
+                                    ? ((Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100) + 0.001 < Math.max(0, Math.round((totals.total - (editingSale?.originalTotal || 0)) * 100) / 100))
+                                    : ((Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100) + 0.001 < Math.round(totals.total * 100) / 100)
                                 )
                             }
                             loading={processing}
