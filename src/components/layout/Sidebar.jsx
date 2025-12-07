@@ -15,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
 const Sidebar = ({ onClose }) => {
-    const { isManager } = useAuth();
+    const { isManager, isCashier } = useAuth();
     const { settings } = useApp();
 
     const menuItems = [
@@ -32,7 +32,13 @@ const Sidebar = ({ onClose }) => {
         { path: '/zerar-dados', icon: Database, label: 'Resetar Dados', restricted: true }
     ];
 
-    const filteredItems = menuItems.filter(item => !item.restricted || isManager);
+    const filteredItems = menuItems.filter(item => {
+        if (!item.restricted) return true;
+        if (item.path === '/caixa') {
+            return isManager || isCashier;
+        }
+        return isManager;
+    });
 
     const handleNavClick = () => {
         if (onClose) onClose();

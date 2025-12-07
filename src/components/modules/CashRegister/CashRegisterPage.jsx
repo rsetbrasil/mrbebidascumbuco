@@ -16,9 +16,11 @@ import Input from '../../common/Input';
 import CurrencyInput from '../../common/CurrencyInput';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
+import Modal from '../../common/Modal';
 import MovementModal from './MovementModal';
 import { useApp } from '../../../contexts/AppContext';
-import { cashRegisterService, salesService } from '../../../services/firestore';
+import { cashRegisterService, salesService, userService } from '../../../services/firestore';
+import { useAuth } from '../../../contexts/AuthContext';
 import { formatCurrency, formatDateTime, parseCurrency } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
 
@@ -31,6 +33,7 @@ const CashRegisterPage = () => {
         addCashMovement,
         loading: contextLoading
     } = useApp();
+    const { user, isManager, isCashier } = useAuth();
 
     const [loading, setLoading] = useState(false);
     const [movements, setMovements] = useState([]);
@@ -39,6 +42,10 @@ const CashRegisterPage = () => {
     const [closingNote, setClosingNote] = useState('');
     const [modalType, setModalType] = useState(null);
     const [notification, setNotification] = useState(null);
+    const [managerModalOpen, setManagerModalOpen] = useState(false);
+    const [managerUsername, setManagerUsername] = useState('');
+    const [managerPassword, setManagerPassword] = useState('');
+    const [managerError, setManagerError] = useState('');
 
     const isRegisterOpen = !!currentCashRegister;
 
@@ -81,9 +88,14 @@ const CashRegisterPage = () => {
             return;
         }
 
+        if (!isManager && !isCashier) {
+            showNotification('error', 'Apenas gerente ou caixa podem abrir o caixa');
+            return;
+        }
+
         setLoading(true);
         try {
-            await openCashRegister(parseFloat(openingBalance) || 0, 'Admin');
+            await openCashRegister(parseFloat(openingBalance) || 0, user?.name || 'Operador');
             showNotification('success', 'Caixa aberto com sucesso');
             setOpeningBalance('');
         } catch (error) {
@@ -94,9 +106,7 @@ const CashRegisterPage = () => {
         }
     };
 
-    const handleCloseRegister = async () => {
-        if (!window.confirm('Tem certeza que deseja fechar o caixa?')) return;
-
+    const proceedClose = async (approvedByManagerName = null) => {
         setLoading(true);
         try {
             const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
@@ -112,13 +122,17 @@ const CashRegisterPage = () => {
 
             const finalBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
 
-            await closeCashRegister(finalBalance, 'Admin', closingNote);
+            const closedByLabel = approvedByManagerName
+                ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
+                : (user?.name || 'Operador');
+
+            await closeCashRegister(finalBalance, closedByLabel, closingNote);
 
             // Print closing report
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
                 closedAt: new Date(),
-                closedBy: 'Admin',
+                closedBy: closedByLabel,
                 openingBalance: currentCashRegister.openingBalance,
                 totalSales,
                 totalSupplies,
@@ -140,9 +154,28 @@ const CashRegisterPage = () => {
         }
     };
 
+    const handleCloseRegister = async () => {
+        if (!window.confirm('Tem certeza que deseja fechar o caixa?')) return;
+
+        if (isManager) {
+            await proceedClose();
+            return;
+        }
+
+        if (isCashier) {
+            setManagerUsername('');
+            setManagerPassword('');
+            setManagerError('');
+            setManagerModalOpen(true);
+            return;
+        }
+
+        showNotification('error', 'Somente gerente pode fechar o caixa');
+    };
+
     const handleMovement = async (data) => {
         try {
-            await addCashMovement(data.type, data.amount, data.description, 'Admin');
+            await addCashMovement(data.type, data.amount, data.description, user?.name || 'Operador');
             showNotification('success', 'Movimentação registrada');
             loadMovements();
         } catch (error) {
@@ -409,6 +442,68 @@ const CashRegisterPage = () => {
                 onSave={handleMovement}
                 type={modalType}
             />
+
+            {/* Manager Approval Modal for Cashier Closing */}
+            <Modal
+                isOpen={managerModalOpen}
+                onClose={() => setManagerModalOpen(false)}
+                title="Aprovação do Gerente"
+            >
+                <div className="space-y-4">
+                    <p className="text-gray-400 text-sm">Informe usuário e senha do gerente para fechar o caixa.</p>
+                    <Input
+                        label="Usuário do Gerente"
+                        value={managerUsername}
+                        onChange={(e) => setManagerUsername(e.target.value)}
+                        placeholder="ex: admin"
+                        autoFocus
+                    />
+                    <Input
+                        label="Senha do Gerente"
+                        type="password"
+                        value={managerPassword}
+                        onChange={(e) => setManagerPassword(e.target.value)}
+                        placeholder="••••"
+                    />
+                    {managerError && (
+                        <div className="text-red-400 text-sm">{managerError}</div>
+                    )}
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="ghost" onClick={() => setManagerModalOpen(false)}>Cancelar</Button>
+                        <Button
+                            variant="primary"
+                            onClick={async () => {
+                                setManagerError('');
+                                try {
+                                    const mgr = await userService.getByUsername(managerUsername);
+                                    if (!mgr) {
+                                        setManagerError('Gerente não encontrado');
+                                        return;
+                                    }
+                                    if (mgr.role !== 'manager') {
+                                        setManagerError('Usuário informado não é gerente');
+                                        return;
+                                    }
+                                    if (!mgr.active) {
+                                        setManagerError('Gerente inativo');
+                                        return;
+                                    }
+                                    if (mgr.password !== managerPassword) {
+                                        setManagerError('Senha incorreta');
+                                        return;
+                                    }
+                                    setManagerModalOpen(false);
+                                    await proceedClose(mgr.name || mgr.username);
+                                } catch (e) {
+                                    setManagerError(e.message || 'Erro ao validar gerente');
+                                }
+                            }}
+                        >
+                            Validar e Fechar
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };
