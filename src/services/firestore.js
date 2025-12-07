@@ -432,6 +432,10 @@ export const salesService = {
 
     async update(id, sale) {
         return firestoreService.update(COLLECTIONS.SALES, id, sale);
+    },
+
+    async delete(id) {
+        return firestoreService.delete(COLLECTIONS.SALES, id);
     }
 };
 

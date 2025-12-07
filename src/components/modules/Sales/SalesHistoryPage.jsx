@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, XCircle, Eye, Calendar, Filter, Printer } from 'lucide-react';
+import { Search, XCircle, Eye, Calendar, Filter, Printer, Trash2 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -88,6 +88,39 @@ const SalesHistoryPage = () => {
         } catch (error) {
             console.error('Error cancelling sale:', error);
             showNotification('error', 'Erro ao cancelar venda');
+        }
+    };
+
+    const handleDeleteSale = async (sale) => {
+        if (!window.confirm(`ATENÇÃO: Apagar a venda #${sale.saleNumber} irá removê-la definitivamente. Deseja continuar?`)) {
+            return;
+        }
+        if (!window.confirm('Confirme novamente: Esta ação NÃO pode ser desfeita. Apagar venda?')) {
+            return;
+        }
+
+        try {
+            for (const item of sale.items || []) {
+                const productId = item.productId;
+                if (!productId) continue;
+                const product = await productService.getById(productId);
+                if (!product) continue;
+                const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
+                if (sale.priceType === 'cold') {
+                    const newColdStock = (product.coldStock || 0) + deduction;
+                    await productService.update(product.id, { coldStock: newColdStock });
+                } else {
+                    const newStock = (product.stock || 0) + deduction;
+                    await productService.update(product.id, { stock: newStock });
+                }
+            }
+
+            await salesService.delete(sale.id);
+            showNotification('success', `Venda #${sale.saleNumber} apagada e estoque restaurado`);
+            await loadSales();
+        } catch (error) {
+            console.error('Error deleting sale:', error);
+            showNotification('error', 'Erro ao apagar venda');
         }
     };
 
@@ -431,6 +464,20 @@ const SalesHistoryPage = () => {
                                                 >
                                                     <XCircle size={18} />
                                                 </button>
+                                                <button
+                                                    onClick={() => handleDeleteSale(sale)}
+                                                    style={{
+                                                        padding: '6px',
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        color: 'var(--color-danger)',
+                                                        cursor: 'pointer',
+                                                        borderRadius: 'var(--radius-md)'
+                                                    }}
+                                                    title="Apagar Venda"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -448,9 +495,18 @@ const SalesHistoryPage = () => {
                 title={`Detalhes da Venda #${selectedSale?.saleNumber || ''}`}
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
-                            Editar no PDV
-                        </Button>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <Button
+                                variant="danger"
+                                onClick={() => handleCancelSale(selectedSale)}
+                                disabled={!selectedSale || selectedSale.status === 'cancelled'}
+                            >
+                                Cancelar Venda
+                            </Button>
+                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
+                                Editar no PDV
+                            </Button>
+                        </div>
                         <Button variant="secondary" onClick={() => setDetailsModalOpen(false)}>
                             Fechar
                         </Button>
@@ -459,6 +515,22 @@ const SalesHistoryPage = () => {
             >
                 {selectedSale && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div />
+                            {selectedSale.status === 'cancelled' && (
+                                <span style={{
+                                    padding: '4px 8px',
+                                    borderRadius: 'var(--radius-sm)',
+                                    background: 'rgba(239, 68, 68, 0.15)',
+                                    color: 'var(--color-danger)',
+                                    fontSize: 'var(--font-size-xs)',
+                                    fontWeight: 600,
+                                    border: '1px solid rgba(239, 68, 68, 0.25)'
+                                }}>
+                                    Venda Cancelada
+                                </span>
+                            )}
+                        </div>
                         {/* Header Info */}
                         <div style={{
                             display: 'grid',
