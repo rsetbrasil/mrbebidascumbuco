@@ -445,6 +445,46 @@ export const salesService = {
 
     async delete(id) {
         return firestoreService.delete(COLLECTIONS.SALES, id);
+    },
+
+    async deleteDuplicates() {
+        const list = await firestoreService.getAll(COLLECTIONS.SALES, 'createdAt', 'asc');
+        const seen = new Map();
+        const toDelete = [];
+        const normDate = (v) => {
+            try {
+                const d = v?.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            } catch {
+                return '';
+            }
+        };
+        const itemsKey = (items) => {
+            if (!Array.isArray(items)) return '';
+            return items
+                .map(i => `${i.productId || i.id || ''}:${Number(i.quantity) || 0}`)
+                .sort()
+                .join('|');
+        };
+        for (const s of list) {
+            if (s?.status === 'cancelled') continue;
+            const key = [
+                s.customerId || s.customer?.id || '',
+                itemsKey(s.items || []),
+                Number(s.total || 0).toFixed(2),
+                normDate(s.createdAt)
+            ].join('|');
+            if (seen.has(key)) {
+                toDelete.push(s.id);
+            } else {
+                seen.set(key, s.id);
+            }
+        }
+        await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.SALES, id)));
+        return { deleted: toDelete.length };
     }
 };
 
@@ -479,6 +519,46 @@ export const presalesService = {
 
     async delete(id) {
         return firestoreService.delete(COLLECTIONS.PRESALES, id);
+    },
+
+    async deleteDuplicates() {
+        const list = await firestoreService.getAll(COLLECTIONS.PRESALES, 'createdAt', 'asc');
+        const seen = new Map();
+        const toDelete = [];
+        const normDate = (v) => {
+            try {
+                const d = v?.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            } catch {
+                return '';
+            }
+        };
+        const itemsKey = (items) => {
+            if (!Array.isArray(items)) return '';
+            return items
+                .map(i => `${i.productId || i.id || ''}:${Number(i.quantity) || 0}`)
+                .sort()
+                .join('|');
+        };
+        for (const p of list) {
+            if (p?.status !== 'pending') continue;
+            const key = [
+                p.customerId || p.customer?.id || '',
+                itemsKey(p.items || []),
+                Number(p.total || 0).toFixed(2),
+                normDate(p.createdAt)
+            ].join('|');
+            if (seen.has(key)) {
+                toDelete.push(p.id);
+            } else {
+                seen.set(key, p.id);
+            }
+        }
+        await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.PRESALES, id)));
+        return { deleted: toDelete.length };
     }
 };
 

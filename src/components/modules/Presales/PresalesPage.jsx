@@ -226,6 +226,21 @@ const PresalesPage = () => {
                     >
                         Novo Pedido (PDV)
                     </Button>
+                    <Button
+                        variant="danger"
+                        onClick={async () => {
+                            try {
+                                const result = await presalesService.deleteDuplicates();
+                                showNotification('success', `Removidos ${result.deleted} pedidos duplicados`);
+                                await loadData();
+                            } catch (e) {
+                                console.error('Error removing duplicates:', e);
+                                showNotification('error', 'Erro ao remover duplicados');
+                            }
+                        }}
+                    >
+                        Remover Duplicados
+                    </Button>
                 </div>
             </div>
 

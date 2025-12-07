@@ -71,7 +71,7 @@ const LoginPage = () => {
                         WebkitTextFillColor: 'transparent',
                         marginBottom: 'var(--spacing-xs)'
                     }}>
-                        {settings?.brandTitle || 'Deus é Fiel!'}
+                        {settings?.brandTitle || 'MR BEBIDAS'}
                     </h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Faça login para continuar</p>
                 </div>

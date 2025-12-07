@@ -8,6 +8,7 @@ import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
 import ImportProductsModal from './ImportProductsModal';
 import { productService, categoryService } from '../../../services/firestore';
+import { printProductLabelsA4, generateProductLabelsPDF } from '../../../utils/receiptPrinter';
 import { formatCurrency } from '../../../utils/formatters';
 
 const ProductsPage = () => {
@@ -140,6 +141,38 @@ const ProductsPage = () => {
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seu catálogo de produtos</p>
                 </div>
                 <div className="flex gap-3">
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            if (filteredProducts.length === 0) {
+                                showNotification('warning', 'Nenhum produto para gerar etiquetas');
+                                return;
+                            }
+                            printProductLabelsA4(filteredProducts, { labelsPerProduct: 1, priceType: 'wholesale', showBarcode: true });
+                        }}
+                        icon={<Package size={20} />}
+                    >
+                        Etiquetas A4
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={async () => {
+                            if (filteredProducts.length === 0) {
+                                showNotification('warning', 'Nenhum produto para gerar etiquetas');
+                                return;
+                            }
+                            try {
+                                await generateProductLabelsPDF(filteredProducts, { labelsPerProduct: 1, showBarcode: true });
+                                showNotification('success', 'PDF de etiquetas gerado');
+                            } catch (e) {
+                                console.error('Erro ao gerar PDF de etiquetas:', e);
+                                showNotification('error', 'Falha ao gerar PDF de etiquetas');
+                            }
+                        }}
+                        icon={<Package size={20} />}
+                    >
+                        Etiquetas PDF
+                    </Button>
                     <Button
                         variant="secondary"
                         onClick={async () => {

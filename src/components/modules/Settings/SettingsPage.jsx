@@ -5,7 +5,7 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { settingsService, productService } from '../../../services/firestore';
+import { settingsService, productService, salesService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
 import UsersManagement from './UsersManagement';
 import UnitsManagement from './UnitsManagement';
@@ -331,6 +331,28 @@ const SettingsPage = () => {
                                 className="w-full justify-center"
                             >
                                 Fazer Backup do Sistema
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="danger"
+                                onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                        const sales = await salesService.deleteDuplicates();
+                                        const presales = await presalesService.deleteDuplicates();
+                                        showNotification('success', `Removidos ${sales.deleted} duplicados de vendas e ${presales.deleted} de pré-vendas`);
+                                    } catch (error) {
+                                        console.error('Dedupe error:', error);
+                                        showNotification('error', 'Erro ao remover duplicados');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                icon={Trash2}
+                                className="w-full justify-center"
+                            >
+                                Remover Duplicados (Vendas e Pré-vendas)
                             </Button>
 
                             <div className="border-t border-slate-700 pt-4 mt-4">

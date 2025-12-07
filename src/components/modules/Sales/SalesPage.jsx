@@ -665,7 +665,13 @@ const SalesPage = () => {
             }
 
             if (cartData.presaleId) {
-                await presalesService.update(cartData.presaleId, { status: 'completed' });
+                await presalesService.update(cartData.presaleId, {
+                    status: 'completed',
+                    reserved: false,
+                    completedAt: new Date(),
+                    saleId: sale.id,
+                    saleNumber: sale.saleNumber
+                });
             }
 
             printReceipt(sale, settings);

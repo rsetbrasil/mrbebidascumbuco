@@ -20,6 +20,7 @@ const isConfigured = firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== 'your_api_key_here';
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const forceDemo = import.meta.env.VITE_USE_DEMO === 'true';
+const enableAnonAuth = import.meta.env.VITE_ENABLE_ANON_AUTH === 'true';
 
 export const isDemoMode = forceDemo || !isConfigured;
 
@@ -38,7 +39,9 @@ if (isConfigured && !isDemoMode) {
             ignoreUndefinedProperties: true
         });
         auth = getAuth(app);
-        signInAnonymously(auth).catch(() => {});
+        if (enableAnonAuth) {
+            signInAnonymously(auth).catch(() => {});
+        }
         if (import.meta.env.PROD && firebaseConfig.measurementId && !isLocalhost) {
             isSupported()
                 .then((supported) => {
