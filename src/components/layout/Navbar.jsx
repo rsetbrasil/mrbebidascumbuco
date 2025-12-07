@@ -4,7 +4,7 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Navbar = ({ onMenuClick }) => {
-    const { currentCashRegister } = useApp();
+    const { currentCashRegister, settings } = useApp();
     const { user, logout } = useAuth();
 
     const [time, setTime] = useState('');
@@ -78,7 +78,7 @@ const Navbar = ({ onMenuClick }) => {
                         backgroundClip: 'text',
                         margin: 0
                     }}>
-                        {onMenuClick ? 'MR BEBIDAS' : 'PDV MR BEBIDAS'}
+                        {settings?.brandTitle || 'Deus é Fiel!'}
                     </h1>
                 </div>
 

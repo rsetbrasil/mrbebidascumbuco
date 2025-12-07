@@ -12,9 +12,11 @@ import {
     Database
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApp } from '../../contexts/AppContext';
 
 const Sidebar = ({ onClose }) => {
     const { isManager } = useAuth();
+    const { settings } = useApp();
 
     const menuItems = [
         { path: '/', icon: Home, label: 'Painel', restricted: true },
@@ -61,7 +63,7 @@ const Sidebar = ({ onClose }) => {
                     WebkitTextFillColor: 'transparent',
                     margin: 0
                 }}>
-                    PDV MR Bebidas
+                    {settings?.brandTitle || 'Deus é Fiel!'}
                 </h2>
             </div>
 

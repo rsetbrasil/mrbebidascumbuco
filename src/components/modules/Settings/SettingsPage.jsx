@@ -25,7 +25,8 @@ const SettingsPage = () => {
         receiptFooter: '',
         companyName: '',
         companyAddress: '',
-        companyPhone: ''
+        companyPhone: '',
+        brandTitle: ''
     });
 
     useEffect(() => {
@@ -171,6 +172,17 @@ const SettingsPage = () => {
 
             <form onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card title="Interface" icon={Printer}>
+                        <div className="space-y-4 p-4">
+                            <Input
+                                label="Título do Cabeçalho"
+                                name="brandTitle"
+                                value={settings.brandTitle}
+                                onChange={handleChange}
+                                placeholder="Ex: Deus é Fiel!"
+                            />
+                        </div>
+                    </Card>
                     {/* Receipt Settings */}
                     <Card title="Cupom Fiscal" icon={Printer}>
                         <div className="space-y-4 p-4">

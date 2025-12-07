@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, LogIn } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useApp } from '../../../contexts/AppContext';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Notification from '../../common/Notification';
@@ -13,6 +14,7 @@ const LoginPage = () => {
     const [notification, setNotification] = useState(null);
 
     const { login } = useAuth();
+    const { settings } = useApp();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -69,7 +71,7 @@ const LoginPage = () => {
                         WebkitTextFillColor: 'transparent',
                         marginBottom: 'var(--spacing-xs)'
                     }}>
-                        PDV MR Bebidas
+                        {settings?.brandTitle || 'Deus é Fiel!'}
                     </h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Faça login para continuar</p>
                 </div>
