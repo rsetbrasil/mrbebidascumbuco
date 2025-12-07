@@ -32,7 +32,7 @@ const SalesPage = () => {
     } = useCart();
 
     const { showNotification, currentCashRegister, settings } = useApp();
-    const { user } = useAuth();
+    const { user, isManager, isCashier } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
@@ -73,7 +73,7 @@ const SalesPage = () => {
     const geladaBtnRef = useRef(null);
     const priceInputRef = useRef(null);
 
-    const canCheckout = !!currentCashRegister;
+    const canCheckout = !!(currentCashRegister && currentCashRegister.id) && (isManager || isCashier);
     const totals = calculateTotals();
     const creditFeePct = Number(settings?.cardCreditFee || 0) / 100;
     const debitFeePct = Number(settings?.cardDebitFee || 0) / 100;
@@ -479,8 +479,14 @@ const SalesPage = () => {
         try {
             setProcessing(true);
 
-            if (!canCheckout) {
-                showNotification('Permissão negada: somente gerente ou caixa pode finalizar', 'error');
+            if (!(currentCashRegister && currentCashRegister.id)) {
+                showNotification('Caixa fechado: abra o caixa para finalizar vendas', 'error');
+                setProcessing(false);
+                return;
+            }
+
+            if (!(isManager || isCashier)) {
+                showNotification('Acesso negado: apenas gerente ou caixa pode finalizar', 'error');
                 setProcessing(false);
                 return;
             }
