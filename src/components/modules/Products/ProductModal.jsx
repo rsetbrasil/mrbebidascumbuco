@@ -106,7 +106,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const validate = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-        if (!formData.wholesalePrice) newErrors.wholesalePrice = 'Preço é obrigatório';
+        const hasWholesale = !!formData.wholesalePrice;
+        const hasCold = !!formData.coldPrice;
+        if (!hasWholesale && !hasCold) {
+            newErrors.wholesalePrice = 'Informe preço de atacado ou gelada';
+            newErrors.coldPrice = 'Informe preço de atacado ou gelada';
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -139,11 +144,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
 
         setLoading(true);
         try {
+            const hasWholesale = formData.wholesalePrice !== '' && formData.wholesalePrice !== null && formData.wholesalePrice !== undefined;
+            const hasCold = formData.coldPrice !== '' && formData.coldPrice !== null && formData.coldPrice !== undefined;
+
+            const wholesaleVal = hasWholesale ? parseFloat(formData.wholesalePrice) : null;
+            const coldVal = hasCold ? parseFloat(formData.coldPrice) : null;
+
             const productData = {
                 ...formData,
-                price: parseFloat(formData.wholesalePrice) || 0,
-                wholesalePrice: parseFloat(formData.wholesalePrice) || 0,
-                coldPrice: parseFloat(formData.coldPrice) || 0,
+                price: hasWholesale ? parseFloat(formData.wholesalePrice) : (hasCold ? parseFloat(formData.coldPrice) : 0),
+                wholesalePrice: wholesaleVal,
+                coldPrice: coldVal,
                 cost: parseFloat(formData.cost) || 0,
                 stock: parseInt(formData.stock) || 0,
                 coldStock: parseInt(formData.coldStock) || 0
@@ -213,6 +224,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 name="wholesalePrice"
                                 value={formData.wholesalePrice}
                                 onChange={handleChange}
+                                error={errors.wholesalePrice}
                                 placeholder="0,00"
                             />
                         </div>
@@ -250,6 +262,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 name="coldPrice"
                                 value={formData.coldPrice}
                                 onChange={handleChange}
+                                error={errors.coldPrice}
                                 placeholder="0,00"
                             />
                         </div>
