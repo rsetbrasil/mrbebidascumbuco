@@ -158,7 +158,7 @@ const Navbar = ({ onMenuClick }) => {
                             color: 'var(--color-text-muted)',
                             textTransform: 'uppercase'
                         }}>
-                            ({user?.role === 'manager' ? 'GERENTE' : 'VENDEDOR'})
+                            ({user?.role === 'manager' ? 'GERENTE' : (user?.role === 'cashier' ? 'CAIXA' : 'VENDEDOR')})
                         </span>
                     </div>
 

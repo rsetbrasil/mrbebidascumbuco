@@ -162,6 +162,15 @@ export const firestoreService = {
             });
             return { id, ...data };
         } catch (error) {
+            // If the document does not exist, fall back to setDoc with merge
+            if (error?.code === 'not-found') {
+                const docRef = doc(db, collectionName, id);
+                await setDoc(docRef, {
+                    ...data,
+                    updatedAt: Timestamp.now()
+                }, { merge: true });
+                return { id, ...data };
+            }
             console.error('Error updating document:', error);
             throw error;
         }

@@ -73,7 +73,7 @@ const SalesPage = () => {
     const geladaBtnRef = useRef(null);
     const priceInputRef = useRef(null);
 
-    const isManager = user?.role === 'admin' || user?.role === 'manager';
+    const canCheckout = !!currentCashRegister;
     const totals = calculateTotals();
     const creditFeePct = Number(settings?.cardCreditFee || 0) / 100;
     const debitFeePct = Number(settings?.cardDebitFee || 0) / 100;
@@ -352,11 +352,6 @@ const SalesPage = () => {
     const handleCheckout = () => {
 
 
-        if (!isManager) {
-            showNotification('Apenas gerente pode finalizar vendas', 'warning');
-            return;
-        }
-
         if (!currentCashRegister) {
             showNotification('Abra o caixa antes de realizar vendas', 'warning');
             return;
@@ -484,8 +479,8 @@ const SalesPage = () => {
         try {
             setProcessing(true);
 
-            if (!isManager) {
-                showNotification('Permissão negada: somente gerente pode finalizar', 'error');
+            if (!canCheckout) {
+                showNotification('Permissão negada: somente gerente ou caixa pode finalizar', 'error');
                 setProcessing(false);
                 return;
             }
@@ -951,7 +946,7 @@ const SalesPage = () => {
                                 size="lg"
                                 icon={<CreditCard size={20} />}
                                 onClick={handleCheckout}
-                                disabled={items.length === 0 || !isManager}
+                                disabled={items.length === 0 || !canCheckout}
                             >
                                 Finalizar Venda (F2)
                             </Button>
@@ -1206,7 +1201,7 @@ const SalesPage = () => {
                             variant="success"
                             onClick={handleFinalizeSale}
                             disabled={
-                                !isManager ||
+                                !canCheckout ||
                                 processing ||
                                 (isEditingSale
                                     ? (payments.reduce((sum, p) => sum + p.amount, 0) < Math.max(0, totals.total - (editingSale?.originalTotal || 0)))

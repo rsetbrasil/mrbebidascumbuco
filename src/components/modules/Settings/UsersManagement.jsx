@@ -17,7 +17,7 @@ const UsersManagement = () => {
         name: '',
         username: '',
         password: '',
-        role: 'seller', // seller or manager
+        role: 'seller', // seller, manager, cashier
         active: true
     });
 
@@ -160,11 +160,11 @@ const UsersManagement = () => {
                                                 <span style={{
                                                     padding: '2px 6px',
                                                     borderRadius: '4px',
-                                                    background: user.role === 'manager' ? 'var(--color-primary)' : 'var(--color-secondary)',
+                                                    background: user.role === 'manager' ? 'var(--color-primary)' : (user.role === 'cashier' ? 'var(--color-warning)' : 'var(--color-secondary)'),
                                                     color: 'white',
                                                     fontSize: '12px'
                                                 }}>
-                                                    {user.role === 'manager' ? 'Gerente' : 'Vendedor'}
+                                                    {user.role === 'manager' ? 'Gerente' : (user.role === 'cashier' ? 'Caixa' : 'Vendedor')}
                                                 </span>
                                             </td>
                                             <td style={{ padding: 'var(--spacing-sm)' }}>
@@ -255,6 +255,7 @@ const UsersManagement = () => {
                                     }}
                                 >
                                     <option value="seller">Vendedor</option>
+                                    <option value="cashier">Caixa</option>
                                     <option value="manager">Gerente</option>
                                 </select>
                             </div>

@@ -5,16 +5,22 @@ const CurrencyInput = React.forwardRef(({ value, onChange, ...props }, ref) => {
     const [displayValue, setDisplayValue] = useState('');
 
     useEffect(() => {
-        if (value !== undefined && value !== null) {
-            // Format initial value
-            const formatted = new Intl.NumberFormat('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value);
-            setDisplayValue(formatted);
-        } else {
+        if (value === undefined || value === null || value === '') {
             setDisplayValue('');
+            return;
         }
+
+        const num = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(num)) {
+            setDisplayValue('');
+            return;
+        }
+
+        const formatted = new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+        setDisplayValue(formatted);
     }, [value]);
 
     const handleChange = (e) => {
