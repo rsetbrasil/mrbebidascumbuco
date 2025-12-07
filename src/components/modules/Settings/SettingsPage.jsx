@@ -27,7 +27,9 @@ const SettingsPage = () => {
         companyAddress: '',
         companyPhone: '',
         brandTitle: '',
-        headerTitle: ''
+        headerTitle: '',
+        cardCreditFee: '',
+        cardDebitFee: ''
     });
 
     useEffect(() => {
@@ -188,6 +190,28 @@ const SettingsPage = () => {
                                 value={settings.headerTitle}
                                 onChange={handleChange}
                                 placeholder="Ex: Deus é Fiel!"
+                            />
+                            <Input
+                                label="Taxa Cartão Crédito (%)"
+                                name="cardCreditFee"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={settings.cardCreditFee}
+                                onChange={handleChange}
+                                placeholder="Ex: 2.99"
+                                helperText="Percentual cobrado pela operadora (não repassado)"
+                            />
+                            <Input
+                                label="Taxa Cartão Débito (%)"
+                                name="cardDebitFee"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={settings.cardDebitFee}
+                                onChange={handleChange}
+                                placeholder="Ex: 1.50"
+                                helperText="Percentual cobrado pela operadora (não repassado)"
                             />
                         </div>
                     </Card>

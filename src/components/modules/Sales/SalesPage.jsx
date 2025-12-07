@@ -75,6 +75,13 @@ const SalesPage = () => {
 
     const isManager = user?.role === 'admin' || user?.role === 'manager';
     const totals = calculateTotals();
+    const creditFeePct = Number(settings?.cardCreditFee || 0) / 100;
+    const debitFeePct = Number(settings?.cardDebitFee || 0) / 100;
+    const creditPaid = payments.filter(p => p.method === 'Cartão de Crédito').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const debitPaid = payments.filter(p => p.method === 'Cartão de Débito').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const feeCredit = creditPaid * creditFeePct;
+    const feeDebit = debitPaid * debitFeePct;
+    const feesTotal = feeCredit + feeDebit;
     const isEditingSale = !!editingSale;
 
     // Payment input starts at 0; user types given amount to compute troco
@@ -568,7 +575,16 @@ const SalesPage = () => {
                 totalPaid: isEditingSale ? Number((editingSale?.originalTotal || 0) + totalPaid) : Number(totalPaid) || 0,
                 paymentStatus: 'paid',
                 change: Number(change) || 0,
-                createdBy: user?.name || 'Operador'
+                createdBy: user?.name || 'Operador',
+                cardFees: {
+                    creditAmount: Number(creditPaid) || 0,
+                    debitAmount: Number(debitPaid) || 0,
+                    creditPercent: Number(settings?.cardCreditFee || 0) || 0,
+                    debitPercent: Number(settings?.cardDebitFee || 0) || 0,
+                    creditFee: Number(feeCredit) || 0,
+                    debitFee: Number(feeDebit) || 0,
+                    total: Number(feesTotal) || 0
+                }
             };
 
             // Remove undefined values to prevent Firestore errors
@@ -853,6 +869,25 @@ const SalesPage = () => {
                                 <span>Total</span>
                                 <span>{formatCurrency(totals.total)}</span>
                             </div>
+                            {feesTotal > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--spacing-xs)' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Taxa de Cartão</span>
+                                    <span style={{ color: 'var(--color-danger)' }}>{formatCurrency(feesTotal)}</span>
+                                </div>
+                            )}
+                            {feesTotal > 0 && (
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    marginTop: 'var(--spacing-xs)',
+                                    borderTop: '1px dashed var(--color-border)',
+                                    paddingTop: 'var(--spacing-xs)',
+                                    fontWeight: 600
+                                }}>
+                                    <span>Líquido</span>
+                                    <span>{formatCurrency(Math.max(0, totals.total - feesTotal))}</span>
+                                </div>
+                            )}
                         </div>
 
                         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
