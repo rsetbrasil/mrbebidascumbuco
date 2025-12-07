@@ -63,7 +63,7 @@ const Sidebar = ({ onClose }) => {
                     WebkitTextFillColor: 'transparent',
                     margin: 0
                 }}>
-                    {settings?.brandTitle || 'Deus é Fiel!'}
+                    {settings?.brandTitle || 'MR BEBIDAS'}
                 </h2>
             </div>
 

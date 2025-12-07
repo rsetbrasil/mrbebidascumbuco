@@ -78,7 +78,7 @@ const Navbar = ({ onMenuClick }) => {
                         backgroundClip: 'text',
                         margin: 0
                     }}>
-                        {settings?.brandTitle || 'Deus é Fiel!'}
+                        {settings?.headerTitle || 'Deus é Fiel!'}
                     </h1>
                 </div>
 

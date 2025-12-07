@@ -26,7 +26,8 @@ const SettingsPage = () => {
         companyName: '',
         companyAddress: '',
         companyPhone: '',
-        brandTitle: ''
+        brandTitle: '',
+        headerTitle: ''
     });
 
     useEffect(() => {
@@ -175,9 +176,16 @@ const SettingsPage = () => {
                     <Card title="Interface" icon={Printer}>
                         <div className="space-y-4 p-4">
                             <Input
-                                label="Título do Cabeçalho"
+                                label="Título da Marca (Sidebar)"
                                 name="brandTitle"
                                 value={settings.brandTitle}
+                                onChange={handleChange}
+                                placeholder="Ex: MR BEBIDAS"
+                            />
+                            <Input
+                                label="Título do Cabeçalho (Navbar)"
+                                name="headerTitle"
+                                value={settings.headerTitle}
                                 onChange={handleChange}
                                 placeholder="Ex: Deus é Fiel!"
                             />
