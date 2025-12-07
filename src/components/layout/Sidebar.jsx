@@ -22,11 +22,11 @@ const Sidebar = ({ onClose }) => {
         { path: '/', icon: Home, label: 'Painel', restricted: true },
         { path: '/pdv', icon: ShoppingCart, label: 'PDV' },
         { path: '/vendas', icon: ClipboardList, label: 'Vendas' },
+        { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
+        { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
         { path: '/produtos', icon: Package, label: 'Produtos' },
         { path: '/categorias', icon: Database, label: 'Categorias' },
         { path: '/clientes', icon: Users, label: 'Clientes' },
-        { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
-        { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
         { path: '/financeiro', icon: BarChart3, label: 'Financeiro', restricted: true },
         { path: '/configuracoes', icon: Settings, label: 'Configurações', restricted: true },
         { path: '/zerar-dados', icon: Database, label: 'Resetar Dados', restricted: true }

@@ -210,9 +210,9 @@ const ProductsPage = () => {
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Produto</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Categoria</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Atacado)</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Gelada)</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Mercearia)</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Estoque</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Est. Gelada</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Est. Mercearia</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Status</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
                             </tr>

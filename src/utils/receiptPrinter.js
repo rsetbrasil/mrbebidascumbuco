@@ -175,7 +175,7 @@ export const printReceipt = (sale, settings = {}) => {
 
         let typeBadge = '';
         if (item.isCold) {
-            typeBadge = ' • Gelada';
+            typeBadge = ' • Mercearia';
         }
 
         const unitName = (item.unit && (item.unit.abbreviation || item.unit.name))
@@ -254,7 +254,7 @@ export const printReceipt = (sale, settings = {}) => {
             <div class="details-row"><span>Pedido:</span><span>#${sale.saleNumber || '0'}</span></div>
             <div class="details-row"><span>Cliente:</span><span>${(sale.customerName || 'Consumidor Final').substring(0, 24)}</span></div>
             <div class="details-row"><span>Data:</span><span>${dateStr}</span></div>
-            <div class="details-row"><span>Tipos:</span><span>${[hasCold ? 'Gelada' : null, hasWholesale ? 'Atacado' : null].filter(Boolean).join(' + ') || '-'}</span></div>
+            <div class="details-row"><span>Tipos:</span><span>${[hasCold ? 'Mercearia' : null, hasWholesale ? 'Atacado' : null].filter(Boolean).join(' + ') || '-'}</span></div>
         </div>
         <div class="border-b mb-2"></div>
         

@@ -332,7 +332,7 @@ const PresalesPage = () => {
                                                                 fontWeight: 500,
                                                                 border: '1px solid var(--color-primary)'
                                                             }}>
-                                                                Gelada
+                                                                Mercearia
                                                             </span>
                                                         )}
                                                         {hasWholesale && (
@@ -480,7 +480,7 @@ const PresalesPage = () => {
                                         fontSize: 'var(--font-size-xs)',
                                         fontWeight: 500,
                                         border: '1px solid var(--color-primary)'
-                                    }}>Gelada</span>
+                                    }}>Mercearia</span>
                                 )}
                                 {((viewPresale.customerPriceType === 'wholesale') || (viewPresale.items || []).some(i => !!i.isWholesale)) && (
                                     <span style={{

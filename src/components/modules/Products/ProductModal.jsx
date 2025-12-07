@@ -106,11 +106,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const validate = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-        const hasWholesale = !!formData.wholesalePrice;
-        const hasCold = !!formData.coldPrice;
+        const hasWholesale = formData.wholesalePrice !== '' && formData.wholesalePrice !== null && formData.wholesalePrice !== undefined;
+        const hasCold = formData.coldPrice !== '' && formData.coldPrice !== null && formData.coldPrice !== undefined;
         if (!hasWholesale && !hasCold) {
-            newErrors.wholesalePrice = 'Informe preço de atacado ou gelada';
-            newErrors.coldPrice = 'Informe preço de atacado ou gelada';
+            newErrors.wholesalePrice = 'Informe preço de atacado ou Mercearia';
+            newErrors.coldPrice = 'Informe preço de atacado ou Mercearia';
         }
 
         setErrors(newErrors);
@@ -258,7 +258,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <div style={{ flex: 1 }}>
                             <CurrencyInput
-                                label="Preço (Gelada)"
+                                label="Preço (Mercearia)"
                                 name="coldPrice"
                                 value={formData.coldPrice}
                                 onChange={handleChange}
@@ -313,7 +313,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     />
 
                     <Input
-                        label="Estoque Gelado"
+                        label="Estoque Mercearia"
                         name="coldStock"
                         type="number"
                         value={formData.coldStock}

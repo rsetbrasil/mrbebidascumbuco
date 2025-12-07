@@ -30,7 +30,7 @@ const CurrencyInput = React.forwardRef(({ value, onChange, ...props }, ref) => {
         const numericValue = inputValue.replace(/\D/g, '');
 
         if (numericValue === '') {
-            onChange({ target: { value: '' } }); // Or 0 depending on requirement
+            onChange({ target: { name: props.name, value: '' } });
             setDisplayValue('');
             return;
         }

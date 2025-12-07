@@ -290,7 +290,7 @@ const SalesPage = () => {
         // Determine which stock to check based on priceType
         const isCold = priceType === 'cold';
         const availableStock = isCold ? (product.coldStock || 0) : product.stock;
-        const stockType = isCold ? 'gelado' : 'natural';
+        const stockType = isCold ? 'Mercearia' : 'natural';
 
         if (totalStockUsed + deduction > availableStock) {
             showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
@@ -328,7 +328,7 @@ const SalesPage = () => {
         // Determine which stock to check based on priceType
         const isCold = priceType === 'cold';
         const availableStock = isCold ? (selectedProduct.coldStock || 0) : selectedProduct.stock;
-        const stockType = isCold ? 'gelado' : 'natural';
+        const stockType = isCold ? 'Mercearia' : 'natural';
 
         if (totalStockUsed + qty > availableStock) {
             showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
@@ -527,7 +527,7 @@ const SalesPage = () => {
                 const deduction = getDeduction(item);
                 const available = item.isCold ? (product.coldStock || 0) : product.stock;
                 if (available < deduction) {
-                    const stockType = item.isCold ? 'gelado' : 'natural';
+                    const stockType = item.isCold ? 'Mercearia' : 'natural';
                     showNotification(`Estoque ${stockType} insuficiente para ${item.name}. Disponível: ${available}`, 'error');
                     setProcessing(false);
                     return;
@@ -759,7 +759,7 @@ const SalesPage = () => {
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{product.name}</div>
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                                {product.barcode || 'Sem código'} | Atacado: {product.stock ?? 0} | Gelada: {product.coldStock ?? 0}
+                                                {product.barcode || 'Sem código'} | Atacado: {product.stock ?? 0} | Mercearia: {product.coldStock ?? 0}
                                             </div>
                                         </div>
                                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -767,7 +767,7 @@ const SalesPage = () => {
                                                 Atacado: {formatCurrency(product.wholesalePrice || product.price)}
                                             </div>
                                             <div style={{ fontWeight: 600, color: '#3b82f6' }}>
-                                                Gelada: {formatCurrency(product.coldPrice || product.price)}
+                                                Mercearia: {formatCurrency(product.coldPrice || product.price)}
                                             </div>
                                         </div>
                                     </div>
@@ -935,7 +935,7 @@ const SalesPage = () => {
                                     onClick={() => setPriceType('cold')}
                                     style={{ flex: 1, backgroundColor: priceType === 'cold' ? '#3b82f6' : undefined, borderColor: priceType === 'cold' ? '#3b82f6' : undefined }}
                                 >
-                                    Gelada
+                                    Mercearia
                                 </Button>
                             </div>
                         </div>
@@ -1054,7 +1054,7 @@ const SalesPage = () => {
                                     }
                                 }}
                             >
-                                Gelada
+                                Mercearia
                             </Button>
                                 <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Estoque: <strong>{selectedProduct?.coldStock ?? 0}</strong></span>
                             </div>
@@ -1236,7 +1236,7 @@ const SalesPage = () => {
                                     color: '#fff',
                                     border: '1px solid var(--color-primary)'
                                 }}>
-                                    Gelada
+                                    Mercearia
                                 </span>
                             )}
                             {customer && customer.priceType === 'wholesale' && (
