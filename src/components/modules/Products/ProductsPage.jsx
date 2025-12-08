@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload, FileText } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload, FileText, MoreVertical } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -19,6 +19,7 @@ const ProductsPage = () => {
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [notification, setNotification] = useState(null);
+    const [openMenuId, setOpenMenuId] = useState(null);
 
     useEffect(() => {
         loadData();
@@ -338,7 +339,7 @@ const ProductsPage = () => {
                                             </div>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', position: 'relative' }}>
                                                 <button
                                                     onClick={() => {
                                                         setEditingProduct(product);
@@ -360,22 +361,53 @@ const ProductsPage = () => {
                                                     <Edit size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(product.id)}
+                                                    onClick={() => setOpenMenuId(openMenuId === product.id ? null : product.id)}
                                                     style={{
                                                         padding: '8px',
                                                         background: 'transparent',
                                                         border: 'none',
-                                                        color: 'var(--color-danger)',
+                                                        color: 'var(--color-text-secondary)',
                                                         cursor: 'pointer',
                                                         borderRadius: 'var(--radius-md)',
                                                         transition: 'background var(--transition-fast)'
                                                     }}
                                                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
                                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Excluir"
+                                                    title="Mais"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <MoreVertical size={18} />
                                                 </button>
+                                                {openMenuId === product.id && (
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        right: 0,
+                                                        top: '36px',
+                                                        background: 'var(--color-bg-secondary)',
+                                                        border: '1px solid var(--color-border)',
+                                                        borderRadius: 'var(--radius-md)',
+                                                        boxShadow: 'var(--shadow-md)',
+                                                        minWidth: '160px',
+                                                        zIndex: 10
+                                                    }}>
+                                                        <button
+                                                            onClick={() => { setOpenMenuId(null); handleDelete(product.id); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                padding: '8px 12px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-danger)',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                            Excluir
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
