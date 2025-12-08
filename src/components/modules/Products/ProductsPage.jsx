@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload, FileText } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -8,7 +8,6 @@ import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
 import ImportProductsModal from './ImportProductsModal';
 import { productService, categoryService } from '../../../services/firestore';
-import { printProductLabelsA4, generateProductLabelsPDF } from '../../../utils/receiptPrinter';
 import { formatCurrency } from '../../../utils/formatters';
 
 const ProductsPage = () => {
@@ -114,6 +113,56 @@ const ProductsPage = () => {
 
     if (loading && !products.length) return <Loading fullScreen />;
 
+    const exportProductsCSV = () => {
+        if (!products || products.length === 0) {
+            showNotification('warning', 'Nenhum produto para exportar');
+            return;
+        }
+
+        const header = [
+            'nome',
+            'codigo',
+            'preco',
+            'custo',
+            'estoque',
+            'categoria',
+            'preco_mercearia',
+            'preco_atacado',
+            'estoque_mercearia',
+            'unidade'
+        ].join(';');
+
+        const fmt = (n) => {
+            const num = Number(n || 0);
+            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        };
+
+        const rows = products.map(p => [
+            (p.name || '').replace(/;/g, ','),
+            (p.barcode || ''),
+            fmt(p.price),
+            fmt(p.cost),
+            String(p.stock ?? 0),
+            (categories[p.categoryId] || 'Geral').replace(/;/g, ','),
+            fmt(p.coldPrice ?? p.price),
+            fmt(p.wholesalePrice ?? p.price),
+            String(p.coldStock ?? 0),
+            (p.retailUnit || p.unitOfMeasure || 'UN').toString().replace(/;/g, ',')
+        ].join(';'));
+
+        const csv = ['\uFEFF' + header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'produtos.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('success', 'Lista de produtos exportada');
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
             {notification && (
@@ -141,38 +190,6 @@ const ProductsPage = () => {
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seu catálogo de produtos</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button
-                        variant="secondary"
-                        onClick={() => {
-                            if (filteredProducts.length === 0) {
-                                showNotification('warning', 'Nenhum produto para gerar etiquetas');
-                                return;
-                            }
-                            printProductLabelsA4(filteredProducts, { labelsPerProduct: 1, priceType: 'wholesale', showBarcode: true });
-                        }}
-                        icon={<Package size={20} />}
-                    >
-                        Etiquetas A4
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={async () => {
-                            if (filteredProducts.length === 0) {
-                                showNotification('warning', 'Nenhum produto para gerar etiquetas');
-                                return;
-                            }
-                            try {
-                                await generateProductLabelsPDF(filteredProducts, { labelsPerProduct: 1, showBarcode: true });
-                                showNotification('success', 'PDF de etiquetas gerado');
-                            } catch (e) {
-                                console.error('Erro ao gerar PDF de etiquetas:', e);
-                                showNotification('error', 'Falha ao gerar PDF de etiquetas');
-                            }
-                        }}
-                        icon={<Package size={20} />}
-                    >
-                        Etiquetas PDF
-                    </Button>
                     <Button
                         variant="secondary"
                         onClick={async () => {
@@ -211,6 +228,13 @@ const ProductsPage = () => {
                         icon={<Upload size={20} />}
                     >
                         Importar CSV
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={exportProductsCSV}
+                        icon={<FileText size={20} />}
+                    >
+                        Exportar CSV
                     </Button>
                     <Button
                         onClick={() => {

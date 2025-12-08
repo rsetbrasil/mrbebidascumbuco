@@ -62,10 +62,25 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('pdv_user');
     };
 
+    const normalizeRole = (r) => {
+        if (!r) return '';
+        const map = {
+            gerente: 'manager',
+            manager: 'manager',
+            caixa: 'cashier',
+            cashier: 'cashier',
+            vendedor: 'seller',
+            seller: 'seller'
+        };
+        return map[r] || r;
+    };
+
     const hasRole = (role) => {
         if (!user) return false;
-        if (user.role === 'manager') return true; // Manager has all permissions
-        return user.role === role;
+        const userRole = normalizeRole(user.role);
+        const target = normalizeRole(role);
+        if (userRole === 'manager') return true; // Manager has all permissions
+        return userRole === target;
     };
 
     const value = {
@@ -75,8 +90,8 @@ export const AuthProvider = ({ children }) => {
         logout,
         hasRole,
         isAuthenticated: !!user,
-        isManager: user?.role === 'manager',
-        isCashier: user?.role === 'cashier'
+        isManager: normalizeRole(user?.role) === 'manager',
+        isCashier: normalizeRole(user?.role) === 'cashier'
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
