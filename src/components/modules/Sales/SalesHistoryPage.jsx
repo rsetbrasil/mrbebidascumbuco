@@ -355,21 +355,7 @@ const SalesHistoryPage = () => {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <Button
-                        variant="danger"
-                        onClick={async () => {
-                            try {
-                                const result = await salesService.deleteDuplicates();
-                                showNotification('success', `Removidas ${result.deleted} vendas duplicadas`);
-                                await loadSales();
-                            } catch (e) {
-                                console.error('Error removing sale duplicates:', e);
-                                showNotification('error', 'Erro ao remover duplicados');
-                            }
-                        }}
-                    >
-                        Remover Duplicados
-                    </Button>
+                    
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
