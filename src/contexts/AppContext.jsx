@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { cashRegisterService, settingsService } from '../services/firestore';
+import { salesService } from '../services/firestore';
 
 const AppContext = createContext();
 
@@ -16,6 +17,7 @@ export const AppProvider = ({ children }) => {
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState(null);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     useEffect(() => {
         let unsubCash = null;
@@ -40,6 +42,32 @@ export const AppProvider = ({ children }) => {
         return () => {
             try { unsubCash && unsubCash(); } catch {}
             try { unsubSettings && unsubSettings(); } catch {}
+        };
+    }, []);
+
+    useEffect(() => {
+        const runNormalize = async () => {
+            setIsSyncing(true);
+            try {
+                await salesService.normalizeProvisional();
+                showNotification('Sincronização concluída', 'success');
+            } finally {
+                setIsSyncing(false);
+            }
+        };
+        const handleOnline = () => {
+            runNormalize().catch(() => {});
+        };
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', handleOnline);
+        }
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+            runNormalize().catch(() => {});
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('online', handleOnline);
+            }
         };
     }, []);
 
@@ -171,6 +199,7 @@ export const AppProvider = ({ children }) => {
         settings,
         loading,
         notification,
+        isSyncing,
         showNotification,
         updateSettings,
         openCashRegister,

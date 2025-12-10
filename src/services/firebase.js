@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, setLogLevel } from 'firebase/firestore';
+import { initializeFirestore, setLogLevel, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
@@ -38,6 +38,15 @@ if (isConfigured && !isDemoMode) {
             useFetchStreams: false,
             ignoreUndefinedProperties: true
         });
+        (async () => {
+            try {
+                await enableIndexedDbPersistence(db);
+            } catch (err) {
+                try {
+                    await enableMultiTabIndexedDbPersistence(db);
+                } catch {}
+            }
+        })();
         auth = getAuth(app);
         if (enableAnonAuth) {
             signInAnonymously(auth).catch(() => {});

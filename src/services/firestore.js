@@ -386,7 +386,8 @@ export const salesService = {
     async create(sale) {
         // Sequential sale number starting at 1
         const nextNumber = await counterService.getNextNumber('sales');
-        const saleWithNumber = { ...sale, saleNumber: String(nextNumber) };
+        const provisional = typeof nextNumber === 'string' && nextNumber.startsWith('OFF-');
+        const saleWithNumber = { ...sale, saleNumber: String(nextNumber), provisional };
         return firestoreService.create(COLLECTIONS.SALES, saleWithNumber);
     },
 
@@ -471,6 +472,27 @@ export const salesService = {
         }
         await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.SALES, id)));
         return { deleted: toDelete.length };
+    }
+    ,
+    async normalizeProvisional() {
+        if (isDemoMode) return;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        const list = await firestoreService.query(
+            COLLECTIONS.SALES,
+            [{ field: 'provisional', operator: '==', value: true }],
+            'createdAt',
+            'asc'
+        );
+        for (const s of list) {
+            try {
+                const nextNumber = await counterService.getNextNumber('sales');
+                await firestoreService.update(COLLECTIONS.SALES, s.id, {
+                    saleNumber: String(nextNumber),
+                    provisional: false
+                });
+            } catch (e) {
+            }
+        }
     }
 };
 
@@ -795,6 +817,7 @@ export const counterService = {
             return mockStore.counters[counterName];
         }
 
+        const isOffline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
         try {
             const { runTransaction } = await import('firebase/firestore');
             const counterRef = doc(db, COLLECTIONS.COUNTERS, counterName);
@@ -815,6 +838,20 @@ export const counterService = {
 
             return nextNumber;
         } catch (error) {
+            if (isOffline || (error && (error.code === 'unavailable' || error.code === 'failed-precondition' || error.code === 'aborted'))) {
+                try {
+                    const d = new Date();
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const key = `offline_counter_${counterName}_${y}${m}${day}`;
+                    const current = Number(localStorage.getItem(key) || '0') + 1;
+                    localStorage.setItem(key, String(current));
+                    return `OFF-${y}${m}${day}-${current}`;
+                } catch (e) {
+                    throw error;
+                }
+            }
             console.error('Error getting next number:', error);
             throw error;
         }

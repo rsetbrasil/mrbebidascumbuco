@@ -4,11 +4,12 @@ import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Navbar = ({ onMenuClick }) => {
-    const { currentCashRegister, settings } = useApp();
+    const { currentCashRegister, settings, isSyncing } = useApp();
     const { user, logout } = useAuth();
 
     const [time, setTime] = useState('');
     const [isCompact, setIsCompact] = useState(false);
+    const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
     useEffect(() => {
         const tick = () => {
             const now = new Date();
@@ -25,7 +26,15 @@ const Navbar = ({ onMenuClick }) => {
         };
         handleResize();
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
     }, []);
 
     return (
@@ -104,6 +113,39 @@ const Navbar = ({ onMenuClick }) => {
 
                 {/* Right side */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+                    {isOnline && isSyncing && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-sm)',
+                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
+                            background: 'var(--color-accent)',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            color: 'white',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
+                        }}>
+                            <span>Sincronizando...</span>
+                        </div>
+                    )}
+                    {/* Network Status */}
+                    {!isOnline && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-sm)',
+                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
+                            background: 'var(--color-warning)',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            color: 'white',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
+                        }}>
+                            <span>Offline</span>
+                        </div>
+                    )}
                     {/* Cash Register Status */}
                     {currentCashRegister ? (
                         <div style={{
