@@ -229,14 +229,13 @@ const SalesPage = () => {
             // If not barcode, open modal for the selected product or the first available result
             if (filteredProducts.length > 0) {
                 let idx = selectedIndex >= 0 && selectedIndex < filteredProducts.length ? selectedIndex : 0;
-                const isColdReq = priceType === 'cold';
                 let candidate = filteredProducts[idx];
-                const hasStock = (p) => isColdReq ? ((p.coldStock || 0) > 0) : ((p.stock || 0) > 0);
-                if (!hasStock(candidate)) {
-                    const alt = filteredProducts.find(hasStock);
+                const hasAnyStock = (p) => ((p.stock || 0) > 0) || ((p.coldStock || 0) > 0);
+                if (!hasAnyStock(candidate)) {
+                    const alt = filteredProducts.find(hasAnyStock);
                     if (alt) candidate = alt;
                 }
-                if (candidate && hasStock(candidate)) {
+                if (candidate && hasAnyStock(candidate)) {
                     handleProductSelect(candidate);
                 } else {
                     showNotification('Nenhum produto com estoque disponível', 'warning');
@@ -246,17 +245,18 @@ const SalesPage = () => {
     };
 
     const handleProductSelect = (product) => {
-        const requiredCold = priceType === 'cold';
-        const available = requiredCold ? (product.coldStock || 0) : (product.stock || 0);
-        if (available <= 0) {
+        const nat = product.stock || 0;
+        const cold = product.coldStock || 0;
+        if ((nat <= 0) && (cold <= 0)) {
             showNotification('Produto sem estoque', 'warning');
             return;
         }
 
         setSelectedProduct(product);
         setQuantityInput('1');
-        setItemPriceType(priceType === 'cold' ? 'cold' : 'wholesale');
-        const defaultPrice = (priceType === 'cold')
+        const defaultType = nat > 0 ? 'wholesale' : 'cold';
+        setItemPriceType(defaultType);
+        const defaultPrice = defaultType === 'cold'
             ? (product.coldPrice || product.price)
             : (product.wholesalePrice || product.price);
         setPriceInput(defaultPrice);
@@ -929,30 +929,7 @@ const SalesPage = () => {
                             </div>
                         </div>
 
-                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Tipo de Preço
-                            </label>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-
-                                <Button
-                                    variant={priceType === 'wholesale' ? 'primary' : 'secondary'}
-                                    size="sm"
-                                    onClick={() => setPriceType('wholesale')}
-                                    style={{ flex: 1 }}
-                                >
-                                    Atacado
-                                </Button>
-                                <Button
-                                    variant={priceType === 'cold' ? 'primary' : 'secondary'}
-                                    size="sm"
-                                    onClick={() => setPriceType('cold')}
-                                    style={{ flex: 1, backgroundColor: priceType === 'cold' ? '#3b82f6' : undefined, borderColor: priceType === 'cold' ? '#3b82f6' : undefined }}
-                                >
-                                    Mercearia
-                                </Button>
-                            </div>
-                        </div>
+                        
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                             <Button

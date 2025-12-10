@@ -4,6 +4,8 @@ import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight } from 'lucid
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
+import Modal from '../common/Modal';
+import Input from '../common/Input';
 import { useApp } from '../../contexts/AppContext';
 import { salesService, productService } from '../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
@@ -18,6 +20,10 @@ const Dashboard = () => {
     });
     const [recentSales, setRecentSales] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [lowStockOpen, setLowStockOpen] = useState(false);
+    const [lowStockItems, setLowStockItems] = useState([]);
+    const [adjustments, setAdjustments] = useState({});
+    const [updatingId, setUpdatingId] = useState(null);
 
     useEffect(() => {
         loadDashboardData();
@@ -43,7 +49,8 @@ const Dashboard = () => {
 
             // Load products for stock check
             const products = await productService.getAll();
-            const lowStock = products.filter(p => p.stock <= (p.minStock || 0));
+            const lowStock = products.filter(p => (p.stock ?? 0) <= (p.minStock || 0));
+            setLowStockItems(lowStock.sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)));
 
             setStats({
                 todaySales: todaySales.length,
@@ -123,7 +130,10 @@ const Dashboard = () => {
                 </Card>
 
                 <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                        onClick={() => { if (stats.lowStockProducts > 0) setLowStockOpen(true); }}
+                    >
                         <div>
                             <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
                                 Estoque Baixo
@@ -139,7 +149,8 @@ const Dashboard = () => {
                             background: stats.lowStockProducts > 0 ? 'var(--color-warning)' : 'var(--color-success)',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            cursor: stats.lowStockProducts > 0 ? 'pointer' : 'default'
                         }}>
                             <Package size={30} color="white" />
                         </div>
@@ -244,6 +255,86 @@ const Dashboard = () => {
                     </div>
                 )}
             </Card>
+
+            <Modal
+                isOpen={lowStockOpen}
+                onClose={() => { setLowStockOpen(false); setAdjustments({}); }}
+                title="Produtos com Estoque Baixo"
+                size="lg"
+            >
+                <div className="table-container">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Estoque</th>
+                                <th>Mínimo</th>
+                                <th style={{ textAlign: 'right' }}>Ajustar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {lowStockItems.length === 0 ? (
+                                <tr>
+                                    <td colSpan="4" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        Nenhum produto com estoque baixo
+                                    </td>
+                                </tr>
+                            ) : (
+                                lowStockItems.map((p) => {
+                                    const current = adjustments[p.id] || { stock: p.stock ?? 0, minStock: p.minStock || 0 };
+                                    return (
+                                        <tr key={p.id}>
+                                            <td>
+                                                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{p.barcode || 'Sem código'}</div>
+                                            </td>
+                                            <td style={{ width: '160px' }}>
+                                                <Input
+                                                    type="number"
+                                                    value={current.stock}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setAdjustments(prev => ({ ...prev, [p.id]: { ...current, stock: val } }));
+                                                    }}
+                                                />
+                                            </td>
+                                            <td style={{ width: '160px' }}>
+                                                <Input
+                                                    type="number"
+                                                    value={current.minStock}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setAdjustments(prev => ({ ...prev, [p.id]: { ...current, minStock: val } }));
+                                                    }}
+                                                />
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <Button
+                                                    size="sm"
+                                                    loading={updatingId === p.id}
+                                                    onClick={async () => {
+                                                        const payload = adjustments[p.id] || { stock: p.stock ?? 0, minStock: p.minStock || 0 };
+                                                        setUpdatingId(p.id);
+                                                        try {
+                                                            await productService.update(p.id, { stock: parseInt(payload.stock) || 0, minStock: parseInt(payload.minStock) || 0 });
+                                                            await loadDashboardData();
+                                                        } catch (err) {
+                                                        } finally {
+                                                            setUpdatingId(null);
+                                                        }
+                                                    }}
+                                                >
+                                                    Salvar
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Modal>
         </div>
     );
 };
