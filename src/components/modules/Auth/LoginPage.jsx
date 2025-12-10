@@ -63,6 +63,14 @@ const LoginPage = () => {
                 border: '1px solid var(--color-border)'
             }}>
                 <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 'var(--spacing-md)' }}>
+                        <img
+                            src={settings?.brandLogoUrl || '/logo.png'}
+                            alt={settings?.brandTitle || 'Logo'}
+                            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                    </div>
                     <h1 style={{
                         fontSize: 'var(--font-size-2xl)',
                         fontWeight: 700,
