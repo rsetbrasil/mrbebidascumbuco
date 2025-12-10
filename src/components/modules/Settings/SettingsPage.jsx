@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, Printer, Building, AlertTriangle, Trash2, Package } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -7,6 +7,8 @@ import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import { settingsService, productService, salesService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
+import { storage, isDemoMode } from '../../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import UsersManagement from './UsersManagement';
 import UnitsManagement from './UnitsManagement';
 
@@ -29,8 +31,12 @@ const SettingsPage = () => {
         brandTitle: '',
         headerTitle: '',
         cardCreditFee: '',
-        cardDebitFee: ''
+        cardDebitFee: '',
+        brandLogoUrl: ''
     });
+    const [logoFile, setLogoFile] = useState(null);
+    const [logoUploading, setLogoUploading] = useState(false);
+    const logoInputRef = useRef(null);
 
     useEffect(() => {
         loadSettings();
@@ -66,6 +72,73 @@ const SettingsPage = () => {
             ...prev,
             [name]: value
         }));
+    };
+
+    const handleSelectLogo = () => {
+        logoInputRef.current?.click();
+    };
+
+    const handleLogoChange = (e) => {
+        const file = e.target.files?.[0] || null;
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                showNotification('error', 'Selecione uma imagem válida');
+                return;
+            }
+            setLogoFile(file);
+        }
+    };
+
+    const handleUploadLogo = async () => {
+        if (!logoFile) {
+            showNotification('error', 'Selecione uma imagem primeiro');
+            return;
+        }
+        setLogoUploading(true);
+        try {
+            if (!isDemoMode && storage) {
+                const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
+                const objectRef = ref(storage, `branding/logo.${ext}`);
+                await uploadBytes(objectRef, logoFile, { contentType: logoFile.type });
+                const url = await getDownloadURL(objectRef);
+                setSettings(prev => ({ ...prev, brandLogoUrl: url }));
+                await settingsService.set('brandLogoUrl', url);
+                showNotification('success', 'Logo enviada com sucesso');
+                setLogoFile(null);
+                return;
+            }
+            const toDataUrl = (file) => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const dataUrl = await toDataUrl(logoFile);
+            setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
+            await settingsService.set('brandLogoUrl', dataUrl);
+            showNotification('success', 'Logo definida localmente');
+            setLogoFile(null);
+        } catch (error) {
+            try {
+                const toDataUrl = (file) => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+                const dataUrl = await toDataUrl(logoFile);
+                setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
+                await settingsService.set('brandLogoUrl', dataUrl);
+                showNotification('success', 'Logo definida localmente');
+                setLogoFile(null);
+            } catch (fallbackErr) {
+                console.error('Logo upload error:', error);
+                console.error('Logo local fallback error:', fallbackErr);
+                showNotification('error', 'Erro ao enviar logo');
+            }
+        } finally {
+            setLogoUploading(false);
+        }
     };
 
     const handleSave = async (e) => {
@@ -184,6 +257,37 @@ const SettingsPage = () => {
                                 onChange={handleChange}
                                 placeholder="Ex: MR BEBIDAS"
                             />
+                            <Input
+                                label="Logo da Marca (URL)"
+                                name="brandLogoUrl"
+                                value={settings.brandLogoUrl || ''}
+                                onChange={handleChange}
+                                placeholder="Ex: /logo.png"
+                                helperText="Coloque seu arquivo na pasta public e use /logo.png"
+                            />
+                            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                                <div>
+                                    <input
+                                        ref={logoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoChange}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <Button type="button" variant="secondary" onClick={handleSelectLogo}>
+                                        Selecionar Logo
+                                    </Button>
+                                </div>
+                                <Button type="button" variant="primary" onClick={handleUploadLogo} loading={logoUploading}>
+                                    Enviar Logo
+                                </Button>
+                                {logoFile && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                                        <img src={URL.createObjectURL(logoFile)} alt="Preview" style={{ width: 40, height: 40, borderRadius: 'var(--radius-full)', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
+                                        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>{logoFile.name}</span>
+                                    </div>
+                                )}
+                            </div>
                             <Input
                                 label="Título do Cabeçalho (Navbar)"
                                 name="headerTitle"

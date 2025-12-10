@@ -242,27 +242,47 @@ export const firestoreService = {
         try {
             let q = collection(db, collectionName);
 
-            // Apply where conditions
             conditions.forEach(condition => {
                 q = query(q, where(condition.field, condition.operator, condition.value));
             });
 
-            // Apply ordering
             if (orderByField) {
                 q = query(q, orderBy(orderByField, orderDirection));
             }
 
-            // Apply limit
             if (limitCount) {
                 q = query(q, limit(limitCount));
             }
 
             const querySnapshot = await getDocs(q);
-            return querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch (error) {
+            const code = error?.code;
+            const needsIndex = code === 'failed-precondition' || /requires an index/i.test(String(error?.message || ''));
+            if (needsIndex && orderByField) {
+                try {
+                    let qNoOrder = collection(db, collectionName);
+                    conditions.forEach(condition => {
+                        qNoOrder = query(qNoOrder, where(condition.field, condition.operator, condition.value));
+                    });
+                    const snapshot = await getDocs(qNoOrder);
+                    let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    results.sort((a, b) => {
+                        const av = a[orderByField];
+                        const bv = b[orderByField];
+                        if (av === undefined && bv === undefined) return 0;
+                        if (av === undefined) return orderDirection === 'asc' ? 1 : -1;
+                        if (bv === undefined) return orderDirection === 'asc' ? -1 : 1;
+                        return av < bv ? (orderDirection === 'asc' ? -1 : 1) : av > bv ? (orderDirection === 'asc' ? 1 : -1) : 0;
+                    });
+                    if (limitCount) {
+                        results = results.slice(0, limitCount);
+                    }
+                    return results;
+                } catch (fallbackErr) {
+                    console.error('Firestore fallback query error:', fallbackErr);
+                }
+            }
             console.error('Error querying documents:', error);
             throw error;
         }

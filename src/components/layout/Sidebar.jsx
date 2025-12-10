@@ -61,16 +61,24 @@ const Sidebar = ({ onClose }) => {
                 padding: 'var(--spacing-xl)',
                 borderBottom: '1px solid var(--color-border)'
             }}>
-                <h2 style={{
-                    fontSize: 'var(--font-size-xl)',
-                    fontWeight: 700,
-                    background: 'var(--gradient-primary)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    margin: 0
-                }}>
-                    {settings?.brandTitle || 'MR BEBIDAS'}
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                    <img
+                        src={settings?.brandLogoUrl || '/logo.png'}
+                        alt={settings?.brandTitle || 'Logo'}
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <h2 style={{
+                        fontSize: 'var(--font-size-xl)',
+                        fontWeight: 700,
+                        background: 'var(--gradient-primary)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        margin: 0
+                    }}>
+                        {settings?.brandTitle || 'MR BEBIDAS'}
+                    </h2>
+                </div>
             </div>
 
             {/* Navigation */}

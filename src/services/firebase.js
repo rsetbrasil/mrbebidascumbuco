@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore, setLogLevel, enableIndexedDbPersistence, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
@@ -28,6 +29,7 @@ let app;
 let db;
 let analytics;
 let auth;
+let storage;
 
 if (isConfigured && !isDemoMode) {
     try {
@@ -48,6 +50,18 @@ if (isConfigured && !isDemoMode) {
             }
         })();
         auth = getAuth(app);
+        try {
+            const bucket = String(firebaseConfig.storageBucket || '').toLowerCase();
+            const bucketLooksValid = bucket.includes('appspot.com');
+            if (bucketLooksValid) {
+                storage = getStorage(app);
+            } else {
+                storage = undefined;
+                console.warn('Firebase Storage desabilitado: storageBucket inválido. Use ".appspot.com" (ex: pdvmrbebidasantigravity.appspot.com)');
+            }
+        } catch {
+            storage = undefined;
+        }
         if (enableAnonAuth) {
             signInAnonymously(auth).catch(() => {});
         }
@@ -69,5 +83,5 @@ if (isConfigured && !isDemoMode) {
     console.warn('Firebase config missing or invalid. Running in DEMO MODE.');
 }
 
-export { app, db, analytics, auth };
+export { app, db, analytics, auth, storage };
 export default app;
