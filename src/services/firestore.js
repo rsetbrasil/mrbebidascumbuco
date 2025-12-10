@@ -475,14 +475,15 @@ export const salesService = {
     }
     ,
     async normalizeProvisional() {
-        if (isDemoMode) return;
-        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        if (isDemoMode) return 0;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
         const list = await firestoreService.query(
             COLLECTIONS.SALES,
             [{ field: 'provisional', operator: '==', value: true }],
             'createdAt',
             'asc'
         );
+        let count = 0;
         for (const s of list) {
             try {
                 const nextNumber = await counterService.getNextNumber('sales');
@@ -490,9 +491,11 @@ export const salesService = {
                     saleNumber: String(nextNumber),
                     provisional: false
                 });
+                count++;
             } catch (e) {
             }
         }
+        return count;
     }
 };
 

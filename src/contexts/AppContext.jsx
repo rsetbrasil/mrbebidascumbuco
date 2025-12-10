@@ -49,8 +49,12 @@ export const AppProvider = ({ children }) => {
         const runNormalize = async () => {
             setIsSyncing(true);
             try {
-                await salesService.normalizeProvisional();
-                showNotification('Sincronização concluída', 'success');
+                const count = await salesService.normalizeProvisional();
+                if (count > 0) {
+                    showNotification(`Sincronização concluída (${count} venda${count > 1 ? 's' : ''})`, 'success');
+                } else {
+                    showNotification('Nada a sincronizar', 'info');
+                }
             } finally {
                 setIsSyncing(false);
             }
