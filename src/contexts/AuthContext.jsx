@@ -14,12 +14,18 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [sessionId, setSessionId] = useState(null);
+    const [userUnsub, setUserUnsub] = useState(null);
 
     useEffect(() => {
         // Check for stored user session
         const storedUser = localStorage.getItem('pdv_user');
+        const storedSession = localStorage.getItem('pdv_session_id');
         if (storedUser) {
             setUser(JSON.parse(storedUser));
+        }
+        if (storedSession) {
+            setSessionId(storedSession);
         }
 
         // Initialize default user if needed
@@ -47,9 +53,32 @@ export const AuthProvider = ({ children }) => {
 
             // Remove password from state
             const { password: _, ...userWithoutPassword } = userFound;
-
+            const sid = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (`SID-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+            try {
+                await userService.update(userFound.id, { sessionId: sid, sessionUpdatedAt: new Date() });
+            } catch (e) {
+            }
             setUser(userWithoutPassword);
+            setSessionId(sid);
             localStorage.setItem('pdv_user', JSON.stringify(userWithoutPassword));
+            localStorage.setItem('pdv_session_id', sid);
+
+            // Subscribe to user changes to enforce single session
+            try {
+                if (userUnsub) {
+                    try { userUnsub(); } catch {}
+                }
+                const unsub = userService.subscribeById(userFound.id, (latest) => {
+                    const remoteSid = latest?.sessionId || null;
+                    const localSid = localStorage.getItem('pdv_session_id');
+                    if (remoteSid && localSid && remoteSid !== localSid) {
+                        // Remote session changed, logout this client
+                        logout();
+                        alert('Sua sessão foi iniciada em outro dispositivo. Este login foi encerrado.');
+                    }
+                });
+                setUserUnsub(() => unsub);
+            } catch {}
             return userWithoutPassword;
         } catch (error) {
             console.error('Login error:', error);
@@ -58,8 +87,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        if (userUnsub) {
+            try { userUnsub(); } catch {}
+            setUserUnsub(null);
+        }
         setUser(null);
+        setSessionId(null);
         localStorage.removeItem('pdv_user');
+        localStorage.removeItem('pdv_session_id');
     };
 
     const normalizeRole = (r) => {

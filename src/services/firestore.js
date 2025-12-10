@@ -793,6 +793,16 @@ export const userService = {
         return firestoreService.delete(COLLECTIONS.USERS, id);
     },
 
+    subscribeById(id, callback) {
+        return firestoreService.subscribe(
+            COLLECTIONS.USERS,
+            (list) => {
+                const found = (list || []).find(u => u.id === id) || null;
+                callback(found);
+            }
+        );
+    },
+
     // Initialize default admin user if no users exist
     async initDefaultUser() {
         const users = await this.getAll();
