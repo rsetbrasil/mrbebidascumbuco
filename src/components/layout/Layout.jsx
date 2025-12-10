@@ -19,7 +19,17 @@ const Layout = ({ children }) => {
 
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        const notifyHandler = (e) => {
+            const detail = e?.detail || {};
+            const msg = detail.message || detail.msg || '';
+            const type = detail.type || 'info';
+            if (msg) showNotification(msg, type);
+        };
+        window.addEventListener('pdv-notify', notifyHandler);
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('pdv-notify', notifyHandler);
+        };
     }, []);
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);

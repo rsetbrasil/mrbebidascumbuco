@@ -62,23 +62,6 @@ export const AuthProvider = ({ children }) => {
             setSessionId(sid);
             localStorage.setItem('pdv_user', JSON.stringify(userWithoutPassword));
             localStorage.setItem('pdv_session_id', sid);
-
-            // Subscribe to user changes to enforce single session
-            try {
-                if (userUnsub) {
-                    try { userUnsub(); } catch {}
-                }
-                const unsub = userService.subscribeById(userFound.id, (latest) => {
-                    const remoteSid = latest?.sessionId || null;
-                    const localSid = localStorage.getItem('pdv_session_id');
-                    if (remoteSid && localSid && remoteSid !== localSid) {
-                        // Remote session changed, logout this client
-                        logout();
-                        alert('Sua sessão foi iniciada em outro dispositivo. Este login foi encerrado.');
-                    }
-                });
-                setUserUnsub(() => unsub);
-            } catch {}
             return userWithoutPassword;
         } catch (error) {
             console.error('Login error:', error);
@@ -96,6 +79,45 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('pdv_user');
         localStorage.removeItem('pdv_session_id');
     };
+
+    useEffect(() => {
+        const currentUserId = user?.id;
+        const localSid = localStorage.getItem('pdv_session_id');
+        if (currentUserId) {
+            try {
+                if (userUnsub) {
+                    try { userUnsub(); } catch {}
+                }
+                const unsub = userService.subscribeById(currentUserId, (latest) => {
+                    const remoteSid = latest?.sessionId || null;
+                    const localCurrentSid = localStorage.getItem('pdv_session_id') || localSid;
+                    if (remoteSid && localCurrentSid && remoteSid !== localCurrentSid) {
+                        try {
+                            if (typeof window !== 'undefined' && window.dispatchEvent) {
+                                window.dispatchEvent(new CustomEvent('pdv-notify', {
+                                    detail: { message: 'Sua sessão foi iniciada em outro dispositivo. Este login foi encerrado.', type: 'warning' }
+                                }));
+                            }
+                        } catch {}
+                        logout();
+                    }
+                });
+                setUserUnsub(() => unsub);
+            } catch {}
+        } else {
+            if (userUnsub) {
+                try { userUnsub(); } catch {}
+                setUserUnsub(null);
+            }
+        }
+        // Cleanup on unmount or user change
+        return () => {
+            if (userUnsub) {
+                try { userUnsub(); } catch {}
+                setUserUnsub(null);
+            }
+        };
+    }, [user]);
 
     const normalizeRole = (r) => {
         if (!r) return '';
