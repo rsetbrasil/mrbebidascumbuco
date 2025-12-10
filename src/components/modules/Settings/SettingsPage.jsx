@@ -333,27 +333,7 @@ const SettingsPage = () => {
                                 Fazer Backup do Sistema
                             </Button>
 
-                            <Button
-                                type="button"
-                                variant="danger"
-                                onClick={async () => {
-                                    setLoading(true);
-                                    try {
-                                        const sales = await salesService.deleteDuplicates();
-                                        const presales = await presalesService.deleteDuplicates();
-                                        showNotification('success', `Removidos ${sales.deleted} duplicados de vendas e ${presales.deleted} de pré-vendas`);
-                                    } catch (error) {
-                                        console.error('Dedupe error:', error);
-                                        showNotification('error', 'Erro ao remover duplicados');
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }}
-                                icon={Trash2}
-                                className="w-full justify-center"
-                            >
-                                Remover Duplicados (Vendas e Pré-vendas)
-                            </Button>
+                            
 
                             <div className="border-t border-slate-700 pt-4 mt-4">
                                 <p className="text-red-400 text-sm font-medium mb-2">
