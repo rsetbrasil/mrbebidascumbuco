@@ -96,46 +96,22 @@ const SettingsPage = () => {
         }
         setLogoUploading(true);
         try {
-            if (!isDemoMode && storage) {
-                const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
-                const objectRef = ref(storage, `branding/logo.${ext}`);
-                await uploadBytes(objectRef, logoFile, { contentType: logoFile.type });
-                const url = await getDownloadURL(objectRef);
-                setSettings(prev => ({ ...prev, brandLogoUrl: url }));
-                await settingsService.set('brandLogoUrl', url);
-                showNotification('success', 'Logo enviada com sucesso');
-                setLogoFile(null);
+            if (!storage || isDemoMode) {
+                showNotification('error', 'Upload indisponível: configure o Firebase Storage');
                 return;
             }
-            const toDataUrl = (file) => new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            const dataUrl = await toDataUrl(logoFile);
-            setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
-            await settingsService.set('brandLogoUrl', dataUrl);
-            showNotification('success', 'Logo definida localmente');
+
+            const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
+            const objectRef = ref(storage, `branding/logo.${ext}`);
+            await uploadBytes(objectRef, logoFile, { contentType: logoFile.type });
+            const url = await getDownloadURL(objectRef);
+            setSettings(prev => ({ ...prev, brandLogoUrl: url }));
+            await settingsService.set('brandLogoUrl', url);
+            showNotification('success', 'Logo enviada com sucesso');
             setLogoFile(null);
         } catch (error) {
-            try {
-                const toDataUrl = (file) => new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-                const dataUrl = await toDataUrl(logoFile);
-                setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
-                await settingsService.set('brandLogoUrl', dataUrl);
-                showNotification('success', 'Logo definida localmente');
-                setLogoFile(null);
-            } catch (fallbackErr) {
-                console.error('Logo upload error:', error);
-                console.error('Logo local fallback error:', fallbackErr);
-                showNotification('error', 'Erro ao enviar logo');
-            }
+            console.error('Logo upload error:', error);
+            showNotification('error', 'Erro ao enviar logo');
         } finally {
             setLogoUploading(false);
         }
