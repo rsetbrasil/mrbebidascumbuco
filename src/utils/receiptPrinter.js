@@ -168,7 +168,7 @@ export const printReceipt = (sale, settings = {}) => {
         return sum;
     }, 0);
 
-    sale.items.forEach((item, index) => {
+    (sale.items || []).forEach((item, index) => {
         const total = formatCurrency(item.total).replace('R$', '').trim();
         const unitPriceStr = formatCurrency(item.unitPrice).replace('R$', '').trim();
         const qty = formatNumber(item.quantity, 0);

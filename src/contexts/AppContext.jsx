@@ -17,9 +17,30 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState(null);
 
-    // Load current cash register and settings on mount
     useEffect(() => {
-        loadInitialData();
+        let unsubCash = null;
+        let unsubSettings = null;
+        try {
+            setLoading(true);
+            unsubCash = cashRegisterService.subscribeOpen((list) => {
+                const current = Array.isArray(list) && list.length > 0 ? list[0] : null;
+                setCurrentCashRegister(current);
+                setLoading(false);
+            });
+            unsubSettings = settingsService.subscribeAll((list) => {
+                const obj = {};
+                (list || []).forEach(s => { obj[s.key] = s.value; });
+                setSettings(obj);
+            });
+        } catch (e) {
+            console.error('Error subscribing app data:', e);
+            showNotification('Erro ao assinar dados em tempo real', 'error');
+            setLoading(false);
+        }
+        return () => {
+            try { unsubCash && unsubCash(); } catch {}
+            try { unsubSettings && unsubSettings(); } catch {}
+        };
     }, []);
 
     const loadInitialData = async () => {
@@ -135,9 +156,7 @@ export const AppProvider = ({ children }) => {
                 createdBy
             });
 
-            // Reload cash register to update expected balance
-            const updated = await cashRegisterService.getCurrent();
-            setCurrentCashRegister(updated);
+            // Current cash register will update via subscription
 
             showNotification('Movimento registrado com sucesso', 'success');
         } catch (error) {

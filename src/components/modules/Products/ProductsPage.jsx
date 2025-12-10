@@ -7,7 +7,7 @@ import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
 import ImportProductsModal from './ImportProductsModal';
-import { productService, categoryService } from '../../../services/firestore';
+import { productService, categoryService, firestoreService, COLLECTIONS } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
 
 const ProductsPage = () => {
@@ -22,39 +22,41 @@ const ProductsPage = () => {
     const [openMenuId, setOpenMenuId] = useState(null);
 
     useEffect(() => {
-        loadData();
-    }, []);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            loadData();
-        }, 15000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const loadData = async () => {
+        let unsubProducts = null;
+        let unsubCategories = null;
         setLoading(true);
         try {
-            const [productsData, categoriesData] = await Promise.all([
-                productService.getAll(),
-                categoryService.getAll()
-            ]);
-
-            setProducts(productsData);
-
-            // Create categories map for easy lookup
-            const catMap = {};
-            categoriesData.forEach(cat => {
-                catMap[cat.id] = cat.name;
-            });
-            setCategories(catMap);
+            unsubProducts = firestoreService.subscribe(
+                COLLECTIONS.PRODUCTS,
+                (list) => {
+                    setProducts(list);
+                    setLoading(false);
+                },
+                [],
+                'name',
+                'asc'
+            );
+            unsubCategories = firestoreService.subscribe(
+                COLLECTIONS.CATEGORIES,
+                (cats) => {
+                    const map = {};
+                    (cats || []).forEach(c => { map[c.id] = c.name; });
+                    setCategories(map);
+                },
+                [],
+                'name',
+                'asc'
+            );
         } catch (error) {
-            console.error('Error loading data:', error);
-            showNotification('error', 'Erro ao carregar dados');
-        } finally {
+            console.error('Error subscribing products/categories:', error);
+            showNotification('error', 'Erro ao assinar produtos e categorias');
             setLoading(false);
         }
-    };
+        return () => {
+            try { unsubProducts && unsubProducts(); } catch {}
+            try { unsubCategories && unsubCategories(); } catch {}
+        };
+    }, []);
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
@@ -74,7 +76,8 @@ const ProductsPage = () => {
                 await productService.create(productData);
                 showNotification('success', 'Produto criado com sucesso');
             }
-            loadData();
+            // Atualiza automaticamente via assinatura
+            
         } catch (error) {
             console.error('Error saving product:', error);
             showNotification('error', 'Erro ao salvar produto');
@@ -88,7 +91,7 @@ const ProductsPage = () => {
         try {
             await productService.delete(id);
             showNotification('success', 'Produto excluído com sucesso');
-            loadData();
+            // Atualiza automaticamente via assinatura
         } catch (error) {
             console.error('Error deleting product:', error);
             showNotification('error', 'Erro ao excluir produto');
@@ -102,7 +105,7 @@ const ProductsPage = () => {
                 showNotification('warning', `${errorCount} produtos falharam na importação.`);
             }, 3000);
         }
-        loadData();
+        // Atualiza automaticamente via assinatura
     };
 
     const filteredProducts = products

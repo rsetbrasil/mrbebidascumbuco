@@ -269,29 +269,11 @@ export const firestoreService = {
     },
 
     // Real-time listener
-    subscribe(collectionName, callback, conditions = []) {
+    subscribe(collectionName, callback, conditions = [], orderByField = null, orderDirection = 'asc') {
         if (isDemoMode) {
-            // For demo mode, just return current data once
-            // In a real app we might want to simulate updates
             const data = mockStore[collectionName] || [];
             callback(data);
-            return () => { }; // Unsubscribe function
-        }
-
-        const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        if (isLocalhost) {
-            let stopped = false;
-            const poll = async () => {
-                if (stopped) return;
-                try {
-                    const data = await firestoreService.query(collectionName, conditions);
-                    callback(data);
-                } catch (e) {
-                }
-            };
-            const interval = setInterval(poll, 15000);
-            poll();
-            return () => { stopped = true; clearInterval(interval); };
+            return () => { };
         }
 
         let q = collection(db, collectionName);
@@ -299,6 +281,10 @@ export const firestoreService = {
         conditions.forEach(condition => {
             q = query(q, where(condition.field, condition.operator, condition.value));
         });
+
+        if (orderByField) {
+            q = query(q, orderBy(orderByField, orderDirection));
+        }
 
         return onSnapshot(
             q,
@@ -608,6 +594,16 @@ export const cashRegisterService = {
         return results[0] || null;
     },
 
+    subscribeOpen(callback) {
+        return firestoreService.subscribe(
+            COLLECTIONS.CASH_REGISTER,
+            callback,
+            [{ field: 'status', operator: '==', value: 'open' }],
+            'openedAt',
+            'desc'
+        );
+    },
+
     async getHistory() {
         return firestoreService.query(
             COLLECTIONS.CASH_REGISTER,
@@ -657,6 +653,10 @@ export const settingsService = {
 
     async getAll() {
         return firestoreService.getAll(COLLECTIONS.SETTINGS, null, null); // No ordering
+    },
+
+    subscribeAll(callback) {
+        return firestoreService.subscribe(COLLECTIONS.SETTINGS, callback);
     }
 };
 
