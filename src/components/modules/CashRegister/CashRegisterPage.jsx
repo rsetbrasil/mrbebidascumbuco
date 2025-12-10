@@ -142,6 +142,19 @@ const CashRegisterPage = () => {
                 notes: closingNote
             }, {}); // Pass settings if available
 
+            printCashRegisterReport({
+                openedAt: currentCashRegister.openedAt,
+                closedAt: new Date(),
+                closedBy: closedByLabel,
+                openingBalance: currentCashRegister.openingBalance,
+                totalSales,
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                finalBalance,
+                notes: closingNote
+            }, { duplicate: true });
+
             showNotification('success', 'Caixa fechado com sucesso');
             setClosingNote('');
             setMovements([]);
@@ -264,15 +277,22 @@ const CashRegisterPage = () => {
                         <Wallet className="text-primary-500" />
                         Controle de Caixa
                     </h1>
-                    <p className="text-gray-400">
-                        Aberto em {formatDateTime(currentCashRegister.openedAt)}
-                    </p>
+                    <p className="text-gray-400">Aberto em {formatDateTime(currentCashRegister.openedAt)}</p>
                 </div>
-                <div className="flex gap-3">
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                        gap: 'var(--spacing-sm)',
+                        width: '100%',
+                        maxWidth: '720px'
+                    }}
+                >
                     <Button
                         variant="secondary"
                         onClick={() => navigate('/historico-caixa')}
                         icon={History}
+                        fullWidth
                     >
                         Histórico
                     </Button>
@@ -280,6 +300,7 @@ const CashRegisterPage = () => {
                         variant="success"
                         onClick={() => setModalType('supply')}
                         icon={ArrowUpCircle}
+                        fullWidth
                     >
                         Suprimento
                     </Button>
@@ -287,16 +308,25 @@ const CashRegisterPage = () => {
                         variant="danger"
                         onClick={() => setModalType('bleed')}
                         icon={ArrowDownCircle}
+                        fullWidth
                     >
                         Sangria
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={handleCloseRegister}
+                        icon={Lock}
+                        fullWidth
+                    >
+                        Fechar Caixa
                     </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-blue-500">
                     <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1">Saldo Inicial</p>
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Unlock size={16} className="text-blue-400" /> Saldo Inicial</p>
                         <h3 className="text-2xl font-bold text-white">
                             {formatCurrency(currentCashRegister.openingBalance)}
                         </h3>
@@ -305,7 +335,7 @@ const CashRegisterPage = () => {
 
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-green-500">
                     <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1">Vendas</p>
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-green-400" /> Vendas</p>
                         <h3 className="text-2xl font-bold text-green-400">
                             {formatCurrency(totalSales)}
                         </h3>
@@ -343,7 +373,7 @@ const CashRegisterPage = () => {
 
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-primary-500">
                     <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1">Saldo Atual</p>
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Wallet size={16} className="text-primary-400" /> Saldo Atual</p>
                         <h3 className="text-2xl font-bold text-primary-400">
                             {formatCurrency(currentBalance)}
                         </h3>
@@ -351,33 +381,65 @@ const CashRegisterPage = () => {
                 </Card>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-emerald-500">
+                    <div className="p-4">
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><ArrowUpCircle size={16} className="text-emerald-400" /> Suprimentos</p>
+                        <h3 className="text-2xl font-bold text-emerald-400">
+                            {formatCurrency(totalSupplies)}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
+                    </div>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-red-500">
+                    <div className="p-4">
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><ArrowDownCircle size={16} className="text-red-400" /> Sangrias</p>
+                        <h3 className="text-2xl font-bold text-red-400">
+                            {formatCurrency(totalBleeds)}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
+                    </div>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-orange-500">
+                    <div className="p-4">
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-orange-400" /> Trocos</p>
+                        <h3 className="text-2xl font-bold text-orange-400">
+                            {formatCurrency(totalChange)}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
+                    </div>
+                </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <Card title="Histórico de Movimentações" icon={History}>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
+                        <div className="table-container">
+                            <table className="table">
                                 <thead>
-                                    <tr className="border-b border-slate-700/50 text-gray-400 text-sm">
-                                        <th className="p-4 font-medium">Hora</th>
-                                        <th className="p-4 font-medium">Tipo</th>
-                                        <th className="p-4 font-medium">Descrição</th>
-                                        <th className="p-4 font-medium text-right">Valor</th>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Descrição</th>
+                                        <th style={{ textAlign: 'right' }}>Valor</th>
                                     </tr>
                                 </thead>
-                                <tbody className="text-sm divide-y divide-slate-700/50">
+                                <tbody>
                                     {movements.length === 0 ? (
                                         <tr>
-                                            <td colSpan="4" className="p-8 text-center text-gray-500">
+                                            <td colSpan="4" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                                 Nenhuma movimentação registrada
                                             </td>
                                         </tr>
                                     ) : (
                                         movements.map((mov) => (
-                                            <tr key={mov.id} className="hover:bg-slate-700/30">
-                                                <td className="p-4 text-gray-300">
+                                            <tr key={mov.id}>
+                                                <td>
                                                     {formatDateTime(mov.createdAt).split(' ')[1]}
                                                 </td>
-                                                <td className="p-4">
+                                                <td>
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${mov.type === 'supply'
                                                         ? 'bg-emerald-500/10 text-emerald-400'
                                                         : 'bg-red-500/10 text-red-400'
@@ -385,8 +447,8 @@ const CashRegisterPage = () => {
                                                         {mov.type === 'supply' ? 'Suprimento' : 'Sangria'}
                                                     </span>
                                                 </td>
-                                                <td className="p-4 text-gray-300">{mov.description}</td>
-                                                <td className={`p-4 text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
+                                                <td>{mov.description}</td>
+                                                <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
                                                     }`}>
                                                     {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
                                                 </td>

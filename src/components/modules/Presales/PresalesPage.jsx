@@ -284,6 +284,7 @@ const PresalesPage = () => {
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Itens</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Total</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Tipo</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Operador</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Status</th>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
                             </tr>
@@ -291,7 +292,7 @@ const PresalesPage = () => {
                         <tbody>
                             {filteredPresales.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                    <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                                             <ClipboardList size={48} style={{ opacity: 0.2 }} />
                                             <p>Nenhum pedido encontrado</p>
@@ -353,6 +354,17 @@ const PresalesPage = () => {
                                                     </>
                                                 );
                                             })()}
+                                        </td>
+                                        <td style={{ padding: 'var(--spacing-md)' }}>
+                                            <span style={{
+                                                padding: '4px 8px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                background: 'var(--color-bg-secondary)',
+                                                fontSize: 'var(--font-size-xs)',
+                                                fontWeight: 500
+                                            }}>
+                                                {presale.createdBy || 'Operador'}
+                                            </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <span style={{
@@ -469,6 +481,10 @@ const PresalesPage = () => {
                                 <div>
                                     <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Data</div>
                                     <div style={{ fontWeight: 600 }}>{formatDateTime(viewPresale.createdAt)}</div>
+                                </div>
+                                <div>
+                                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Operador</div>
+                                    <div style={{ fontWeight: 600 }}>{viewPresale.createdBy || 'Operador'}</div>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>

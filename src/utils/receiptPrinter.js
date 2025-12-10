@@ -288,11 +288,13 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const companyName = settings.companyName || 'MR BEBIDAS DISTRIBUIDORA';
     const dateStr = formatDateTime(data.closedAt || new Date());
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
+    const isDuplicate = !!settings.duplicate;
 
     const html = `
         <div class="text-center mb-2">
             <div class="font-bold">${companyName}</div>
             <div class="font-bold mt-1">FECHAMENTO DE CAIXA</div>
+            ${isDuplicate ? '<div class="text-xs mt-1">2ª VIA</div>' : ''}
         </div>
 
         <div class="border-b mb-2"></div>

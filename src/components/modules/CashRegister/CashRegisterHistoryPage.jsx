@@ -52,6 +52,37 @@ const CashRegisterHistoryPage = () => {
         }
     };
 
+    const handlePrintDuplicate = (register) => {
+        try {
+            printCashRegisterReport({
+                openedAt: register.openedAt,
+                closedAt: register.closedAt,
+                closedBy: register.closedBy || 'Admin',
+                openingBalance: register.openingBalance,
+                totalSales: register.totalSales || 0,
+                totalSupplies: register.totalSupplies || 0,
+                totalBleeds: register.totalBleeds || 0,
+                totalChange: register.totalChange || 0,
+                finalBalance: register.closingBalance,
+                difference: register.difference,
+                notes: register.notes
+            }, { duplicate: true });
+        } catch (error) {
+            console.error('Error printing report:', error);
+            showNotification('Erro ao gerar 2ª via', 'error');
+        }
+    };
+
+    const handlePrintBoth = (register) => {
+        try {
+            handlePrintReport(register);
+            handlePrintDuplicate(register);
+        } catch (error) {
+            console.error('Error printing reports:', error);
+            showNotification('Erro ao imprimir', 'error');
+        }
+    };
+
     if (loading) return <Loading fullScreen />;
 
     return (
@@ -70,60 +101,55 @@ const CashRegisterHistoryPage = () => {
             </div>
 
             <Card>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="table-container">
+                    <table className="table">
                         <thead>
-                            <tr className="border-b border-slate-700 text-gray-400">
-                                <th className="p-4">Data Fechamento</th>
-                                <th className="p-4">Operador</th>
-                                <th className="p-4">Saldo Inicial</th>
-                                <th className="p-4">Saldo Final</th>
-                                <th className="p-4">Diferença</th>
-                                <th className="p-4 text-right">Ações</th>
+                            <tr>
+                                <th>Data Fechamento</th>
+                                <th>Operador</th>
+                                <th>Saldo Inicial</th>
+                                <th>Saldo Final</th>
+                                <th>Diferença</th>
+                                <th style={{ textAlign: 'right' }}>Ações</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700">
+                        <tbody>
                             {history.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-400">
+                                    <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                         Nenhum registro encontrado
                                     </td>
                                 </tr>
                             ) : (
                                 history.map((register) => (
-                                    <tr key={register.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-4 text-white">
+                                    <tr key={register.id}>
+                                        <td>
                                             <div className="flex items-center gap-2">
                                                 <Calendar size={16} className="text-emerald-400" />
                                                 {formatDateTime(register.closedAt)}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-gray-300">
+                                        <td>
                                             <div className="flex items-center gap-2">
                                                 <User size={16} className="text-blue-400" />
                                                 {register.closedBy || '-'}
                                             </div>
                                         </td>
-                                        <td className="p-4 text-gray-300">
+                                        <td>
                                             {formatCurrency(register.openingBalance)}
                                         </td>
-                                        <td className="p-4 font-medium text-emerald-400">
+                                        <td className="font-medium" style={{ color: 'var(--color-success)' }}>
                                             {formatCurrency(register.closingBalance)}
                                         </td>
-                                        <td className={`p-4 font-medium ${!register.difference || register.difference === 0
-                                                ? 'text-gray-400'
-                                                : register.difference > 0
-                                                    ? 'text-emerald-400'
-                                                    : 'text-red-400'
-                                            }`}>
+                                        <td className="font-medium" style={{ color: (!register.difference || register.difference === 0) ? 'var(--color-text-secondary)' : (register.difference > 0 ? 'var(--color-success)' : 'var(--color-danger)') }}>
                                             {register.difference ? formatCurrency(register.difference) : '-'}
                                         </td>
-                                        <td className="p-4 text-right">
+                                        <td style={{ textAlign: 'right' }}>
                                             <Button
                                                 variant="secondary"
                                                 size="sm"
                                                 icon={Printer}
-                                                onClick={() => handlePrintReport(register)}
+                                                onClick={() => handlePrintBoth(register)}
                                             >
                                                 Imprimir
                                             </Button>
