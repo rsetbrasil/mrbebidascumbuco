@@ -120,13 +120,47 @@ const CashRegisterPage = () => {
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + m.amount, 0);
 
+            // Compute profit breakdown: Atacado (wholesale) vs Mercearia (cold)
+            let profitWholesale = 0;
+            let profitMercearia = 0;
+            for (const sale of sales) {
+                const items = sale.items || [];
+                let revW = 0, revM = 0, revOther = 0;
+                let costW = 0, costM = 0;
+                for (const item of items) {
+                    const qty = Number(item.quantity || 0);
+                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
+                    const cost = Number(item.unitCost || 0) * qty;
+                    if (item.isCold) {
+                        revM += revenue; costM += cost;
+                    } else if (item.isWholesale) {
+                        revW += revenue; costW += cost;
+                    } else {
+                        revOther += revenue;
+                    }
+                }
+                const totalRev = revW + revM + revOther;
+                const saleDiscount = Number(sale.discount || 0);
+                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
+                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
+                profitWholesale += (revW - discW) - costW;
+                profitMercearia += (revM - discM) - costM;
+            }
+
             const finalBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
 
             const closedByLabel = approvedByManagerName
                 ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
                 : (user?.name || 'Operador');
 
-            await closeCashRegister(finalBalance, closedByLabel, closingNote);
+            await closeCashRegister(finalBalance, closedByLabel, closingNote, {
+                totalSales,
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                profitWholesale,
+                profitMercearia
+            });
 
             // Print closing report
             printCashRegisterReport({
@@ -139,7 +173,9 @@ const CashRegisterPage = () => {
                 totalBleeds,
                 totalChange,
                 finalBalance,
-                notes: closingNote
+                notes: closingNote,
+                profitWholesale,
+                profitMercearia
             }, {}); // Pass settings if available
 
             printCashRegisterReport({
@@ -152,7 +188,9 @@ const CashRegisterPage = () => {
                 totalBleeds,
                 totalChange,
                 finalBalance,
-                notes: closingNote
+                notes: closingNote,
+                profitWholesale,
+                profitMercearia
             }, { duplicate: true });
 
             showNotification('success', 'Caixa fechado com sucesso');

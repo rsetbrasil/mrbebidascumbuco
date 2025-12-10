@@ -14,6 +14,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         wholesalePrice: '',
         coldPrice: '',
         cost: '',
+        coldCost: '',
         stock: '',
         coldStock: '',
         categoryId: '',
@@ -46,6 +47,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 wholesalePrice: product.wholesalePrice || product.price || '',
                 coldPrice: product.coldPrice || '',
                 cost: product.cost || '',
+                coldCost: product.coldCost || '',
                 stock: product.stock || '',
                 coldStock: product.coldStock || '',
                 categoryId: product.categoryId || '',
@@ -60,6 +62,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 wholesalePrice: '',
                 coldPrice: '',
                 cost: '',
+                coldCost: '',
                 stock: '',
                 coldStock: '',
                 categoryId: '',
@@ -156,6 +159,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 wholesalePrice: wholesaleVal,
                 coldPrice: coldVal,
                 cost: parseFloat(formData.cost) || 0,
+                coldCost: formData.coldCost !== '' && formData.coldCost !== null && formData.coldCost !== undefined ? (parseFloat(formData.coldCost) || 0) : null,
                 stock: parseInt(formData.stock) || 0,
                 coldStock: parseInt(formData.coldStock) || 0
             };
@@ -215,7 +219,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
                         <div style={{ flex: 1 }}>
@@ -294,9 +298,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </div>
 
                     <CurrencyInput
-                        label="Preço Custo (R$)"
+                        label="Custo (Atacado)"
                         name="cost"
                         value={formData.cost}
+                        onChange={handleChange}
+                        placeholder="0,00"
+                    />
+
+                    <CurrencyInput
+                        label="Custo (Mercearia)"
+                        name="coldCost"
+                        value={formData.coldCost}
                         onChange={handleChange}
                         placeholder="0,00"
                     />

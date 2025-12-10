@@ -44,7 +44,9 @@ const CashRegisterHistoryPage = () => {
                 totalChange: register.totalChange || 0,
                 finalBalance: register.closingBalance, // Note: closingBalance is what's saved
                 difference: register.difference,
-                notes: register.notes
+                notes: register.notes,
+                profitWholesale: register.profitWholesale || 0,
+                profitMercearia: register.profitMercearia || 0
             });
         } catch (error) {
             console.error('Error printing report:', error);
@@ -65,7 +67,9 @@ const CashRegisterHistoryPage = () => {
                 totalChange: register.totalChange || 0,
                 finalBalance: register.closingBalance,
                 difference: register.difference,
-                notes: register.notes
+                notes: register.notes,
+                profitWholesale: register.profitWholesale || 0,
+                profitMercearia: register.profitMercearia || 0
             }, { duplicate: true });
         } catch (error) {
             console.error('Error printing report:', error);

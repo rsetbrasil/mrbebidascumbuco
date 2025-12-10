@@ -56,15 +56,14 @@ export const CartProvider = ({ children }) => {
             const isWholesale = type === 'wholesale';
 
             let priceToUse = product.wholesalePrice || product.price;
-            let costToUse = product.cost || 0;
+            const baseCost = isCold ? (product.coldCost ?? product.cost ?? 0) : (product.cost ?? 0);
+            let costToUse = baseCost;
             let stockDeduction = 1;
 
             if (unit) {
                 // If selling a specific unit (Pack/Kit)
                 priceToUse = unit.price;
-                // Cost should ideally be calculated based on multiplier, but for now we might need to approximate or add cost to unit
-                // Assuming unit cost is proportional to base cost for now
-                costToUse = (product.cost || 0) * unit.multiplier;
+                costToUse = baseCost * unit.multiplier;
                 stockDeduction = unit.multiplier;
             } else {
                 // Standard unit logic

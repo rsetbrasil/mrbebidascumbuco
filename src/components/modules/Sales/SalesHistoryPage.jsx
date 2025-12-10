@@ -209,7 +209,7 @@ const SalesHistoryPage = () => {
                 productName: product.name,
                 quantity,
                 unitPrice,
-                unitCost: product.cost || 0,
+                unitCost: (selectedSale.priceType === 'cold') ? (product.coldCost || product.cost || 0) : (product.cost || 0),
                 discount: 0,
                 total: quantity * unitPrice
             };

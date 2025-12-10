@@ -136,7 +136,7 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    const closeCashRegister = async (closingBalance, closedBy, notes = '') => {
+    const closeCashRegister = async (closingBalance, closedBy, notes = '', extras = {}) => {
         try {
             if (!currentCashRegister) {
                 throw new Error('Nenhum caixa aberto');
@@ -153,7 +153,8 @@ export const AppProvider = ({ children }) => {
                 closingBalance,
                 closedBy,
                 difference,
-                notes
+                notes,
+                ...extras
             });
 
             setCurrentCashRegister(null);

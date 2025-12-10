@@ -354,6 +354,18 @@ export const printCashRegisterReport = (data, settings = {}) => {
             ` : ''}
         </div>
 
+        <div class="font-bold text-center mb-1">RESUMO DE LUCRO</div>
+        <div class="mb-2 text-sm">
+            <div class="flex">
+                <span>Lucro Atacado:</span>
+                <span>${formatCurrency(Number(data.profitWholesale || 0))}</span>
+            </div>
+            <div class="flex">
+                <span>Lucro Mercearia:</span>
+                <span>${formatCurrency(Number(data.profitMercearia || 0))}</span>
+            </div>
+        </div>
+
         ${data.notes ? `
             <div class="mb-2 text-sm">
                 <div class="font-bold">Observações:</div>

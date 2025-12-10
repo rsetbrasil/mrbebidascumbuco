@@ -34,10 +34,10 @@ export const COLLECTIONS = {
 // Mock Data Store
 const mockStore = {
     products: [
-        { id: '1', name: 'Coca-Cola 2L', barcode: '7894900011517', price: 10.00, cost: 7.50, stock: 100, categoryId: '1', active: true, createdAt: new Date() },
-        { id: '2', name: 'Heineken Long Neck', barcode: '7893249823', price: 8.50, cost: 5.00, stock: 200, categoryId: '2', active: true, createdAt: new Date() },
-        { id: '3', name: 'Água Mineral 500ml', barcode: '789123456', price: 3.00, cost: 1.00, stock: 500, categoryId: '3', active: true, createdAt: new Date() },
-        { id: '4', name: 'Red Bull 250ml', barcode: '9002490205', price: 12.00, cost: 8.00, stock: 50, categoryId: '3', active: true, createdAt: new Date() }
+        { id: '1', name: 'Coca-Cola 2L', barcode: '7894900011517', price: 10.00, cost: 7.50, coldCost: 7.50, stock: 100, coldStock: 0, categoryId: '1', active: true, createdAt: new Date() },
+        { id: '2', name: 'Heineken Long Neck', barcode: '7893249823', price: 8.50, cost: 5.00, coldCost: 5.00, stock: 200, coldStock: 0, categoryId: '2', active: true, createdAt: new Date() },
+        { id: '3', name: 'Água Mineral 500ml', barcode: '789123456', price: 3.00, cost: 1.00, coldCost: 1.00, stock: 500, coldStock: 0, categoryId: '3', active: true, createdAt: new Date() },
+        { id: '4', name: 'Red Bull 250ml', barcode: '9002490205', price: 12.00, cost: 8.00, coldCost: 8.00, stock: 50, coldStock: 0, categoryId: '3', active: true, createdAt: new Date() }
     ],
     customers: [
         { id: '1', name: 'Cliente Balcão', document: '', phone: '', createdAt: new Date() },
