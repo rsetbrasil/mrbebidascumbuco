@@ -147,6 +147,19 @@ const CashRegisterPage = () => {
                 profitMercearia += (revM - discM) - costM;
             }
 
+            const paymentsMap = new Map();
+            for (const sale of sales) {
+                const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                    ? sale.payments
+                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                for (const p of list) {
+                    const key = String(p.method || 'Dinheiro');
+                    const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
+                    paymentsMap.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+                }
+            }
+            const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
+
             const finalBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
 
             const closedByLabel = approvedByManagerName
@@ -159,7 +172,8 @@ const CashRegisterPage = () => {
                 totalBleeds,
                 totalChange,
                 profitWholesale,
-                profitMercearia
+                profitMercearia,
+                paymentSummary
             });
 
             // Print closing report
@@ -175,7 +189,8 @@ const CashRegisterPage = () => {
                 finalBalance,
                 notes: closingNote,
                 profitWholesale,
-                profitMercearia
+                profitMercearia,
+                paymentSummary
             }, {}); // Pass settings if available
 
             printCashRegisterReport({
@@ -190,7 +205,8 @@ const CashRegisterPage = () => {
                 finalBalance,
                 notes: closingNote,
                 profitWholesale,
-                profitMercearia
+                profitMercearia,
+                paymentSummary
             }, { duplicate: true });
 
             showNotification('success', 'Caixa fechado com sucesso');

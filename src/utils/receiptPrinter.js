@@ -366,6 +366,19 @@ export const printCashRegisterReport = (data, settings = {}) => {
             </div>
         </div>
 
+        <div class="border-b mb-2"></div>
+        <div class="font-bold text-center mb-1">FORMAS DE PAGAMENTO</div>
+        <div class="mb-2 text-sm">
+            ${(Array.isArray(data.paymentSummary) && data.paymentSummary.length > 0)
+                ? data.paymentSummary.map(p => `
+                    <div class="flex">
+                        <span>${p.method}${Number(p.count || 0) > 0 ? ` (${p.count})` : ''}</span>
+                        <span>${formatCurrency(Number(p.amount || 0))}</span>
+                    </div>
+                `).join('')
+                : '<div class="text-xs text-center">-</div>'}
+        </div>
+
         ${data.notes ? `
             <div class="mb-2 text-sm">
                 <div class="font-bold">Observações:</div>
