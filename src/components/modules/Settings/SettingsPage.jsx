@@ -286,6 +286,25 @@ const SettingsPage = () => {
                                 onChange={handleChange}
                                 placeholder="Ex: Deus é Fiel!"
                             />
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={async () => {
+                                        try {
+                                            const val = Date.now();
+                                            await settingsService.set('reloadToken', val);
+                                            try { await updateSettings('reloadToken', val); } catch {}
+                                            showNotification('success', 'Atualização enviada para todos os dispositivos');
+                                        } catch (error) {
+                                            console.error('Force refresh error:', error);
+                                            showNotification('error', 'Erro ao enviar atualização');
+                                        }
+                                    }}
+                                >
+                                    Forçar Atualização dos Dispositivos
+                                </Button>
+                            </div>
                             <Input
                                 label="Taxa Cartão Crédito (%)"
                                 name="cardCreditFee"

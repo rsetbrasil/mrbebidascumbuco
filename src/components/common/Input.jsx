@@ -10,6 +10,7 @@ const Input = React.forwardRef(({
     disabled = false,
     required = false,
     icon = null,
+    suffix = null,
     className = '',
     textarea = false,
     helperText,
@@ -51,7 +52,7 @@ const Input = React.forwardRef(({
                         placeholder={placeholder}
                         disabled={disabled}
                         required={required}
-                        style={icon ? { paddingLeft: '40px' } : {}}
+                        style={{ paddingLeft: icon ? '40px' : undefined, paddingRight: suffix ? '48px' : undefined }}
                         {...props}
                     />
                 ) : (
@@ -65,9 +66,23 @@ const Input = React.forwardRef(({
                         placeholder={placeholder}
                         disabled={disabled}
                         required={required}
-                        style={icon ? { paddingLeft: '40px' } : {}}
+                        style={{ paddingLeft: icon ? '40px' : undefined, paddingRight: suffix ? '48px' : undefined }}
                         {...props}
                     />
+                )}
+
+                {suffix && (
+                    <span style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--color-text-muted)',
+                        pointerEvents: 'none',
+                        fontSize: '12px'
+                    }}>
+                        {suffix}
+                    </span>
                 )}
             </div>
 

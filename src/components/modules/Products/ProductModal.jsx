@@ -224,11 +224,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 onChange={handleChange}
                                 error={errors.wholesalePrice}
                                 placeholder="0,00"
+                                suffix={formData.wholesaleUnit}
                             />
                         </div>
                         <div style={{ width: isMobile ? '100%' : '70px' }}>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                Un.
+                                Un. Atacado
                             </label>
                             <select
                                 name="wholesaleUnit"
@@ -262,11 +263,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 onChange={handleChange}
                                 error={errors.coldPrice}
                                 placeholder="0,00"
+                                suffix={formData.coldUnit}
                             />
                         </div>
                         <div style={{ width: isMobile ? '100%' : '70px' }}>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                Un.
+                                Un. Mercearia
                             </label>
                             <select
                                 name="coldUnit"
@@ -297,6 +299,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         value={formData.cost}
                         onChange={handleChange}
                         placeholder="0,00"
+                        suffix={formData.wholesaleUnit}
                     />
 
                     <CurrencyInput
@@ -305,6 +308,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         value={formData.coldCost}
                         onChange={handleChange}
                         placeholder="0,00"
+                        suffix={formData.coldUnit}
                     />
                 </div>
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { cashRegisterService, settingsService } from '../services/firestore';
 import { salesService } from '../services/firestore';
 
@@ -18,6 +18,7 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const reloadTokenRef = useRef(null);
 
     useEffect(() => {
         let unsubCash = null;
@@ -74,6 +75,22 @@ export const AppProvider = ({ children }) => {
             }
         };
     }, []);
+
+    useEffect(() => {
+        const token = settings && settings.reloadToken;
+        if (token === undefined || token === null) {
+            reloadTokenRef.current = token;
+            return;
+        }
+        if (reloadTokenRef.current !== null && reloadTokenRef.current !== undefined && token !== reloadTokenRef.current) {
+            try {
+                if (typeof window !== 'undefined') {
+                    window.location.reload();
+                }
+            } catch {}
+        }
+        reloadTokenRef.current = token;
+    }, [settings.reloadToken]);
 
     const loadInitialData = async () => {
         try {
