@@ -53,6 +53,17 @@ const Navbar = ({ onMenuClick }) => {
     }, []);
 
     useEffect(() => {
+        const handleShortcut = (e) => {
+            if (e.key === 'F7') {
+                e.preventDefault();
+                setPriceModalOpen(true);
+            }
+        };
+        window.addEventListener('keydown', handleShortcut);
+        return () => window.removeEventListener('keydown', handleShortcut);
+    }, []);
+
+    useEffect(() => {
         if (priceModalOpen) {
             setLoadingProducts(true);
             setSearchTerm('');
@@ -158,7 +169,7 @@ const Navbar = ({ onMenuClick }) => {
 
                     <button
                         onClick={() => setPriceModalOpen(true)}
-                        title="Consultar Preços"
+                        title="Consultar Preços (F7)"
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -179,8 +190,8 @@ const Navbar = ({ onMenuClick }) => {
                         onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
                     >
                         <Search size={(onMenuClick || isCompact) ? 14 : 16} />
-                        <span style={{ display: isMobile ? 'none' : 'inline' }}>Consultar Preços</span>
-                        <span style={{ display: isMobile ? 'inline' : 'none' }}>Preços</span>
+                        <span style={{ display: isMobile ? 'none' : 'inline' }}>Consultar Preços (F7)</span>
+                        <span style={{ display: isMobile ? 'inline' : 'none' }}>Preços (F7)</span>
                     </button>
                 </div>
 
