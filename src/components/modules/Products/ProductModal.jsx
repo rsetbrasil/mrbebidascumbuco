@@ -213,21 +213,19 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 'var(--spacing-md)' }}>
 
-                    <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
-                        <div style={{ flex: 1 }}>
-                            <CurrencyInput
-                                label="Preço (Atacado)"
-                                name="wholesalePrice"
-                                value={formData.wholesalePrice}
-                                onChange={handleChange}
-                                error={errors.wholesalePrice}
-                                placeholder="0,00"
-                                suffix={formData.wholesaleUnit}
-                            />
-                        </div>
-                        <div style={{ width: isMobile ? '100%' : '70px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                        <CurrencyInput
+                            label="Preço (Atacado)"
+                            name="wholesalePrice"
+                            value={formData.wholesalePrice}
+                            onChange={handleChange}
+                            error={errors.wholesalePrice}
+                            placeholder="0,00"
+                            suffix={formData.wholesaleUnit}
+                        />
+                        <div>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Un. Atacado
                             </label>
@@ -252,21 +250,27 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 ))}
                             </select>
                         </div>
+                        <CurrencyInput
+                            label="Custo (Atacado)"
+                            name="cost"
+                            value={formData.cost}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            suffix={formData.wholesaleUnit}
+                        />
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
-                        <div style={{ flex: 1 }}>
-                            <CurrencyInput
-                                label="Preço (Mercearia)"
-                                name="coldPrice"
-                                value={formData.coldPrice}
-                                onChange={handleChange}
-                                error={errors.coldPrice}
-                                placeholder="0,00"
-                                suffix={formData.coldUnit}
-                            />
-                        </div>
-                        <div style={{ width: isMobile ? '100%' : '70px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                        <CurrencyInput
+                            label="Preço (Mercearia)"
+                            name="coldPrice"
+                            value={formData.coldPrice}
+                            onChange={handleChange}
+                            error={errors.coldPrice}
+                            placeholder="0,00"
+                            suffix={formData.coldUnit}
+                        />
+                        <div>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Un. Mercearia
                             </label>
@@ -291,30 +295,20 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 ))}
                             </select>
                         </div>
+                        <CurrencyInput
+                            label="Custo (Mercearia)"
+                            name="coldCost"
+                            value={formData.coldCost}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            suffix={formData.coldUnit}
+                        />
                     </div>
-
-                    <CurrencyInput
-                        label="Custo (Atacado)"
-                        name="cost"
-                        value={formData.cost}
-                        onChange={handleChange}
-                        placeholder="0,00"
-                        suffix={formData.wholesaleUnit}
-                    />
-
-                    <CurrencyInput
-                        label="Custo (Mercearia)"
-                        name="coldCost"
-                        value={formData.coldCost}
-                        onChange={handleChange}
-                        placeholder="0,00"
-                        suffix={formData.coldUnit}
-                    />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
                     <Input
-                        label="Estoque Atual"
+                        label="Estoque Atacado"
                         name="stock"
                         type="number"
                         value={formData.stock}
@@ -331,30 +325,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         placeholder="0"
                     />
 
-                    <div>
-                        <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                            Categoria
-                        </label>
+                    <div className="input-group">
+                        <label className="input-label">Categoria</label>
                         <select
+                            className="input"
                             name="categoryId"
                             value={formData.categoryId}
                             onChange={handleChange}
-                            style={{
-                                width: '100%',
-                                height: '42px',
-                                background: 'var(--color-bg-tertiary)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 'var(--radius-md)',
-                                padding: '0 16px',
-                                color: 'var(--color-text-primary)',
-                                outline: 'none',
-                                transition: 'border-color var(--transition-fast)',
-                                cursor: 'pointer'
-                            }}
                         >
-                            <option value="" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>Selecione uma categoria</option>
+                            <option value="">Selecione uma categoria</option>
                             {categories.map(cat => (
-                                <option key={cat.id} value={cat.id} style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>
+                                <option key={cat.id} value={cat.id}>
                                     {cat.name}
                                 </option>
                             ))}
