@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { DollarSign, User, Menu, LogOut } from 'lucide-react';
+import { DollarSign, User, Menu, LogOut, Search } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = ({ onMenuClick }) => {
     const { currentCashRegister, settings, isSyncing } = useApp();
     const { user, logout } = useAuth();
+    const navigate = useNavigate();
 
     const [time, setTime] = useState('');
     const [isCompact, setIsCompact] = useState(false);
@@ -95,6 +97,33 @@ const Navbar = ({ onMenuClick }) => {
                     }}>
                         {(settings?.headerTitle || 'Deus é Fiel!')}
                     </h1>
+
+                    <button
+                        onClick={() => navigate('/pdv')}
+                        title="Consultar Preços"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
+                            background: 'var(--color-primary)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            boxShadow: 'var(--shadow-sm)',
+                            transition: 'all var(--transition-fast)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.05)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
+                    >
+                        <Search size={(onMenuClick || isCompact) ? 14 : 16} />
+                        <span style={{ display: isMobile ? 'none' : 'inline' }}>Consultar Preços</span>
+                        <span style={{ display: isMobile ? 'inline' : 'none' }}>Preços</span>
+                    </button>
                 </div>
 
                 {/* Middle: Digital Clock */}
