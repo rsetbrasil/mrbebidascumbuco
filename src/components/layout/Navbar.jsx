@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { DollarSign, User, Menu, LogOut, Search } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import Input from '../common/Input';
 import Button from '../common/Button';
 import { productService } from '../../services/firestore';
@@ -10,6 +11,7 @@ import { formatCurrency } from '../../utils/formatters';
 const Navbar = ({ onMenuClick }) => {
     const { currentCashRegister, settings, isSyncing } = useApp();
     const { user, logout } = useAuth();
+    const navigate = useNavigate();
 
     const [time, setTime] = useState('');
     const [isCompact, setIsCompact] = useState(false);
@@ -115,7 +117,7 @@ const Navbar = ({ onMenuClick }) => {
         <nav style={{
             background: 'var(--color-bg-secondary)',
             borderBottom: '1px solid var(--color-border)',
-            padding: 'var(--spacing-md) var(--spacing-lg)',
+            padding: 'var(--spacing-md)',
             position: 'sticky',
             top: 0,
             zIndex: 100,
@@ -136,63 +138,59 @@ const Navbar = ({ onMenuClick }) => {
                             onClick={onMenuClick}
                             style={{
                                 background: 'transparent',
-                                border: 'none',
+                                border: '1px solid var(--color-border)',
                                 color: 'var(--color-text-primary)',
                                 cursor: 'pointer',
-                                padding: '8px',
-                                display: 'flex',
+                                width: '32px',
+                                height: '32px',
+                                padding: 0,
+                                display: 'inline-flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 borderRadius: 'var(--radius-md)',
                                 transition: 'background var(--transition-fast)'
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            title="Menu"
                         >
-                            <Menu size={24} />
+                            <Menu size={20} />
                         </button>
                     )}
 
-                    <h1 style={{
-                        fontSize: isMobile ? 'var(--font-size-lg)' : (onMenuClick ? 'var(--font-size-lg)' : 'var(--font-size-xl)'),
-                        fontWeight: 800,
-                        background: 'var(--gradient-primary)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        margin: 0,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                    }}>
-                        {(settings?.headerTitle || 'Deus é Fiel!')}
-                    </h1>
-
-                    <button
-                        onClick={() => setPriceModalOpen(true)}
-                        title="Consultar Preços (F7)"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
-                            background: 'var(--color-primary)',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
-                            fontWeight: 700,
+                    {!isMobile && (
+                        <h1 style={{
+                            fontSize: (onMenuClick ? 'var(--font-size-lg)' : 'var(--font-size-xl)'),
+                            fontWeight: 800,
+                            background: 'var(--gradient-primary)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            margin: 0,
                             whiteSpace: 'nowrap',
-                            cursor: 'pointer',
-                            boxShadow: 'var(--shadow-sm)',
-                            transition: 'all var(--transition-fast)'
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                        }}>
+                            {(settings?.headerTitle || 'Deus é Fiel!')}
+                        </h1>
+                    )}
+
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        icon={<Search size={14} />}
+                        title="Consultar Preços (F7)"
+                        onClick={() => setPriceModalOpen(true)}
+                        style={{
+                            height: '32px',
+                            padding: '0 10px',
+                            whiteSpace: 'nowrap',
+                            alignItems: 'center',
+                            display: 'inline-flex'
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.05)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
                     >
-                        <Search size={(onMenuClick || isCompact) ? 14 : 16} />
-                        <span style={{ display: isMobile ? 'none' : 'inline' }}>Consultar Preços (F7)</span>
-                        <span style={{ display: isMobile ? 'inline' : 'none' }}>Preços (F7)</span>
-                    </button>
+                        {isMobile ? 'Preços (F7)' : 'Consultar Preços (F7)'}
+                    </Button>
                 </div>
 
                 {/* Middle: Digital Clock */}
@@ -224,10 +222,11 @@ const Navbar = ({ onMenuClick }) => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 'var(--spacing-sm)',
-                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
+                            height: '32px',
+                            padding: '0 10px',
                             background: 'var(--color-accent)',
                             borderRadius: 'var(--radius-full)',
-                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            fontSize: 'var(--font-size-xs)',
                             color: 'white',
                             fontWeight: 700,
                             whiteSpace: 'nowrap'
@@ -241,10 +240,11 @@ const Navbar = ({ onMenuClick }) => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 'var(--spacing-sm)',
-                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
+                            height: '32px',
+                            padding: '0 10px',
                             background: 'var(--color-warning)',
                             borderRadius: 'var(--radius-full)',
-                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+                            fontSize: 'var(--font-size-xs)',
                             color: 'white',
                             fontWeight: 700,
                             whiteSpace: 'nowrap'
@@ -254,38 +254,39 @@ const Navbar = ({ onMenuClick }) => {
                     )}
                     {/* Cash Register Status */}
                     {currentCashRegister ? (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 'var(--spacing-sm)',
-                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
-                            background: 'var(--color-success)',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
-                            color: 'white',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            <DollarSign size={(onMenuClick || isCompact) ? 14 : 16} />
-                            <span style={{ display: (onMenuClick || isCompact) ? 'none' : 'inline' }}>Caixa Aberto</span>
-                            <span style={{ display: (onMenuClick || isCompact) ? 'inline' : 'none' }}>Aberto</span>
-                        </div>
+                        <Button
+                            variant="success"
+                            size="sm"
+                            icon={<DollarSign size={14} />}
+                            title="Ir para o Caixa (Aberto)"
+                            style={{
+                                height: '32px',
+                                padding: '0 10px',
+                                whiteSpace: 'nowrap',
+                                alignItems: 'center',
+                                display: 'inline-flex'
+                            }}
+                            onClick={() => navigate('/caixa')}
+                        >
+                            Caixa Aberto
+                        </Button>
                     ) : (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 'var(--spacing-sm)',
-                            padding: (onMenuClick || isCompact) ? '6px 10px' : '8px 12px',
-                            background: 'var(--color-danger)',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: (onMenuClick || isCompact) ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
-                            color: 'white',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            <DollarSign size={(onMenuClick || isCompact) ? 14 : 16} />
-                            <span style={{ display: (onMenuClick || isCompact) ? 'inline' : 'inline' }}>{(onMenuClick || isCompact) ? 'Fech.' : 'Fechado'}</span>
-                        </div>
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            icon={<DollarSign size={14} />}
+                            title="Ir para o Caixa (Fechado)"
+                            style={{
+                                height: '32px',
+                                padding: '0 10px',
+                                whiteSpace: 'nowrap',
+                                alignItems: 'center',
+                                display: 'inline-flex'
+                            }}
+                            onClick={() => navigate('/caixa')}
+                        >
+                            Caixa Fechado
+                        </Button>
                     )}
 
                     {/* User Info */}
