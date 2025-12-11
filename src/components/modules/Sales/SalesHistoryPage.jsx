@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, XCircle, Eye, Calendar, Filter, Printer, Trash2 } from 'lucide-react';
+import { Search, XCircle, Eye, Calendar, Filter, Printer, Trash2, MoreVertical } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -28,9 +28,19 @@ const SalesHistoryPage = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
+    const [menuOpenId, setMenuOpenId] = useState(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
+    const [confirmSale, setConfirmSale] = useState(null);
 
     useEffect(() => {
         loadSales();
+    }, []);
+
+    useEffect(() => {
+        const handleDocClick = () => setMenuOpenId(null);
+        document.addEventListener('click', handleDocClick);
+        return () => document.removeEventListener('click', handleDocClick);
     }, []);
 
     const loadSales = async () => {
@@ -60,18 +70,19 @@ const SalesHistoryPage = () => {
         setDetailsModalOpen(true);
     };
 
-    const handleCancelSale = async (sale) => {
-        if (!window.confirm(`Tem certeza que deseja cancelar a venda #${sale.saleNumber}? Esta ação não pode ser desfeita.`)) {
-            return;
-        }
+    const openConfirm = (action, sale) => {
+        setConfirmAction(action);
+        setConfirmSale(sale);
+        setConfirmOpen(true);
+    };
 
+    const performCancelSale = async (sale) => {
         try {
             for (const item of sale.items || []) {
                 const productId = item.productId;
                 if (!productId) continue;
                 const product = await productService.getById(productId);
                 if (!product) continue;
-
                 const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
                 if (sale.priceType === 'cold') {
                     const newColdStock = (product.coldStock || 0) + deduction;
@@ -81,7 +92,6 @@ const SalesHistoryPage = () => {
                     await productService.update(product.id, { stock: newStock });
                 }
             }
-
             await salesService.update(sale.id, { status: 'cancelled' });
             showNotification('success', `Venda #${sale.saleNumber} cancelada e estoque restaurado`);
             await loadSales();
@@ -91,14 +101,7 @@ const SalesHistoryPage = () => {
         }
     };
 
-    const handleDeleteSale = async (sale) => {
-        if (!window.confirm(`ATENÇÃO: Apagar a venda #${sale.saleNumber} irá removê-la definitivamente. Deseja continuar?`)) {
-            return;
-        }
-        if (!window.confirm('Confirme novamente: Esta ação NÃO pode ser desfeita. Apagar venda?')) {
-            return;
-        }
-
+    const performDeleteSale = async (sale) => {
         try {
             for (const item of sale.items || []) {
                 const productId = item.productId;
@@ -114,7 +117,6 @@ const SalesHistoryPage = () => {
                     await productService.update(product.id, { stock: newStock });
                 }
             }
-
             await salesService.delete(sale.id);
             showNotification('success', `Venda #${sale.saleNumber} apagada e estoque restaurado`);
             await loadSales();
@@ -122,6 +124,16 @@ const SalesHistoryPage = () => {
             console.error('Error deleting sale:', error);
             showNotification('error', 'Erro ao apagar venda');
         }
+    };
+
+    const handleCancelSale = (sale) => {
+        setMenuOpenId(null);
+        openConfirm('cancel', sale);
+    };
+
+    const handleDeleteSale = (sale) => {
+        setMenuOpenId(null);
+        openConfirm('delete', sale);
     };
 
     const restoreStockForItem = async (sale, item) => {
@@ -422,7 +434,7 @@ const SalesHistoryPage = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', position: 'relative' }}>
                                                 <button
                                                     onClick={() => handleViewSale(sale)}
                                                     style={{
@@ -452,33 +464,71 @@ const SalesHistoryPage = () => {
                                                     <Printer size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleCancelSale(sale)}
+                                                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === sale.id ? null : sale.id); }}
                                                     style={{
                                                         padding: '6px',
                                                         background: 'transparent',
                                                         border: 'none',
-                                                        color: 'var(--color-danger)',
+                                                        color: 'var(--color-text-secondary)',
                                                         cursor: 'pointer',
                                                         borderRadius: 'var(--radius-md)'
                                                     }}
-                                                    title="Cancelar Venda"
+                                                    title="Mais ações"
                                                 >
-                                                    <XCircle size={18} />
+                                                    <MoreVertical size={18} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleDeleteSale(sale)}
-                                                    style={{
-                                                        padding: '6px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-danger)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)'
-                                                    }}
-                                                    title="Apagar Venda"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                {menuOpenId === sale.id && (
+                                                    <div
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            right: 0,
+                                                            top: '36px',
+                                                            background: 'var(--color-bg-secondary)',
+                                                            border: '1px solid var(--color-border)',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            boxShadow: 'var(--shadow-lg)',
+                                                            minWidth: '180px',
+                                                            zIndex: 10
+                                                        }}
+                                                    >
+                                                        <button
+                                                            onClick={() => { setMenuOpenId(null); handleCancelSale(sale); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '10px 12px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                color: 'var(--color-danger)',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px'
+                                                            }}
+                                                        >
+                                                            <XCircle size={16} />
+                                                            <span>Cancelar venda</span>
+                                                        </button>
+                                                        <div style={{ height: '1px', background: 'var(--color-border)' }} />
+                                                        <button
+                                                            onClick={() => { setMenuOpenId(null); handleDeleteSale(sale); }}
+                                                            style={{
+                                                                width: '100%',
+                                                                padding: '10px 12px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                color: 'var(--color-danger)',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px'
+                                                            }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                            <span>Excluir</span>
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -488,6 +538,42 @@ const SalesHistoryPage = () => {
                     </table>
                 </div>
             </Card>
+
+            <Modal
+                isOpen={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                title={confirmAction === 'delete' ? 'Excluir venda' : 'Cancelar venda'}
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', width: '100%' }}>
+                        <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Voltar</Button>
+                        <Button
+                            variant="danger"
+                            onClick={async () => {
+                                if (!confirmSale) return;
+                                setConfirmOpen(false);
+                                if (confirmAction === 'delete') {
+                                    await performDeleteSale(confirmSale);
+                                } else {
+                                    await performCancelSale(confirmSale);
+                                }
+                            }}
+                        >
+                            Confirmar
+                        </Button>
+                    </div>
+                }
+            >
+                <div style={{ paddingTop: 'var(--spacing-sm)' }}>
+                    <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+                        {confirmAction === 'delete'
+                            ? `Apagar a venda #${confirmSale?.saleNumber} irá removê-la definitivamente.`
+                            : `Cancelar a venda #${confirmSale?.saleNumber} restaurará o estoque dos itens.`}
+                    </p>
+                    <p style={{ marginTop: 'var(--spacing-sm)', fontWeight: 600 }}>
+                        {confirmAction === 'delete' ? 'Esta ação não pode ser desfeita.' : 'Esta ação não pode ser desfeita.'}
+                    </p>
+                </div>
+            </Modal>
 
             {/* Sale Details Modal */}
             <Modal
@@ -499,7 +585,7 @@ const SalesHistoryPage = () => {
                         <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                             <Button
                                 variant="danger"
-                                onClick={() => handleCancelSale(selectedSale)}
+                                onClick={() => selectedSale && openConfirm('cancel', selectedSale)}
                                 disabled={!selectedSale || selectedSale.status === 'cancelled'}
                             >
                                 Cancelar Venda

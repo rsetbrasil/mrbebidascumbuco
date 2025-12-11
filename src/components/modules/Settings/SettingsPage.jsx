@@ -7,6 +7,7 @@ import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import { settingsService, productService, salesService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useApp } from '../../../contexts/AppContext';
 import { storage, isDemoMode } from '../../../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import UsersManagement from './UsersManagement';
@@ -14,6 +15,7 @@ import UnitsManagement from './UnitsManagement';
 
 const SettingsPage = () => {
     const { isManager } = useAuth();
+    const { updateSettings } = useApp();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -97,7 +99,19 @@ const SettingsPage = () => {
         setLogoUploading(true);
         try {
             if (!storage || isDemoMode) {
-                showNotification('error', 'Upload indisponível: configure o Firebase Storage');
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    const dataUrl = reader.result;
+                    setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
+                    await settingsService.set('brandLogoUrl', dataUrl);
+                    try { await updateSettings('brandLogoUrl', dataUrl); } catch {}
+                    showNotification('success', 'Logo salva localmente');
+                    setLogoFile(null);
+                };
+                reader.onerror = () => {
+                    showNotification('error', 'Erro ao ler arquivo da logo');
+                };
+                reader.readAsDataURL(logoFile);
                 return;
             }
 
@@ -107,6 +121,7 @@ const SettingsPage = () => {
             const url = await getDownloadURL(objectRef);
             setSettings(prev => ({ ...prev, brandLogoUrl: url }));
             await settingsService.set('brandLogoUrl', url);
+            try { await updateSettings('brandLogoUrl', url); } catch {}
             showNotification('success', 'Logo enviada com sucesso');
             setLogoFile(null);
         } catch (error) {

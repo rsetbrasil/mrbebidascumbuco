@@ -66,7 +66,8 @@ const Sidebar = ({ onClose }) => {
                         src={settings?.brandLogoUrl || '/logo.png'}
                         alt={settings?.brandTitle || 'Logo'}
                         style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.display = 'inline-block'; }}
+                        loading="lazy"
                     />
                     <h2 style={{
                         fontSize: 'var(--font-size-xl)',

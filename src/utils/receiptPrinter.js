@@ -70,7 +70,7 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
                         header, footer { display: none !important; }
                     }
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html { height: auto; overflow: hidden; }
+                    html, body { height: auto; overflow: visible; }
                     body {
                         font-family: 'Courier New', Courier, monospace;
                         width: 100%;
@@ -120,17 +120,17 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
                 <div id="receipt-root">${htmlContent}</div>
                 <script>
                     window.onload = function() {
-                        var root = document.getElementById('receipt-root');
-                        var heightPx = Math.max(root.scrollHeight, root.offsetHeight);
-                        var heightMm = Math.max(20, Math.ceil((heightPx * 25.4) / 96));
                         var dyn = document.createElement('style');
                         dyn.type = 'text/css';
                         dyn.innerHTML = '@page{margin:0 !important;}';
                         document.head.appendChild(dyn);
+                        window.focus();
                         setTimeout(function(){
                             window.print();
-                            setTimeout(function(){ window.close(); }, 300);
                         }, 50);
+                        window.onafterprint = function() {
+                            window.close();
+                        };
                     }
                 </script>
             </body>
