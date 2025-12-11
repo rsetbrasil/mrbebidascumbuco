@@ -213,6 +213,7 @@ const CashRegisterPage = () => {
             setClosingNote('');
             setMovements([]);
             setSales([]);
+            navigate('/historico-caixa');
         } catch (error) {
             console.error('Error closing register:', error);
             showNotification('error', 'Erro ao fechar caixa');
@@ -283,16 +284,32 @@ const CashRegisterPage = () => {
                                 autoFocus
                             />
 
-                            <Button
-                                type="submit"
-                                variant="primary"
-                                fullWidth
-                                size="lg"
-                                loading={loading}
-                                icon={Unlock}
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(2, minmax(160px, 1fr))',
+                                    gap: 'var(--spacing-sm)'
+                                }}
                             >
-                                Abrir Caixa
-                            </Button>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="lg"
+                                    loading={loading}
+                                    icon={Unlock}
+                                >
+                                    Abrir Caixa
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="lg"
+                                    icon={History}
+                                    onClick={() => navigate('/historico-caixa')}
+                                >
+                                    Ver Histórico
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 </Card>

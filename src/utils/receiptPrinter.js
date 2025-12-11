@@ -157,16 +157,6 @@ export const printReceipt = (sale, settings = {}) => {
 
     const hasCold = (sale.items || []).some(i => !!i.isCold);
     const hasWholesale = (sale.items || []).some(i => !!i.isWholesale);
-    const wholesaleSavings = (sale.items || []).reduce((sum, item) => {
-        if (item.isCold) return sum;
-        if (item.isWholesale) {
-            const retail = Number(item.retailPrice || item.unitPrice || 0);
-            const wholesale = Number(item.wholesalePrice || item.unitPrice || 0);
-            const diff = Math.max(0, retail - wholesale);
-            return sum + diff * Number(item.quantity || 0);
-        }
-        return sum;
-    }, 0);
 
     (sale.items || []).forEach((item, index) => {
         const total = formatCurrency(item.total).replace('R$', '').trim();
@@ -217,17 +207,7 @@ export const printReceipt = (sale, settings = {}) => {
         `;
     }
 
-    let savingsHtml = '';
-    if (wholesaleSavings && wholesaleSavings > 0) {
-        savingsHtml = `
-            <div class="totals-section text-sm">
-                <div class="flex font-bold mt-1">
-                    <span>Economia no Atacado:</span>
-                    <span>${formatCurrency(wholesaleSavings)}</span>
-                </div>
-            </div>
-        `;
-    }
+    
 
     let changeHtml = '';
     if (sale.change && sale.change > 0) {
@@ -267,7 +247,6 @@ export const printReceipt = (sale, settings = {}) => {
                 <span>TOTAL:</span>
                 <span>${formatCurrency(sale.total)}</span>
             </div>
-            ${savingsHtml}
         </div>
 
         <div class="payment-section">

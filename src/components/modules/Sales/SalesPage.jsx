@@ -505,13 +505,7 @@ const SalesPage = () => {
             const change = totalPaid - totals.total;
             const cartData = getCartData();
 
-            // Calculate total savings
-            const totalSavings = items.reduce((sum, item) => {
-                const retailPrice = item.retailPrice || item.unitPrice;
-                const wholesalePrice = item.unitPrice;
-                const savingsPerUnit = Math.max(0, retailPrice - wholesalePrice);
-                return sum + (savingsPerUnit * item.quantity);
-            }, 0);
+            
 
             // Verify stock
             const productMap = new Map();
@@ -568,7 +562,7 @@ const SalesPage = () => {
                 subtotal: Number(totals.subtotal) || 0,
                 discount: Number(totals.discount + totals.itemsDiscount) || 0,
                 total: Number(totals.total) || 0,
-                totalSavings: Number(totalSavings) || 0,
+                
                 payments: payments.map(p => ({
                     method: p.method || 'Dinheiro',
                     amount: Number(p.amount) || 0

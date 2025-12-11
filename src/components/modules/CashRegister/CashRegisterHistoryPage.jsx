@@ -136,17 +136,24 @@ const CashRegisterHistoryPage = () => {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate('/caixa')}
-                        icon={ArrowLeft}
-                    >
-                        Voltar
-                    </Button>
-                    <h1 className="text-2xl font-bold text-white">Histórico de Caixas</h1>
-                </div>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-sm)'
+                }}
+            >
+                <h1 className="text-2xl font-bold text-white" style={{ justifySelf: 'start' }}>Histórico de Caixas</h1>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate('/caixa')}
+                    icon={ArrowLeft}
+                    style={{ padding: '8px 12px', justifySelf: 'end' }}
+                >
+                    Voltar
+                </Button>
             </div>
 
             <Card>
