@@ -9,6 +9,7 @@ const Navbar = ({ onMenuClick }) => {
 
     const [time, setTime] = useState('');
     const [isCompact, setIsCompact] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
     useEffect(() => {
         const tick = () => {
@@ -22,7 +23,9 @@ const Navbar = ({ onMenuClick }) => {
 
     useEffect(() => {
         const handleResize = () => {
-            setIsCompact(window.innerWidth < 1024);
+            const w = window.innerWidth;
+            setIsCompact(w < 1024);
+            setIsMobile(w < 768);
         };
         handleResize();
         window.addEventListener('resize', handleResize);
@@ -49,7 +52,7 @@ const Navbar = ({ onMenuClick }) => {
         }}>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr auto 1fr',
+                gridTemplateColumns: isMobile ? 'auto 1fr auto' : '1fr auto 1fr',
                 alignItems: 'center',
                 maxWidth: '1400px',
                 margin: '0 auto'
@@ -79,40 +82,45 @@ const Navbar = ({ onMenuClick }) => {
                     )}
 
                     <h1 style={{
-                        fontSize: onMenuClick ? 'var(--font-size-lg)' : 'var(--font-size-xl)',
+                        fontSize: isMobile ? 'var(--font-size-lg)' : (onMenuClick ? 'var(--font-size-lg)' : 'var(--font-size-xl)'),
                         fontWeight: 800,
                         background: 'var(--gradient-primary)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         backgroundClip: 'text',
-                        margin: 0
+                        margin: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                     }}>
-                        {settings?.headerTitle || 'Deus é Fiel!'}
+                        {(settings?.headerTitle || 'Deus é Fiel!')}
                     </h1>
                 </div>
 
                 {/* Middle: Digital Clock */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center'
-                }}>
+                {!isMobile && (
                     <div style={{
-                        fontFamily: 'Courier New, monospace',
-                        fontSize: onMenuClick ? 'var(--font-size-md)' : '1.25rem',
-                        fontWeight: 700,
-                        color: 'var(--color-text-primary)',
-                        background: 'var(--color-bg-primary)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '6px 12px',
-                        minWidth: '120px',
-                        textAlign: 'center'
-                    }}>{time}</div>
-                </div>
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                    }}>
+                        <div style={{
+                            fontFamily: 'Courier New, monospace',
+                            fontSize: onMenuClick ? 'var(--font-size-md)' : '1.25rem',
+                            fontWeight: 700,
+                            color: 'var(--color-text-primary)',
+                            background: 'var(--color-bg-primary)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '6px 12px',
+                            minWidth: '120px',
+                            textAlign: 'center'
+                        }}>{time}</div>
+                    </div>
+                )}
 
                 {/* Right side */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 'var(--spacing-sm)' : 'var(--spacing-md)', justifyContent: 'flex-end' }}>
                     {isOnline && isSyncing && (
                         <div style={{
                             display: 'flex',
@@ -184,7 +192,7 @@ const Navbar = ({ onMenuClick }) => {
 
                     {/* User Info */}
                     <div style={{
-                        display: onMenuClick ? 'none' : 'flex',
+                        display: (onMenuClick || isMobile) ? 'none' : 'flex',
                         alignItems: 'center',
                         gap: 'var(--spacing-sm)',
                         color: 'var(--color-text-secondary)',
@@ -204,6 +212,7 @@ const Navbar = ({ onMenuClick }) => {
                         </span>
                     </div>
 
+                    {!isMobile && (
                     <button
                         onClick={logout}
                         title="Sair"
@@ -229,6 +238,7 @@ const Navbar = ({ onMenuClick }) => {
                     >
                         <LogOut size={20} />
                     </button>
+                    )}
                 </div>
             </div>
         </nav>
