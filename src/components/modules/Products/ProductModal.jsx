@@ -34,6 +34,15 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         price: ''
     });
 
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const onResize = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+        onResize();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
     useEffect(() => {
         loadCategories();
         loadUnits();
@@ -182,7 +191,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
             size="xl"
         >
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                    <div style={{ width: '100%' }}>
+                        <Input
+                            label="Código de Barras"
+                            name="barcode"
+                            value={formData.barcode}
+                            onChange={handleChange}
+                            placeholder="Escaneie ou digite"
+                        />
+                    </div>
+
                     <Input
                         label="Nome do Produto"
                         name="name"
@@ -192,36 +211,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         placeholder="Ex: Coca-Cola 2L"
                         autoFocus
                     />
-
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                        <div style={{ flex: 1 }}>
-                            <Input
-                                label="Código de Barras"
-                                name="barcode"
-                                value={formData.barcode}
-                                onChange={handleChange}
-                                placeholder="Escaneie ou digite"
-                            />
-                        </div>
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => {
-                                const randomDigits = Math.floor(Math.random() * 1000000000000).toString().padStart(12, '0');
-                                const newBarcode = `2${randomDigits}`;
-                                setFormData(prev => ({ ...prev, barcode: newBarcode }));
-                            }}
-                            title="Gerar código aleatório"
-                            style={{ marginBottom: '2px' }}
-                        >
-                            Gerar
-                        </Button>
-                    </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
                         <div style={{ flex: 1 }}>
                             <CurrencyInput
                                 label="Preço (Atacado)"
@@ -232,7 +226,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 placeholder="0,00"
                             />
                         </div>
-                        <div style={{ width: '70px' }}>
+                        <div style={{ width: isMobile ? '100%' : '70px' }}>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Un.
                             </label>
@@ -259,7 +253,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
                         <div style={{ flex: 1 }}>
                             <CurrencyInput
                                 label="Preço (Mercearia)"
@@ -270,7 +264,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 placeholder="0,00"
                             />
                         </div>
-                        <div style={{ width: '70px' }}>
+                        <div style={{ width: isMobile ? '100%' : '70px' }}>
                             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
                                 Un.
                             </label>
@@ -314,7 +308,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
                     <Input
                         label="Estoque Atual"
                         name="stock"
@@ -385,11 +379,10 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </label>
                 </div>
 
-                {/* Additional Units Section */}
                 <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-md)', marginTop: 'var(--spacing-sm)' }}>
                     <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--spacing-md)' }}>Unidades Adicionais (Fardos, Kits)</h3>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr 1.5fr auto', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)', alignItems: 'flex-end' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr 2fr 1.5fr auto', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)', alignItems: 'flex-end' }}>
                         <Input
                             label="Nome (ex: Fardo)"
                             value={newUnit.name}
@@ -434,13 +427,15 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                             {formData.units.map((unit, index) => (
                                 <div key={index} style={{
                                     display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
+                                    alignItems: isMobile ? 'flex-start' : 'center',
+                                    justifyContent: isMobile ? 'flex-start' : 'space-between',
+                                    flexDirection: isMobile ? 'column' : 'row',
+                                    gap: isMobile ? 'var(--spacing-xs)' : '0',
                                     padding: 'var(--spacing-sm)',
                                     background: 'var(--color-bg-secondary)',
                                     borderRadius: 'var(--radius-sm)'
                                 }}>
-                                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', fontSize: 'var(--font-size-sm)' }}>
+                                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', fontSize: 'var(--font-size-sm)', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                                         <span style={{ fontWeight: 600 }}>{unit.name}</span>
                                         <span style={{ color: 'var(--color-text-secondary)' }}>x{unit.multiplier}</span>
                                         <span style={{ color: 'var(--color-text-secondary)' }}>{unit.barcode || '-'}</span>
@@ -449,7 +444,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveUnit(index)}
-                                        style={{ color: 'var(--color-danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                        style={{ color: 'var(--color-danger)', background: 'transparent', border: 'none', cursor: 'pointer', marginLeft: isMobile ? '0' : 'auto', marginTop: isMobile ? 'var(--spacing-xs)' : '0' }}
                                     >
                                         <X size={16} />
                                     </button>
