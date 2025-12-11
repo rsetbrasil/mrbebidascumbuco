@@ -13,6 +13,7 @@ const getPrintStyles = (paperWidthMm = 80) => `
                 height: auto;
             }
             header, footer { display: none !important; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: auto; overflow: visible; }
@@ -24,16 +25,17 @@ const getPrintStyles = (paperWidthMm = 80) => `
             font-size: 12px;
             color: #000;
             line-height: 1.2;
+            font-weight: 600;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        .font-bold { font-weight: bold; }
+        .font-bold { font-weight: 800; }
         .text-sm { font-size: 11px; }
         .text-xs { font-size: 10px; }
         .mb-1 { margin-bottom: 2px; }
         .mb-2 { margin-bottom: 4px; }
-        .border-b { border-bottom: 1px dashed #000; }
-        .border-t { border-top: 1px dashed #000; }
+        .border-b { border-bottom: 2px solid #000; }
+        .border-t { border-top: 2px solid #000; }
         .py-1 { padding-top: 1px; padding-bottom: 1px; }
         .flex { display: flex; justify-content: space-between; }
         .w-full { width: 100%; }
@@ -81,39 +83,42 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
                         line-height: 1.2;
                         height: auto;
                         min-height: 0;
+                        font-weight: 600;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                     }
                     /* Utility Classes */
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .font-bold { font-weight: bold; }
+                    .font-bold { font-weight: 800; }
                     .text-sm { font-size: 11px; }
                     .text-xs { font-size: 10px; }
                     .mb-1 { margin-bottom: 2px; }
                     .mb-2 { margin-bottom: 4px; }
-                    .border-b { border-bottom: 1px dashed #000; }
-                    .border-t { border-top: 1px dashed #000; }
+                    .border-b { border-bottom: 2px solid #000; }
+                    .border-t { border-top: 2px solid #000; }
                     .py-1 { padding-top: 1px; padding-bottom: 1px; }
                     .flex { display: flex; justify-content: space-between; }
                     .w-full { width: 100%; }
                     
                     /* Specific Receipt Classes */
                     .header { margin-bottom: 5px; }
-                    .company-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
-                    .receipt-title { font-size: 13px; font-weight: bold; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; }
+                    .company-name { font-size: 14px; font-weight: 900; margin-bottom: 2px; }
+                    .receipt-title { font-size: 13px; font-weight: 800; margin: 5px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 5px 0; }
                     
                     .details-row { display: flex; justify-content: space-between; margin-bottom: 1px; }
                     
                     .items-section { margin-bottom: 5px; }
-                    .item-name { font-weight: bold; }
+                    .item-name { font-weight: 800; }
                     .item-meta { font-size: 11px; }
-                    .item-total { font-weight: bold; }
+                    .item-total { font-weight: 800; }
                     
                     .totals-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-                    .final-total { margin-top: 5px; border-top: 1px solid #000; padding-top: 5px; }
+                    .final-total { margin-top: 5px; border-top: 2px solid #000; padding-top: 5px; }
                     
                     .payment-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
                     
-                    .footer { margin-top: 10px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+                    .footer { margin-top: 10px; text-align: center; font-size: 10px; border-top: 2px solid #000; padding-top: 5px; }
                 </style>
             </head>
             <body>
