@@ -15,6 +15,9 @@ const ProductsPage = () => {
     const [categories, setCategories] = useState({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [rawSearch, setRawSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const pageSize = 50;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
@@ -64,8 +67,13 @@ const ProductsPage = () => {
     };
 
     const handleSearch = async (term) => {
-        setSearchTerm(term);
+        setRawSearch(term);
     };
+
+    useEffect(() => {
+        const h = setTimeout(() => setSearchTerm(rawSearch), 200);
+        return () => clearTimeout(h);
+    }, [rawSearch]);
 
     const handleSave = async (productData) => {
         try {
@@ -108,12 +116,25 @@ const ProductsPage = () => {
         // Atualiza automaticamente via assinatura
     };
 
-    const filteredProducts = products
-        .filter(p =>
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.barcode && p.barcode.includes(searchTerm))
-        )
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    const filteredProducts = React.useMemo(() => {
+        const term = (searchTerm || '').toLowerCase();
+        const list = products.filter(p =>
+            (p.name || '').toLowerCase().includes(term) ||
+            (p.barcode && String(p.barcode).includes(searchTerm))
+        );
+        return list; // já ordenado pela assinatura por 'name'
+    }, [products, searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [searchTerm, products]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+    const pageStart = (page - 1) * pageSize;
+    const pageEnd = Math.min(page * pageSize, filteredProducts.length);
+    const pagedProducts = React.useMemo(() => {
+        return filteredProducts.slice(pageStart, pageEnd);
+    }, [filteredProducts, pageStart, pageEnd]);
 
     if (loading && !products.length) return <Loading fullScreen />;
 
@@ -260,8 +281,8 @@ const ProductsPage = () => {
                         <Input
                             placeholder="Buscar por nome ou código de barras..."
                             icon={Search}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={rawSearch}
+                            onChange={(e) => handleSearch(e.target.value)}
                         />
                     </div>
                 </div>
@@ -291,7 +312,7 @@ const ProductsPage = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredProducts.map((product) => (
+                                pagedProducts.map((product) => (
                                     <tr key={product.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{product.name}</div>
@@ -420,6 +441,35 @@ const ProductsPage = () => {
                             )}
                         </tbody>
                     </table>
+                    {filteredProducts.length > 0 && (
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: 'var(--spacing-md)',
+                            borderTop: '1px solid var(--color-border)'
+                        }}>
+                            <div style={{ color: 'var(--color-text-secondary)' }}>
+                                Mostrando {pageStart + 1}–{pageEnd} de {filteredProducts.length}
+                            </div>
+                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page <= 1}
+                                >
+                                    Anterior
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={page >= totalPages}
+                                >
+                                    Próxima
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </Card>
 
