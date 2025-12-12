@@ -8,7 +8,8 @@ import {
     Unlock,
     History,
     DollarSign,
-    AlertCircle
+    AlertCircle,
+    Printer
 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -31,7 +32,8 @@ const CashRegisterPage = () => {
         openCashRegister,
         closeCashRegister,
         addCashMovement,
-        loading: contextLoading
+        loading: contextLoading,
+        settings
     } = useApp();
     const { user, isManager, isCashier } = useAuth();
 
@@ -242,6 +244,82 @@ const CashRegisterPage = () => {
         showNotification('error', 'Somente gerente pode fechar o caixa');
     };
 
+    const handlePrintOpenRegister = () => {
+        try {
+            const activeSales = sales.filter(s => s.status !== 'cancelled');
+            const totalSales = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
+            const totalSupplies = movements
+                .filter(m => m.type === 'supply')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalBleeds = movements
+                .filter(m => m.type === 'bleed')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalChange = movements
+                .filter(m => m.type === 'change')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+
+            let profitWholesale = 0;
+            let profitMercearia = 0;
+            for (const sale of activeSales) {
+                const items = sale.items || [];
+                let revW = 0, revM = 0, revOther = 0;
+                let costW = 0, costM = 0;
+                for (const item of items) {
+                    const qty = Number(item.quantity || 0);
+                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
+                    const cost = Number(item.unitCost || 0) * qty;
+                    if (item.isCold) {
+                        revM += revenue; costM += cost;
+                    } else if (item.isWholesale) {
+                        revW += revenue; costW += cost;
+                    } else {
+                        revOther += revenue;
+                    }
+                }
+                const totalRev = revW + revM + revOther;
+                const saleDiscount = Number(sale.discount || 0);
+                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
+                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
+                profitWholesale += (revW - discW) - costW;
+                profitMercearia += (revM - discM) - costM;
+            }
+
+            const paymentsMap = new Map();
+            for (const sale of activeSales) {
+                const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                    ? sale.payments
+                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                for (const p of list) {
+                    const key = String(p.method || 'Dinheiro');
+                    const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
+                    paymentsMap.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+                }
+            }
+            const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
+
+            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+
+            printCashRegisterReport({
+                openedAt: currentCashRegister.openedAt,
+                closedAt: new Date(),
+                closedBy: user?.name || 'Operador',
+                openingBalance: currentCashRegister.openingBalance,
+                totalSales,
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                finalBalance,
+                notes: 'Relatório parcial (caixa aberto)',
+                profitWholesale,
+                profitMercearia,
+                paymentSummary
+            }, settings || {});
+        } catch (error) {
+            console.error('Error printing open register snapshot:', error);
+            showNotification('error', 'Erro ao imprimir resumo do caixa');
+        }
+    };
+
     const handleMovement = async (data) => {
         try {
             await addCashMovement(data.type, data.amount, data.description, user?.name || 'Operador');
@@ -368,6 +446,14 @@ const CashRegisterPage = () => {
                         fullWidth
                     >
                         Histórico
+                    </Button>
+                    <Button
+                        variant="primary"
+                        onClick={handlePrintOpenRegister}
+                        icon={Printer}
+                        fullWidth
+                    >
+                        Imprimir Resumo
                     </Button>
                     <Button
                         variant="success"
