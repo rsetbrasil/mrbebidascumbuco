@@ -66,6 +66,9 @@ const SalesPage = () => {
     // Presale Modal
     const [presaleModalOpen, setPresaleModalOpen] = useState(false);
     const [presaleCustomerName, setPresaleCustomerName] = useState('');
+    const [reservedCount, setReservedCount] = useState(0);
+    const [reservedColdCount, setReservedColdCount] = useState(0);
+    const [reservedNatCount, setReservedNatCount] = useState(0);
 
     const searchInputRef = useRef(null);
     const quantityInputRef = useRef(null);
@@ -214,7 +217,7 @@ const SalesPage = () => {
                     }
                 }
                 if (foundProduct && foundUnit) {
-                    addToCart(foundProduct, foundUnit);
+                    await addToCart(foundProduct, foundUnit);
                     setSearchTerm('');
                     setFilteredProducts([]);
                     return;
@@ -266,6 +269,7 @@ const SalesPage = () => {
             ? (product.coldPrice || product.price)
             : (product.wholesalePrice || product.price);
         setPriceInput(defaultPrice);
+        setReservedCount(0);
         setQuantityModalOpen(true);
         setSearchTerm('');
         setFilteredProducts([]);
@@ -278,32 +282,104 @@ const SalesPage = () => {
                 quantityInputRef.current.select();
             }
         }, 100);
+
+        (async () => {
+            try {
+                const presales = await presalesService.getByStatus('pending');
+                let reserved = 0;
+                let reservedCold = 0;
+                let reservedNat = 0;
+                for (const presale of presales || []) {
+                    const items = Array.isArray(presale.items) ? presale.items : [];
+                    for (const it of items) {
+                        const pid = it.productId || it.id;
+                        if (pid !== product.id) continue;
+                        const qty = Number(it.quantity || 0);
+                        let ded = qty;
+                        if (it.stockDeductionPerUnit) {
+                            ded = it.stockDeductionPerUnit * qty;
+                        } else if (it.unit && it.unit.multiplier) {
+                            ded = it.unit.multiplier * qty;
+                        }
+                        reserved += ded;
+                        if (it.isCold) reservedCold += ded; else reservedNat += ded;
+                    }
+                }
+                setReservedCount(reserved);
+                setReservedColdCount(reservedCold);
+                setReservedNatCount(reservedNat);
+                if (reserved > 0) {
+                    if ((nat <= 0) && (cold <= 0)) {
+                        showNotification(`Produto zerado; ${reserved} unidade(s) reservada(s) em pré-vendas`, 'warning');
+                    } else {
+                        showNotification(`Pré-vendas com reserva deste produto: ${reserved} unidade(s)`, 'info');
+                    }
+                }
+            } catch {}
+        })();
     };
 
-    const addToCart = (product, unit = null) => {
-        // Check stock
-        const currentItem = items.find(item => item.id === product.id && ((!item.unit && !unit) || (item.unit && unit && item.unit.name === unit.name)));
-        const currentQty = currentItem ? currentItem.quantity : 0;
+    const addToCart = async (product, unit = null) => {
         const deduction = unit ? unit.multiplier : 1;
 
-        // Calculate total stock needed
-        const allCartItemsForProduct = items.filter(item => item.id === product.id);
-        const totalStockUsed = allCartItemsForProduct.reduce((acc, item) => {
-            const itemDeduction = item.unit ? item.unit.multiplier : 1;
+        // Decide stock type to use:
+        // Prefer the global priceType, but if that stock is zero/insuficiente and the other type has,
+        // automatically switch to the other type to avoid false "insuficiente" when Mercearia tem estoque.
+        const natAvail = Number(product.stock || 0);
+        const coldAvail = Number(product.coldStock || 0);
+        let typeToUse = priceType;
+        let isCold = typeToUse === 'cold';
+        const availForType = isCold ? coldAvail : natAvail;
+        if (availForType <= 0 && (coldAvail > 0 || natAvail > 0)) {
+            // Switch to the type that has stock
+            if (coldAvail > 0 && natAvail <= 0) {
+                typeToUse = 'cold';
+                isCold = true;
+            } else if (natAvail > 0 && coldAvail <= 0) {
+                typeToUse = 'wholesale';
+                isCold = false;
+            }
+        }
+
+        let coldReserved = 0;
+        let natReserved = 0;
+        try {
+            const presales = await presalesService.getByStatus('pending');
+            for (const presale of presales || []) {
+                const items = Array.isArray(presale.items) ? presale.items : [];
+                for (const it of items) {
+                    const pid = it.productId || it.id;
+                    if (pid !== product.id) continue;
+                    const qty = Number(it.quantity || 0);
+                    let ded = qty;
+                    if (it.stockDeductionPerUnit) {
+                        ded = it.stockDeductionPerUnit * qty;
+                    } else if (it.unit && it.unit.multiplier) {
+                        ded = it.unit.multiplier * qty;
+                    }
+                    if (it.isCold) coldReserved += ded; else natReserved += ded;
+                }
+            }
+        } catch {}
+
+        // Calculate total stock used for this product in the SAME stock type (cold/natural)
+        const sameTypeCartItems = items.filter(item => item.id === product.id && ((item.isCold || false) === isCold));
+        const totalStockUsedSameType = sameTypeCartItems.reduce((acc, item) => {
+            const itemDeduction = item.stockDeductionPerUnit ?? (item.unit ? item.unit.multiplier : 1);
             return acc + (item.quantity * itemDeduction);
         }, 0);
 
-        // Determine which stock to check based on priceType
-        const isCold = priceType === 'cold';
-        const availableStock = isCold ? (product.coldStock || 0) : product.stock;
+        const reservedForType = isCold ? coldReserved : natReserved;
+        const rawAvailableStock = isCold ? coldAvail : natAvail;
+        const availableStock = Math.max(0, rawAvailableStock - reservedForType);
         const stockType = isCold ? 'Mercearia' : 'natural';
 
-        if (totalStockUsed + deduction > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
+        if (totalStockUsedSameType + deduction > availableStock) {
+            showNotification(`Estoque ${stockType} indisponível por reserva. Livre: ${availableStock}`, 'warning');
             return;
         }
 
-        addItem(product, 1, unit);
+        addItem(product, 1, unit, { itemPriceType: typeToUse });
         showNotification('success', 'Produto adicionado!');
         setTimeout(() => {
             searchInputRef.current?.focus();
@@ -322,22 +398,22 @@ const SalesPage = () => {
         const currentQtyInCart = existingItem ? existingItem.quantity : 0;
         const totalQty = currentQtyInCart + qty;
 
-        // Check total stock usage including other units
-        const allCartItemsForProduct = items.filter(item => item.id === selectedProduct.id);
-        const totalStockUsed = allCartItemsForProduct.reduce((acc, item) => {
-            const itemDeduction = item.unit ? item.unit.multiplier : 1;
-            // Exclude current item from calculation as we are updating it/adding to it
-            if (item.id === selectedProduct.id && !item.unit) return acc;
+        // Check total stock usage for the SAME stock type (Mercearia vs natural)
+        const isCold = itemPriceType === 'cold';
+        const sameTypeItems = items.filter(item => item.id === selectedProduct.id && ((item.isCold || false) === isCold));
+        const totalStockUsed = sameTypeItems.reduce((acc, item) => {
+            const itemDeduction = item.stockDeductionPerUnit ?? (item.unit ? item.unit.multiplier : 1);
             return acc + (item.quantity * itemDeduction);
         }, 0);
 
         // Determine which stock to check based on itemPriceType (per-item selection)
-        const isCold = itemPriceType === 'cold';
-        const availableStock = isCold ? (selectedProduct.coldStock || 0) : (selectedProduct.stock || 0);
+        const rawAvailableStock = isCold ? (selectedProduct.coldStock || 0) : (selectedProduct.stock || 0);
+        const reservedForType = isCold ? reservedColdCount : reservedNatCount;
+        const availableStock = Math.max(0, rawAvailableStock - reservedForType);
         const stockType = isCold ? 'Mercearia' : 'natural';
 
         if (totalStockUsed + qty > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
+            showNotification(`Estoque ${stockType} indisponível por reserva. Livre: ${availableStock}`, 'warning');
             return;
         }
 
@@ -445,31 +521,8 @@ const SalesPage = () => {
                 await presalesService.update(presaleId, cleanPresaleData);
                 showNotification('Pré-venda atualizada com sucesso!', 'success');
             } else {
-                // Reserva de estoque para pré-venda
-                const getDeduction = (it) => {
-                    if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * it.quantity;
-                    if (it.unit && it.unit.multiplier) return it.quantity * it.unit.multiplier;
-                    return it.quantity;
-                };
-                for (const item of items) {
-                    try {
-                        const product = await productService.getById(item.id);
-                        if (!product) continue;
-                        const deduction = getDeduction(item);
-                        if (item.isCold) {
-                            const newCold = (product.coldStock || 0) - deduction;
-                            await productService.update(product.id, { coldStock: Math.max(0, newCold) });
-                        } else {
-                            const newStock = (product.stock || 0) - deduction;
-                            await productService.update(product.id, { stock: Math.max(0, newStock) });
-                        }
-                    } catch (e) {
-                        console.error('Error reserving stock for presale item', item.name, e);
-                    }
-                }
-
-                await presalesService.create({ ...cleanPresaleData, reserved: true, reservedAt: new Date() });
-                showNotification('Pré-venda salva e estoque reservado!', 'success');
+                await presalesService.create({ ...cleanPresaleData, reserved: false });
+                showNotification('Pré-venda salva!', 'success');
             }
 
             clearCart();
@@ -616,40 +669,6 @@ const SalesPage = () => {
 
             let sale;
             if (isEditingSale) {
-                // Adjust stock differences
-                try {
-                    const originalMap = new Map();
-                    (editingSale?.originalItems || []).forEach(it => {
-                        const ded = it.stockDeduction || (it.unit && it.unit.multiplier ? it.quantity * it.unit.multiplier : it.quantity);
-                        originalMap.set(it.productId, (originalMap.get(it.productId) || 0) + ded);
-                    });
-                    const newMap = new Map();
-                    items.forEach(it => {
-                        const ded = it.stockDeductionPerUnit ? it.stockDeductionPerUnit * it.quantity : (it.unit && it.unit.multiplier ? it.quantity * it.unit.multiplier : it.quantity);
-                        newMap.set(it.id, (newMap.get(it.id) || 0) + ded);
-                    });
-                    const allIds = new Set([...originalMap.keys(), ...newMap.keys()]);
-                    for (const pid of allIds) {
-                        const before = originalMap.get(pid) || 0;
-                        const after = newMap.get(pid) || 0;
-                        const diff = after - before;
-                        if (diff === 0) continue;
-                        const product = await productService.getById(pid);
-                        if (!product) continue;
-                        if (priceType === 'cold' || editingSale?.priceType === 'cold') {
-                            const base = product.coldStock || 0;
-                            const updated = base - diff; // diff>0 deduct; diff<0 add back
-                            await productService.update(product.id, { coldStock: Math.max(0, updated) });
-                        } else {
-                            const base = product.stock || 0;
-                            const updated = base - diff;
-                            await productService.update(product.id, { stock: Math.max(0, updated) });
-                        }
-                    }
-                } catch (stockError) {
-                    console.error('Error adjusting stock on edit:', stockError);
-                }
-
                 await salesService.update(editingSale.id, { ...cleanSaleData, status: 'modified' });
                 sale = { id: editingSale.id, ...cleanSaleData };
             } else {
@@ -1081,6 +1100,11 @@ const SalesPage = () => {
                                 <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Estoque: <strong>{selectedProduct?.coldStock ?? 0}</strong></span>
                             </div>
                         </div>
+                        {reservedCount > 0 && (
+                            <div style={{ marginTop: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
+                                Reservado em pré-vendas: <strong>{reservedCount}</strong>
+                            </div>
+                        )}
                     </div>
                     <CurrencyInput
                         ref={priceInputRef}

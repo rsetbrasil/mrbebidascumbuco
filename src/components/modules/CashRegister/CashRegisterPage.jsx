@@ -9,7 +9,8 @@ import {
     History,
     DollarSign,
     AlertCircle,
-    Printer
+    Printer,
+    Eye
 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -48,6 +49,20 @@ const CashRegisterPage = () => {
     const [managerUsername, setManagerUsername] = useState('');
     const [managerPassword, setManagerPassword] = useState('');
     const [managerError, setManagerError] = useState('');
+    const [viewOpen, setViewOpen] = useState(false);
+    const [viewPaymentSummary, setViewPaymentSummary] = useState([]);
+    const [viewProfit, setViewProfit] = useState({
+        wholesale: 0,
+        mercearia: 0,
+        total: 0,
+        margin: 0,
+        revenueWholesale: 0,
+        revenueMercearia: 0,
+        costWholesale: 0,
+        costMercearia: 0,
+        marginWholesale: 0,
+        marginMercearia: 0
+    });
 
     const isRegisterOpen = !!currentCashRegister;
 
@@ -330,6 +345,81 @@ const CashRegisterPage = () => {
         }
     };
 
+    const handleViewOpen = () => {
+        try {
+            const activeSales = sales.filter(s => s.status !== 'cancelled');
+            let profitWholesale = 0;
+            let profitMercearia = 0;
+            let revenueWholesale = 0;
+            let revenueMercearia = 0;
+            let costWholesale = 0;
+            let costMercearia = 0;
+            for (const sale of activeSales) {
+                const items = sale.items || [];
+                let revW = 0, revM = 0, revOther = 0;
+                let costW = 0, costM = 0;
+                for (const item of items) {
+                    const qty = Number(item.quantity || 0);
+                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
+                    const cost = Number(item.unitCost || 0) * qty;
+                    if (item.isCold) {
+                        revM += revenue; costM += cost;
+                    } else if (item.isWholesale) {
+                        revW += revenue; costW += cost;
+                    } else {
+                        revOther += revenue;
+                    }
+                }
+                const totalRev = revW + revM + revOther;
+                const saleDiscount = Number(sale.discount || 0);
+                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
+                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
+                const netW = revW - discW;
+                const netM = revM - discM;
+                profitWholesale += netW - costW;
+                profitMercearia += netM - costM;
+                revenueWholesale += netW;
+                revenueMercearia += netM;
+                costWholesale += costW;
+                costMercearia += costM;
+            }
+            const totalSalesAmount = activeSales.reduce((acc, s) => acc + Number(s.total || 0), 0);
+            const totalProfit = profitWholesale + profitMercearia;
+            const marginPct = totalSalesAmount > 0 ? (totalProfit / totalSalesAmount) * 100 : 0;
+            const marginW = revenueWholesale > 0 ? (profitWholesale / revenueWholesale) * 100 : 0;
+            const marginM = revenueMercearia > 0 ? (profitMercearia / revenueMercearia) * 100 : 0;
+            setViewProfit({
+                wholesale: profitWholesale,
+                mercearia: profitMercearia,
+                total: totalProfit,
+                margin: marginPct,
+                revenueWholesale,
+                revenueMercearia,
+                costWholesale,
+                costMercearia,
+                marginWholesale: marginW,
+                marginMercearia: marginM
+            });
+            const paymentsMap = new Map();
+            for (const sale of activeSales) {
+                const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                    ? sale.payments
+                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                for (const p of list) {
+                    const key = String(p.method || 'Dinheiro');
+                    const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
+                    paymentsMap.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+                }
+            }
+            setViewPaymentSummary(Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count })));
+            setViewOpen(true);
+        } catch (e) {
+            setViewPaymentSummary([]);
+            setViewProfit({ wholesale: 0, mercearia: 0, total: 0, margin: 0 });
+            setViewOpen(true);
+        }
+    };
+
     if (contextLoading) return <Loading fullScreen />;
 
     if (!isRegisterOpen) {
@@ -432,26 +522,32 @@ const CashRegisterPage = () => {
                 </div>
                 <div
                     style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                        display: 'flex',
                         gap: 'var(--spacing-sm)',
                         width: '100%',
-                        maxWidth: '720px'
+                        maxWidth: '100%',
+                        flexWrap: 'nowrap',
+                        overflowX: 'auto'
                     }}
                 >
                     <Button
                         variant="secondary"
                         onClick={() => navigate('/historico-caixa')}
                         icon={History}
-                        fullWidth
                     >
                         Histórico
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={handleViewOpen}
+                        icon={Eye}
+                    >
+                        Ver Caixa
                     </Button>
                     <Button
                         variant="primary"
                         onClick={handlePrintOpenRegister}
                         icon={Printer}
-                        fullWidth
                     >
                         Imprimir Resumo
                     </Button>
@@ -459,7 +555,6 @@ const CashRegisterPage = () => {
                         variant="success"
                         onClick={() => setModalType('supply')}
                         icon={ArrowUpCircle}
-                        fullWidth
                     >
                         Suprimento
                     </Button>
@@ -467,7 +562,6 @@ const CashRegisterPage = () => {
                         variant="danger"
                         onClick={() => setModalType('bleed')}
                         icon={ArrowDownCircle}
-                        fullWidth
                     >
                         Sangria
                     </Button>
@@ -475,7 +569,6 @@ const CashRegisterPage = () => {
                         variant="danger"
                         onClick={handleCloseRegister}
                         icon={Lock}
-                        fullWidth
                     >
                         Fechar Caixa
                     </Button>
@@ -663,6 +756,78 @@ const CashRegisterPage = () => {
                 onSave={handleMovement}
                 type={modalType}
             />
+
+            <Modal
+                isOpen={viewOpen}
+                onClose={() => setViewOpen(false)}
+                title="Caixa Atual"
+                size="md"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button variant="secondary" onClick={() => setViewOpen(false)}>Fechar</Button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-sm)' }}>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Aberto em</div>
+                            <div style={{ fontWeight: 600 }}>{formatDateTime(currentCashRegister.openedAt)}</div>
+                        </div>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Operador</div>
+                            <div style={{ fontWeight: 600 }}>{user?.name || 'Operador'}</div>
+                        </div>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Inicial</div>
+                            <div style={{ fontWeight: 700 }}>{formatCurrency(currentCashRegister.openingBalance)}</div>
+                        </div>
+                        <div>
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Atual</div>
+                            <div style={{ fontWeight: 700 }}>{formatCurrency(currentBalance)}</div>
+                        </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo Financeiro</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Vendas</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSales)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Suprimentos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSupplies)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Sangrias</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalBleeds)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Trocos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalChange)}</span>
+                        </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Lucro</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (receita)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.revenueMercearia)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (custo)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.costMercearia)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(viewProfit.mercearia)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.marginMercearia || 0).toFixed(1)}%`}</span>
+                            <span style={{ color: 'var(--color-text-secondary)', marginTop: '6px' }}>Atacado (receita)</span><span style={{ textAlign: 'right', fontWeight: 600, marginTop: '6px' }}>{formatCurrency(viewProfit.revenueWholesale)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (custo)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.costWholesale)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(viewProfit.wholesale)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.marginWholesale || 0).toFixed(1)}%`}</span>
+                            <span style={{ color: 'var(--color-text-secondary)', marginTop: '6px' }}>Total (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700, marginTop: '6px' }}>{formatCurrency(viewProfit.total)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Total (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.margin || 0).toFixed(1)}%`}</span>
+                        </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Formas de Pagamento</div>
+                        {viewPaymentSummary.length === 0 ? (
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>-</div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {viewPaymentSummary.map((p, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>{p.method}{p.count > 0 ? ` (${p.count})` : ''}</span>
+                                        <span style={{ fontWeight: 600 }}>{formatCurrency(p.amount)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </Modal>
 
             {/* Manager Approval Modal for Cashier Closing */}
             <Modal
