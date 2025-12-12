@@ -152,14 +152,51 @@ const SalesHistoryPage = () => {
         }
     };
 
-    const handleCancelSale = (sale) => {
-        setMenuOpenId(null);
-        openConfirm('cancel', sale);
+    const performCancelAndDeleteSale = async (sale) => {
+        try {
+            const alreadyCancelled = sale.status === 'cancelled';
+            if (!alreadyCancelled) {
+                for (const item of sale.items || []) {
+                    const productId = item.productId;
+                    if (!productId) continue;
+                    const product = await productService.getById(productId);
+                    if (!product) continue;
+                    const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
+                    if (sale.priceType === 'cold') {
+                        const newColdStock = (product.coldStock || 0) + deduction;
+                        await productService.update(product.id, { coldStock: newColdStock });
+                    } else {
+                        const newStock = (product.stock || 0) + deduction;
+                        await productService.update(product.id, { stock: newStock });
+                    }
+                }
+                try {
+                    if (sale.cashRegisterId) {
+                        await cashRegisterService.addMovement({
+                            cashRegisterId: sale.cashRegisterId,
+                            type: 'refund',
+                            amount: Number(sale.total || 0),
+                            description: `Estorno da venda #${sale.saleNumber} (cancelar e excluir)`,
+                            createdBy: 'Sistema'
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error registering refund movement:', e);
+                }
+                await salesService.update(sale.id, { status: 'cancelled' });
+            }
+            await salesService.delete(sale.id);
+            showNotification('success', `Venda #${sale.saleNumber} cancelada, estoque restaurado, estorno registrado e excluída`);
+            await loadSales();
+        } catch (error) {
+            console.error('Error cancelling and deleting sale:', error);
+            showNotification('error', 'Erro ao cancelar e excluir venda');
+        }
     };
 
-    const handleDeleteSale = (sale) => {
+    const handleCancelDeleteSale = (sale) => {
         setMenuOpenId(null);
-        openConfirm('delete', sale);
+        openConfirm('cancel_delete', sale);
     };
 
     const restoreStockForItem = async (sale, item) => {
@@ -533,25 +570,7 @@ const SalesHistoryPage = () => {
                                                         }}
                                                     >
                                                         <button
-                                                            onClick={() => { setMenuOpenId(null); handleCancelSale(sale); }}
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '10px 12px',
-                                                                background: 'transparent',
-                                                                border: 'none',
-                                                                cursor: 'pointer',
-                                                                color: 'var(--color-danger)',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '8px'
-                                                            }}
-                                                        >
-                                                            <XCircle size={16} />
-                                                            <span>Cancelar venda</span>
-                                                        </button>
-                                                        <div style={{ height: '1px', background: 'var(--color-border)' }} />
-                                                        <button
-                                                            onClick={() => { setMenuOpenId(null); handleDeleteSale(sale); }}
+                                                            onClick={() => { setMenuOpenId(null); handleCancelDeleteSale(sale); }}
                                                             style={{
                                                                 width: '100%',
                                                                 padding: '10px 12px',
@@ -565,7 +584,7 @@ const SalesHistoryPage = () => {
                                                             }}
                                                         >
                                                             <Trash2 size={16} />
-                                                            <span>Excluir</span>
+                                                            <span>Cancelar e Excluir</span>
                                                         </button>
                                                     </div>
                                                 )}
@@ -582,7 +601,7 @@ const SalesHistoryPage = () => {
             <Modal
                 isOpen={confirmOpen}
                 onClose={() => setConfirmOpen(false)}
-                title={confirmAction === 'delete' ? 'Excluir venda' : 'Cancelar venda'}
+                title={'Cancelar e Excluir venda'}
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', width: '100%' }}>
                         <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Voltar</Button>
@@ -591,11 +610,7 @@ const SalesHistoryPage = () => {
                             onClick={async () => {
                                 if (!confirmSale) return;
                                 setConfirmOpen(false);
-                                if (confirmAction === 'delete') {
-                                    await performDeleteSale(confirmSale);
-                                } else {
-                                    await performCancelSale(confirmSale);
-                                }
+                                await performCancelAndDeleteSale(confirmSale);
                             }}
                         >
                             Confirmar
@@ -625,10 +640,10 @@ const SalesHistoryPage = () => {
                         <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                             <Button
                                 variant="danger"
-                                onClick={() => selectedSale && openConfirm('cancel', selectedSale)}
-                                disabled={!selectedSale || selectedSale.status === 'cancelled'}
+                                onClick={() => selectedSale && openConfirm('cancel_delete', selectedSale)}
+                                disabled={!selectedSale}
                             >
-                                Cancelar Venda
+                                Cancelar e Excluir
                             </Button>
                             <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/pdv'); }}>
                                 Editar no PDV

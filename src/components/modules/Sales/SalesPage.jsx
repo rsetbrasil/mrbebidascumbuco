@@ -611,6 +611,7 @@ const SalesPage = () => {
                 })();
                 const previewSale = { ...cleanSaleData, saleNumber: fastSaleNumber, provisional: true };
                 printReceipt(previewSale, { ...settings, silentPrint: true });
+                setPaymentModalOpen(false);
             } catch (e) {}
 
             let sale;
