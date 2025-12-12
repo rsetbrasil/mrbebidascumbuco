@@ -331,9 +331,9 @@ const SalesPage = () => {
             return acc + (item.quantity * itemDeduction);
         }, 0);
 
-        // Determine which stock to check based on priceType
-        const isCold = priceType === 'cold';
-        const availableStock = isCold ? (selectedProduct.coldStock || 0) : selectedProduct.stock;
+        // Determine which stock to check based on itemPriceType (per-item selection)
+        const isCold = itemPriceType === 'cold';
+        const availableStock = isCold ? (selectedProduct.coldStock || 0) : (selectedProduct.stock || 0);
         const stockType = isCold ? 'Mercearia' : 'natural';
 
         if (totalStockUsed + qty > availableStock) {
