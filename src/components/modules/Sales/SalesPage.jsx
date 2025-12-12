@@ -667,6 +667,12 @@ const SalesPage = () => {
                 setPaymentModalOpen(false);
             } catch (e) {}
 
+            try {
+                clearCart();
+                setPayments([]);
+                setSearchTerm('');
+            } catch {}
+
             let sale;
             if (isEditingSale) {
                 await salesService.update(editingSale.id, { ...cleanSaleData, status: 'modified' });
