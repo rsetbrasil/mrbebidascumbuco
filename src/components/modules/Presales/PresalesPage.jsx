@@ -26,7 +26,7 @@ import { useApp } from '../../../contexts/AppContext';
 const PresalesPage = () => {
     const navigate = useNavigate();
     const { loadPresale } = useCart();
-    const { setBusy } = useApp();
+    const { setBusy, settings } = useApp();
     const searchInputRef = useRef(null);
 
     const [presales, setPresales] = useState([]);
@@ -137,7 +137,7 @@ const PresalesPage = () => {
                 paymentMethod: 'Pré-venda',
                 paymentStatus: 'pending'
             };
-            printReceipt(presaleForPrint);
+            printReceipt(presaleForPrint, settings);
             showNotification('success', 'Comprovante enviado para impressão');
         } catch (error) {
             console.error('Error printing presale:', error);
@@ -391,77 +391,107 @@ const PresalesPage = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            {presale.status === 'pending' && (
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                                                    <button
-                                                        onClick={() => handleEditPresale(presale)}
-                                                        style={{
-                                                            padding: '8px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-primary)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            transition: 'background var(--transition-fast)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Editar"
-                                                    >
-                                                        <Edit size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleViewPresale(presale)}
-                                                        style={{
-                                                            padding: '8px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-text-secondary)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            transition: 'background var(--transition-fast)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Ver"
-                                                    >
-                                                        <Eye size={18} />
-                                                    </button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="primary"
-                                                        onClick={() => handleConvertToSale(presale)}
-                                                        icon={<ShoppingCart size={16} />}
-                                                    >
-                                                        Finalizar
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        onClick={() => handlePrintPresale(presale)}
-                                                        icon={<Printer size={16} />}
-                                                    >
-                                                        Imprimir
-                                                    </Button>
-                                                    <button
-                                                        onClick={() => handleCancel(presale.id)}
-                                                        style={{
-                                                            padding: '8px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-danger)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            transition: 'background var(--transition-fast)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Cancelar"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                                                {presale.status === 'pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleEditPresale(presale)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-primary)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Editar"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleViewPresale(presale)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-text-secondary)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Ver"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={() => handleConvertToSale(presale)}
+                                                            icon={<ShoppingCart size={16} />}
+                                                        >
+                                                            Finalizar
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => handlePrintPresale(presale)}
+                                                            icon={<Printer size={16} />}
+                                                        >
+                                                            Imprimir
+                                                        </Button>
+                                                        <button
+                                                            onClick={() => handleCancel(presale.id)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-danger)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Cancelar"
+                                                        >
+                                                            <XCircle size={18} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleViewPresale(presale)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-text-secondary)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Ver"
+                                                        >
+                                                            <Eye size={18} />
+                                                        </button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => handlePrintPresale(presale)}
+                                                            icon={<Printer size={16} />}
+                                                        >
+                                                            Imprimir
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -476,6 +506,25 @@ const PresalesPage = () => {
                 onClose={() => setViewModalOpen(false)}
                 title={`Pré-venda ${viewPresale ? '#' + viewPresale.id.substring(0,8).toUpperCase() : ''}`}
                 size="md"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setViewModalOpen(false)}
+                        >
+                            Fechar
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            icon={<Printer size={18} />}
+                            onClick={() => viewPresale && handlePrintPresale(viewPresale)}
+                        >
+                            Imprimir
+                        </Button>
+                    </div>
+                }
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                     {viewPresale && (

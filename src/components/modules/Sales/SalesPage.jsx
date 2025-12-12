@@ -593,6 +593,26 @@ const SalesPage = () => {
             // Remove undefined values to prevent Firestore errors
             const cleanSaleData = JSON.parse(JSON.stringify(saleData));
 
+            // Fast print with provisional number to avoid waiting on Firestore
+            try {
+                const fastSaleNumber = (() => {
+                    try {
+                        const d = new Date();
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const key = `offline_counter_sales_${y}${m}${day}`;
+                        const current = Number(localStorage.getItem(key) || '0') + 1;
+                        localStorage.setItem(key, String(current));
+                        return `OFF-${y}${m}${day}-${current}`;
+                    } catch {
+                        return String(Date.now());
+                    }
+                })();
+                const previewSale = { ...cleanSaleData, saleNumber: fastSaleNumber, provisional: true };
+                printReceipt(previewSale, { ...settings, silentPrint: true });
+            } catch (e) {}
+
             let sale;
             if (isEditingSale) {
                 // Adjust stock differences
@@ -639,46 +659,60 @@ const SalesPage = () => {
                 }
             }
 
-            if (change > 0) {
+            const runPostTasks = async () => {
                 try {
-                    await cashRegisterService.addMovement({
-                        cashRegisterId: currentCashRegister.id,
-                        type: 'change',
-                        amount: change,
-                        description: `Troco da venda #${sale.saleNumber}`,
-                        createdBy: user?.name || 'Sistema'
-                    });
-                } catch (error) {
-                    console.error('Error registering change:', error);
-                }
-            }
-
-            // Update stock (se não veio de pré-venda)
-            for (const item of items) {
-                try {
-                    if (!item.id || cartData.presaleId) continue;
-
-                    const product = await productService.getById(item.id);
-                    if (!product) continue;
-
-                    const deduction = getDeduction(item);
-
-                    // Deduct from cold stock or regular stock based on isCold flag
-                    if (item.isCold) {
-                        const newColdStock = (product.coldStock || 0) - deduction;
-                        await productService.update(product.id, { coldStock: Math.max(0, newColdStock) });
-                    } else {
-                        const newStock = product.stock - deduction;
-                        await productService.update(product.id, { stock: Math.max(0, newStock) });
+                    if (change > 0) {
+                        try {
+                            await cashRegisterService.addMovement({
+                                cashRegisterId: currentCashRegister.id,
+                                type: 'change',
+                                amount: change,
+                                description: `Troco da venda #${sale.saleNumber}`,
+                                createdBy: user?.name || 'Sistema'
+                            });
+                        } catch (error) {
+                            console.error('Error registering change:', error);
+                        }
                     }
-                } catch (stockError) {
-                    console.error('Error updating stock for product:', item.name, stockError);
+    
+                    if (!cartData.presaleId) {
+                        const updatesByProduct = new Map();
+                        for (const item of items) {
+                            if (!item.id) continue;
+                            const d = getDeduction(item);
+                            const entry = updatesByProduct.get(item.id) || { cold: 0, nat: 0, name: item.name };
+                            if (item.isCold) entry.cold += d; else entry.nat += d;
+                            updatesByProduct.set(item.id, entry);
+                        }
+                        const tasks = Array.from(updatesByProduct.entries()).map(async ([pid, entry]) => {
+                            try {
+                                const product = await productService.getById(pid);
+                                if (!product) return;
+                                const update = {};
+                                if (entry.cold > 0) {
+                                    const newColdStock = (product.coldStock || 0) - entry.cold;
+                                    update.coldStock = Math.max(0, newColdStock);
+                                }
+                                if (entry.nat > 0) {
+                                    const newStock = (product.stock || 0) - entry.nat;
+                                    update.stock = Math.max(0, newStock);
+                                }
+                                if (Object.keys(update).length > 0) {
+                                    await productService.update(product.id, update);
+                                }
+                            } catch (stockError) {
+                                console.error('Error updating stock for product:', entry.name, stockError);
+                            }
+                        });
+                        await Promise.allSettled(tasks);
+                    }
+                } catch (e) {
+                    console.error('Post-finalization tasks error:', e);
                 }
-            }
+            };
+            runPostTasks().catch(() => {});
 
             
-
-            printReceipt(sale, settings);
 
             showNotification('Venda realizada com sucesso!', 'success');
             clearCart();

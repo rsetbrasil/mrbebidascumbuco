@@ -35,6 +35,9 @@ export const AppProvider = ({ children }) => {
             unsubSettings = settingsService.subscribeAll((list) => {
                 const obj = {};
                 (list || []).forEach(s => { obj[s.key] = s.value; });
+                if (obj.silentPrint === undefined) {
+                    obj.silentPrint = true;
+                }
                 setSettings(obj);
             });
         } catch (e) {
@@ -137,6 +140,9 @@ export const AppProvider = ({ children }) => {
             allSettings.forEach(setting => {
                 settingsObj[setting.key] = setting.value;
             });
+            if (settingsObj.silentPrint === undefined) {
+                settingsObj.silentPrint = true;
+            }
             setSettings(settingsObj);
 
         } catch (error) {

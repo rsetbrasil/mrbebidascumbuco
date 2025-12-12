@@ -27,6 +27,7 @@ const SettingsPage = () => {
     const [settings, setSettings] = useState({
         receiptHeader: '',
         receiptFooter: '',
+        silentPrint: true,
         companyName: '',
         companyAddress: '',
         companyPhone: '',
@@ -352,6 +353,22 @@ const SettingsPage = () => {
                                 textarea
                                 rows={3}
                             />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input
+                                    type="checkbox"
+                                    id="silent-print"
+                                    name="silentPrint"
+                                    checked={settings.silentPrint === true}
+                                    onChange={(e) => {
+                                        const v = e.target.checked;
+                                        setSettings(prev => ({ ...prev, silentPrint: v }));
+                                    }}
+                                />
+                                <label htmlFor="silent-print">Imprimir silenciosamente (sem diálogo)</label>
+                            </div>
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
+                                Requer navegador com `--kiosk-printing` para não exibir diálogo
+                            </div>
                         </div>
                     </Card>
 

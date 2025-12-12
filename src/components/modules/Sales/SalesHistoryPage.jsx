@@ -5,7 +5,7 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { salesService, productService } from '../../../services/firestore';
+import { salesService, productService, cashRegisterService } from '../../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
@@ -93,7 +93,20 @@ const SalesHistoryPage = () => {
                 }
             }
             await salesService.update(sale.id, { status: 'cancelled' });
-            showNotification('success', `Venda #${sale.saleNumber} cancelada e estoque restaurado`);
+            try {
+                if (sale.cashRegisterId) {
+                    await cashRegisterService.addMovement({
+                        cashRegisterId: sale.cashRegisterId,
+                        type: 'refund',
+                        amount: Number(sale.total || 0),
+                        description: `Estorno da venda #${sale.saleNumber}`,
+                        createdBy: 'Sistema'
+                    });
+                }
+            } catch (e) {
+                console.error('Error registering refund movement:', e);
+            }
+            showNotification('success', `Venda #${sale.saleNumber} cancelada, estoque restaurado e pagamento estornado`);
             await loadSales();
         } catch (error) {
             console.error('Error cancelling sale:', error);
@@ -117,8 +130,21 @@ const SalesHistoryPage = () => {
                     await productService.update(product.id, { stock: newStock });
                 }
             }
+            try {
+                if (sale.cashRegisterId) {
+                    await cashRegisterService.addMovement({
+                        cashRegisterId: sale.cashRegisterId,
+                        type: 'refund',
+                        amount: Number(sale.total || 0),
+                        description: `Estorno da venda #${sale.saleNumber} (exclusão)`,
+                        createdBy: 'Sistema'
+                    });
+                }
+            } catch (e) {
+                console.error('Error registering refund movement:', e);
+            }
             await salesService.delete(sale.id);
-            showNotification('success', `Venda #${sale.saleNumber} apagada e estoque restaurado`);
+            showNotification('success', `Venda #${sale.saleNumber} apagada, estoque restaurado e pagamento estornado`);
             await loadSales();
         } catch (error) {
             console.error('Error deleting sale:', error);
@@ -177,10 +203,24 @@ const SalesHistoryPage = () => {
         const newSubtotal = newItems.reduce((sum, it) => sum + (it.quantity * it.unitPrice), 0);
         const newItemsDiscount = newItems.reduce((sum, it) => sum + (it.discount || 0), 0);
         const newTotal = Math.max(0, newSubtotal - newItemsDiscount - (selectedSale.discount || 0));
+        const refundAmount = Math.max(0, Number(selectedSale.total || 0) - Number(newTotal || 0));
 
         await salesService.update(selectedSale.id, { items: newItems, subtotal: newSubtotal, total: newTotal, status: 'modified' });
         setSelectedSale({ ...selectedSale, items: newItems, subtotal: newSubtotal, total: newTotal, status: 'modified' });
-        showNotification('success', 'Item cancelado e estoque restaurado');
+        try {
+            if (selectedSale.cashRegisterId && refundAmount > 0) {
+                await cashRegisterService.addMovement({
+                    cashRegisterId: selectedSale.cashRegisterId,
+                    type: 'refund',
+                    amount: refundAmount,
+                    description: `Estorno item venda #${selectedSale.saleNumber}`,
+                    createdBy: 'Sistema'
+                });
+            }
+        } catch (e) {
+            console.error('Error registering item refund movement:', e);
+        }
+        showNotification('success', 'Item cancelado, estoque restaurado e pagamento estornado');
         await loadSales();
     };
 

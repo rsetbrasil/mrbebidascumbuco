@@ -109,7 +109,8 @@ const CashRegisterPage = () => {
     const proceedClose = async (approvedByManagerName = null) => {
         setLoading(true);
         try {
-            const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
+            const activeSales = sales.filter(s => s.status !== 'cancelled');
+            const totalSales = activeSales.reduce((acc, sale) => acc + sale.total, 0);
             const totalSupplies = movements
                 .filter(m => m.type === 'supply')
                 .reduce((acc, m) => acc + m.amount, 0);
@@ -123,7 +124,7 @@ const CashRegisterPage = () => {
             // Compute profit breakdown: Atacado (wholesale) vs Mercearia (cold)
             let profitWholesale = 0;
             let profitMercearia = 0;
-            for (const sale of sales) {
+            for (const sale of activeSales) {
                 const items = sale.items || [];
                 let revW = 0, revM = 0, revOther = 0;
                 let costW = 0, costM = 0;
@@ -148,7 +149,7 @@ const CashRegisterPage = () => {
             }
 
             const paymentsMap = new Map();
-            for (const sale of sales) {
+            for (const sale of activeSales) {
                 const list = Array.isArray(sale.payments) && sale.payments.length > 0
                     ? sale.payments
                     : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
@@ -317,7 +318,8 @@ const CashRegisterPage = () => {
         );
     }
 
-    const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
+    const activeSalesView = sales.filter(s => s.status !== 'cancelled');
+    const totalSales = activeSalesView.reduce((acc, sale) => acc + sale.total, 0);
     const totalSupplies = movements
         .filter(m => m.type === 'supply')
         .reduce((acc, m) => acc + m.amount, 0);

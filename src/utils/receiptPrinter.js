@@ -50,7 +50,6 @@ const getPrintStyles = (paperWidthMm = 80) => `
 const printHtml = (htmlContent, paperWidthMm = 80) => {
     const printWindow = window.open('', '', 'width=280,height=600');
     if (!printWindow) {
-        alert('Por favor, permita popups para imprimir o comprovante.');
         return;
     }
 
@@ -132,7 +131,7 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
                         window.focus();
                         setTimeout(function(){
                             window.print();
-                        }, 50);
+                        }, 0);
                         window.onafterprint = function() {
                             window.close();
                         };
@@ -144,7 +143,63 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
     printWindow.document.close();
 };
 
-export const printReceipt = (sale, settings = {}) => {
+const printInline = (htmlContent, paperWidthMm = 80) => {
+    let iframe = document.getElementById('receipt_iframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'receipt_iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        document.body.appendChild(iframe);
+    }
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <html>
+            <head>
+                <title>Imprimir Comprovante</title>
+                ${getPrintStyles(paperWidthMm)}
+            </head>
+            <body>
+                <div id="receipt-root">${htmlContent}</div>
+                <script>
+                    (function(){
+                        var cleaned = false;
+                        var cleanup = function(){
+                            if (cleaned) return;
+                            cleaned = true;
+                            try {
+                                var p = window.parent && window.parent.document;
+                                var el = p && p.getElementById('receipt_iframe');
+                                if (el) {
+                                    p.body.removeChild(el);
+                                }
+                            } catch(e) {}
+                        };
+                        window.onafterprint = cleanup;
+                        setTimeout(cleanup, 600);
+                    })();
+                </script>
+            </body>
+        </html>
+    `);
+    doc.close();
+    try {
+        setTimeout(() => {
+            const w = iframe.contentWindow;
+            if (w) {
+                w.focus();
+                w.print();
+            }
+        }, 0);
+    } catch (e) {}
+};
+
+export const buildReceiptHtml = (sale, settings = {}) => {
     const sanitize = (s) => (s || '').trim().replace(/\n+/g, '\n');
     const companyName = sanitize(settings.companyName) || 'MR BEBIDAS DISTRIBUIDORA';
     const address = sanitize(settings.companyAddress) || 'Rua Firmo Ananias Cardoso, 269';
@@ -264,8 +319,17 @@ export const printReceipt = (sale, settings = {}) => {
             ${sanitize(settings.receiptFooter) || 'Obrigado e volte sempre!'}
         </div>
     `;
+    return { html, paperWidthMm };
+};
 
-    printHtml(html, paperWidthMm);
+export const printReceipt = (sale, settings = {}) => {
+    const { html, paperWidthMm } = buildReceiptHtml(sale, settings);
+    const preferInline = settings.inlinePrint === true || settings.silentPrint === true || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_INLINE_PRINT === 'true');
+    if (preferInline) {
+        printInline(html, paperWidthMm);
+    } else {
+        printHtml(html, paperWidthMm);
+    }
 };
 
 export const printCashRegisterReport = (data, settings = {}) => {
@@ -387,5 +451,6 @@ export const downloadReceipt = (sale, settings = {}) => {
 };
 
 export const previewReceipt = (sale, settings = {}) => {
-    return ''; // Not supported in HTML mode
+    const { html, paperWidthMm } = buildReceiptHtml(sale, settings);
+    return `${getPrintStyles(paperWidthMm)}${html}`;
 };
