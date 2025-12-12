@@ -552,6 +552,25 @@ export const presalesService = {
         return firestoreService.delete(COLLECTIONS.PRESALES, id);
     },
 
+    async finalizeToSaleTxn(presaleId, saleData, operatorName = 'Operador') {
+        try {
+            const sale = await salesService.create(saleData);
+            try {
+                await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
+                    status: 'finalized',
+                    finalizedBy: operatorName,
+                    finalizedAt: Timestamp.now()
+                });
+            } catch {}
+            try {
+                await firestoreService.delete(COLLECTIONS.PRESALES, presaleId);
+            } catch {}
+            return sale;
+        } catch (error) {
+            throw error;
+        }
+    },
+
     async deleteDuplicates() {
         const list = await firestoreService.getAll(COLLECTIONS.PRESALES, 'createdAt', 'asc');
         const seen = new Map();
