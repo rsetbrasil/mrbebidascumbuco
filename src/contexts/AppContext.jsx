@@ -19,6 +19,8 @@ export const AppProvider = ({ children }) => {
     const [notification, setNotification] = useState(null);
     const [isSyncing, setIsSyncing] = useState(false);
     const reloadTokenRef = useRef(null);
+    const [busy, setBusy] = useState(false);
+    const lastActivityRef = useRef(Date.now());
 
     useEffect(() => {
         let unsubCash = null;
@@ -45,6 +47,35 @@ export const AppProvider = ({ children }) => {
             try { unsubSettings && unsubSettings(); } catch {}
         };
     }, []);
+
+    useEffect(() => {
+        const markActivity = () => { lastActivityRef.current = Date.now(); };
+        if (typeof window !== 'undefined') {
+            ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
+                window.addEventListener(evt, markActivity, { passive: true })
+            );
+        }
+        const interval = setInterval(() => {
+            const hasOpenCash = !!(currentCashRegister && currentCashRegister.id);
+            const idleThresholdMs = 45 * 1000;
+            const isIdle = (Date.now() - (lastActivityRef.current || 0)) > idleThresholdMs;
+            if (hasOpenCash && isIdle && !busy && !isSyncing) {
+                try {
+                    if (typeof window !== 'undefined') {
+                        window.location.reload();
+                    }
+                } catch {}
+            }
+        }, 10 * 60 * 1000);
+        return () => {
+            clearInterval(interval);
+            if (typeof window !== 'undefined') {
+                ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt =>
+                    window.removeEventListener(evt, markActivity)
+                );
+            }
+        };
+    }, [currentCashRegister, busy, isSyncing]);
 
     useEffect(() => {
         const runNormalize = async () => {
@@ -222,12 +253,14 @@ export const AppProvider = ({ children }) => {
         loading,
         notification,
         isSyncing,
+        busy,
         showNotification,
         updateSettings,
         openCashRegister,
         closeCashRegister,
         addCashMovement,
-        refreshCashRegister: loadInitialData
+        refreshCashRegister: loadInitialData,
+        setBusy: (v) => setBusy(!!v)
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

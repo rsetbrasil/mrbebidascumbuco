@@ -4,7 +4,7 @@ import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Modal from '../../common/Modal';
 import { useApp } from '../../../contexts/AppContext';
-import { salesService, cashRegisterService, counterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
+import { salesService, cashRegisterService, counterService, firestoreService, COLLECTIONS, presalesService, productService } from '../../../services/firestore';
 
 const ResetDataPage = () => {
     const { showNotification } = useApp();
@@ -161,6 +161,63 @@ const ResetDataPage = () => {
         }
     ];
 
+    const handleTestConcurrency = async () => {
+        setProcessing(true);
+        try {
+            const products = await productService.getAll();
+            const product = products[0];
+            if (!product) {
+                showNotification('error', 'Nenhum produto disponível para teste');
+                setProcessing(false);
+                return;
+            }
+            const presale = await presalesService.create({
+                customerName: 'Teste Concorrência',
+                items: [{
+                    productId: product.id,
+                    productName: product.name,
+                    quantity: 1,
+                    unitPrice: Number(product.wholesalePrice || product.price) || 0,
+                    total: Number(product.wholesalePrice || product.price) || 0,
+                    isCold: false,
+                    isWholesale: true
+                }],
+                subtotal: Number(product.wholesalePrice || product.price) || 0,
+                discount: 0,
+                total: Number(product.wholesalePrice || product.price) || 0,
+                priceType: 'wholesale',
+                status: 'pending',
+                reserved: false,
+                createdBy: 'Teste'
+            });
+            const saleData = {
+                items: presale.items,
+                subtotal: presale.subtotal,
+                discount: presale.discount,
+                total: presale.total,
+                payments: [{ method: 'Dinheiro', amount: presale.total }],
+                paymentMethod: 'Dinheiro',
+                priceType: 'wholesale',
+                totalPaid: presale.total,
+                paymentStatus: 'paid',
+                change: 0,
+                createdBy: 'Teste',
+                cashRegisterId: 'TEST'
+            };
+            const { successes, errors, duplicates } = await presalesService.simulateConcurrentFinalization(presale.id, saleData, 5);
+            if (duplicates) {
+                showNotification('error', `Falha no teste: houve duplicações (${successes.length} sucessos, ${errors.length} erros)`);
+            } else {
+                showNotification('success', `Teste ok: ${successes.length} sucessos, ${errors.length} erros, sem duplicações`);
+            }
+        } catch (e) {
+            console.error('Concurrency test error:', e);
+            showNotification('error', 'Erro no teste de concorrência');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -206,6 +263,25 @@ const ResetDataPage = () => {
                         </div>
                     </Card>
                 ))}
+                <Card>
+                    <div className="flex items-start space-x-4">
+                        <div className="p-3 rounded-lg bg-indigo-50">
+                            <Database className="h-6 w-6 text-indigo-600" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900">Teste de Concorrência de Pré‑venda</h3>
+                            <p className="text-sm text-gray-600 mt-1">Simula 5 usuários finalizando a mesma pré‑venda ao mesmo tempo.</p>
+                            <Button
+                                variant="outline"
+                                onClick={handleTestConcurrency}
+                                className="mt-4"
+                                disabled={processing}
+                            >
+                                Executar Teste
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
             </div>
 
             {/* Confirmation Modal */}

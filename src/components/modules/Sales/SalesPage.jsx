@@ -31,7 +31,7 @@ const SalesPage = () => {
         editingSale
     } = useCart();
 
-    const { showNotification, currentCashRegister, settings } = useApp();
+    const { showNotification, currentCashRegister, settings, setBusy } = useApp();
     const { user, isManager, isCashier } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +95,12 @@ const SalesPage = () => {
         loadProducts();
         loadCustomers();
     }, []);
+
+    useEffect(() => {
+        const active = paymentModalOpen || presaleModalOpen || quantityModalOpen || customerSelectionOpen || newCustomerModalOpen || processing;
+        setBusy(active);
+        return () => setBusy(false);
+    }, [paymentModalOpen, presaleModalOpen, quantityModalOpen, customerSelectionOpen, newCustomerModalOpen, processing]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -626,7 +632,11 @@ const SalesPage = () => {
                 await salesService.update(editingSale.id, { ...cleanSaleData, status: 'modified' });
                 sale = { id: editingSale.id, ...cleanSaleData };
             } else {
-                sale = await salesService.create(cleanSaleData);
+                if (cartData.presaleId) {
+                    sale = await presalesService.finalizeToSaleTxn(cartData.presaleId, cleanSaleData, user?.name || 'Operador');
+                } else {
+                    sale = await salesService.create(cleanSaleData);
+                }
             }
 
             if (change > 0) {
@@ -666,22 +676,7 @@ const SalesPage = () => {
                 }
             }
 
-            if (cartData.presaleId) {
-                try {
-                    await presalesService.update(cartData.presaleId, {
-                        status: 'completed',
-                        reserved: false,
-                        completedAt: new Date(),
-                        saleId: sale.id,
-                        saleNumber: sale.saleNumber
-                    });
-                } catch (e) {
-                    try { await salesService.delete(sale.id); } catch {}
-                    showNotification('Falha ao atualizar pré-venda; venda revertida', 'error');
-                    setProcessing(false);
-                    return;
-                }
-            }
+            
 
             printReceipt(sale, settings);
 

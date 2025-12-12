@@ -21,10 +21,12 @@ import { presalesService, productService } from '../../../services/firestore';
 import { useCart } from '../../../contexts/CartContext';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
+import { useApp } from '../../../contexts/AppContext';
 
 const PresalesPage = () => {
     const navigate = useNavigate();
     const { loadPresale } = useCart();
+    const { setBusy } = useApp();
     const searchInputRef = useRef(null);
 
     const [presales, setPresales] = useState([]);
@@ -57,6 +59,11 @@ const PresalesPage = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [navigate]);
+
+    useEffect(() => {
+        setBusy(viewModalOpen);
+        return () => setBusy(false);
+    }, [viewModalOpen]);
 
     const loadData = async () => {
         setLoading(true);

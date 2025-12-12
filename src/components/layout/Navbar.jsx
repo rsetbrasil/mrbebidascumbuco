@@ -128,7 +128,8 @@ const Navbar = ({ onMenuClick }) => {
                 gridTemplateColumns: isMobile ? 'auto 1fr auto' : '1fr auto 1fr',
                 alignItems: 'center',
                 maxWidth: '1400px',
-                margin: '0 auto'
+                margin: '0 auto',
+                padding: isMobile ? '0 var(--spacing-md)' : '0 var(--spacing-xl)'
             }}>
                 {/* Left side */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>

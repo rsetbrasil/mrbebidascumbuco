@@ -590,6 +590,114 @@ export const presalesService = {
         }
         await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.PRESALES, id)));
         return { deleted: toDelete.length };
+    },
+    async finalizeToSaleTxn(presaleId, saleData, actor = 'Operador') {
+        try {
+            if (isDemoMode) {
+                const nextNumber = await counterService.getNextNumber('sales');
+                const sale = await firestoreService.create(COLLECTIONS.SALES, {
+                    ...saleData,
+                    saleNumber: String(nextNumber),
+                    provisional: false,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    presaleId,
+                    finalizedBy: actor
+                });
+                await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
+                    status: 'completed',
+                    reserved: false,
+                    completedAt: new Date(),
+                    saleId: sale.id,
+                    saleNumber: sale.saleNumber,
+                    finalizedBy: actor
+                });
+                return sale;
+            }
+            const { runTransaction } = await import('firebase/firestore');
+            const presaleRef = doc(db, COLLECTIONS.PRESALES, presaleId);
+            const countersRef = doc(db, COLLECTIONS.COUNTERS, 'sales');
+            const saleCol = collection(db, COLLECTIONS.SALES);
+            const result = await runTransaction(db, async (tx) => {
+                const pSnap = await tx.get(presaleRef);
+                if (!pSnap.exists()) {
+                    throw new Error('Pré-venda não encontrada');
+                }
+                const p = pSnap.data();
+                if (p.status !== 'pending') {
+                    throw new Error('Conflito: pré-venda já finalizada ou cancelada');
+                }
+                if (p.saleId) {
+                    throw new Error('Conflito: venda já associada à pré-venda');
+                }
+                const cSnap = await tx.get(countersRef);
+                let saleNumber = 1;
+                if (cSnap.exists()) {
+                    saleNumber = (cSnap.data().value || 0) + 1;
+                    tx.update(countersRef, { value: saleNumber });
+                } else {
+                    tx.set(countersRef, { value: saleNumber });
+                }
+                const saleRef = doc(saleCol);
+                const nowTs = Timestamp.now();
+                const salePayload = {
+                    ...saleData,
+                    saleNumber: String(saleNumber),
+                    provisional: false,
+                    createdAt: nowTs,
+                    updatedAt: nowTs,
+                    presaleId,
+                    finalizedBy: actor
+                };
+                tx.set(saleRef, salePayload);
+                tx.update(presaleRef, {
+                    status: 'completed',
+                    reserved: false,
+                    completedAt: nowTs,
+                    saleId: saleRef.id,
+                    saleNumber: String(saleNumber),
+                    finalizedBy: actor
+                });
+                return { id: saleRef.id, ...salePayload };
+            });
+            return result;
+        } catch (error) {
+            const code = error?.code;
+            const allowFallback = code === 'resource-exhausted' || code === 'unavailable' || code === 'aborted' || code === 'failed-precondition';
+            if (!allowFallback) throw error;
+            const nextNumber = await counterService.getNextNumber('sales');
+            const provisional = String(nextNumber).startsWith('OFF-');
+            const now = new Date();
+            const sale = await firestoreService.create(COLLECTIONS.SALES, {
+                ...saleData,
+                saleNumber: String(nextNumber),
+                provisional,
+                createdAt: now,
+                updatedAt: now,
+                presaleId,
+                finalizedBy: actor
+            });
+            await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
+                status: 'completed',
+                reserved: false,
+                completedAt: now,
+                saleId: sale.id,
+                saleNumber: sale.saleNumber,
+                finalizedBy: actor
+            });
+            return sale;
+        }
+    },
+    async simulateConcurrentFinalization(presaleId, saleData, users = 5) {
+        const actors = Array.from({ length: users }, (_, i) => `SimUser${i + 1}`);
+        const results = await Promise.allSettled(
+            actors.map(actor => this.finalizeToSaleTxn(presaleId, saleData, actor))
+        );
+        const successes = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+        const errors = results.filter(r => r.status === 'rejected').map(r => r.reason?.message || String(r.reason));
+        const uniqueSaleIds = new Set(successes.map(s => s.id));
+        const duplicates = successes.length > uniqueSaleIds.size;
+        return { successes, errors, duplicates };
     }
 };
 
@@ -871,7 +979,7 @@ export const counterService = {
 
             return nextNumber;
         } catch (error) {
-            if (isOffline || (error && (error.code === 'unavailable' || error.code === 'failed-precondition' || error.code === 'aborted'))) {
+            if (isOffline || (error && (error.code === 'unavailable' || error.code === 'failed-precondition' || error.code === 'aborted' || error.code === 'resource-exhausted'))) {
                 try {
                     const d = new Date();
                     const y = d.getFullYear();
