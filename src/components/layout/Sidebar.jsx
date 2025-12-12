@@ -132,7 +132,8 @@ const Sidebar = ({ onClose }) => {
                 color: 'var(--color-text-muted)',
                 textAlign: 'center'
             }}>
-                © 2024 MR Bebidas
+                <div>© 2024 MR Bebidas</div>
+                <div style={{ marginTop: '4px', fontWeight: 600 }}>Deus é Fiel</div>
             </div>
         </aside>
     );

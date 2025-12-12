@@ -158,22 +158,7 @@ const Navbar = ({ onMenuClick }) => {
                         </button>
                     )}
 
-                    {!isMobile && (
-                        <h1 style={{
-                            fontSize: (onMenuClick ? 'var(--font-size-lg)' : 'var(--font-size-xl)'),
-                            fontWeight: 800,
-                            background: 'var(--gradient-primary)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                            margin: 0,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                        }}>
-                            {(settings?.headerTitle || 'Deus é Fiel!')}
-                        </h1>
-                    )}
+                    
 
                     <Button
                         variant="primary"
