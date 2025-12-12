@@ -680,6 +680,12 @@ const SalesPage = () => {
             } else {
                 if (cartData.presaleId) {
                     sale = await presalesService.finalizeToSaleTxn(cartData.presaleId, cleanSaleData, user?.name || 'Operador');
+                    try {
+                        await presalesService.updateStatus(cartData.presaleId, 'completed');
+                    } catch {}
+                    try {
+                        await presalesService.delete(cartData.presaleId);
+                    } catch {}
                 } else {
                     sale = await salesService.create(cleanSaleData);
                 }
