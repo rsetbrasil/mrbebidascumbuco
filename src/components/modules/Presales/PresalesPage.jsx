@@ -17,7 +17,7 @@ import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import Modal from '../../common/Modal';
-import { presalesService, productService } from '../../../services/firestore';
+import { presalesService, productService, firestoreService, COLLECTIONS } from '../../../services/firestore';
 import { useCart } from '../../../contexts/CartContext';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
@@ -38,7 +38,18 @@ const PresalesPage = () => {
     const [viewPresale, setViewPresale] = useState(null);
 
     useEffect(() => {
-        loadData();
+        let unsubscribe = null;
+        try {
+            unsubscribe = firestoreService.subscribe(
+                COLLECTIONS.PRESALES,
+                (list) => setPresales(list)
+            );
+        } catch (e) {
+            loadData();
+        }
+        return () => {
+            try { unsubscribe && unsubscribe(); } catch {}
+        };
     }, []);
 
     // Keyboard shortcuts
