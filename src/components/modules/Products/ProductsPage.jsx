@@ -160,7 +160,7 @@ const ProductsPage = () => {
                     }}>Produtos</h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seu catálogo de produtos</p>
                 </div>
-                <div className="flex gap-3">
+                <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
                     <Button
                         variant="secondary"
                         onClick={async () => {
