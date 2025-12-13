@@ -209,9 +209,9 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                         <div style={{ flex: 1 }}>
                             <CurrencyInput
                                 label="Preço (Atacado)"
@@ -230,16 +230,9 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 value={formData.wholesaleUnit}
                                 onChange={handleChange}
                                 style={{
-                                    width: '100%',
-                                    height: '42px',
-                                    background: 'var(--color-bg-tertiary)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '0 4px',
-                                    color: 'var(--color-text-primary)',
-                                    outline: 'none',
-                                    fontSize: '13px'
+                                    width: '100%'
                                 }}
+                                className="input"
                             >
                                 {units.map(unit => (
                                     <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
@@ -248,7 +241,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                         <div style={{ flex: 1 }}>
                             <CurrencyInput
                                 label="Preço (Mercearia)"
@@ -267,16 +260,9 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 value={formData.coldUnit}
                                 onChange={handleChange}
                                 style={{
-                                    width: '100%',
-                                    height: '42px',
-                                    background: 'var(--color-bg-tertiary)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: 'var(--radius-md)',
-                                    padding: '0 4px',
-                                    color: 'var(--color-text-primary)',
-                                    outline: 'none',
-                                    fontSize: '13px'
+                                    width: '100%'
                                 }}
+                                className="input"
                             >
                                 {units.map(unit => (
                                     <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
@@ -305,7 +291,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
                     <Input
                         label="Estoque Atual"
                         name="stock"
@@ -332,22 +318,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                             name="categoryId"
                             value={formData.categoryId}
                             onChange={handleChange}
-                            style={{
-                                width: '100%',
-                                height: '42px',
-                                background: 'var(--color-bg-tertiary)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 'var(--radius-md)',
-                                padding: '0 16px',
-                                color: 'var(--color-text-primary)',
-                                outline: 'none',
-                                transition: 'border-color var(--transition-fast)',
-                                cursor: 'pointer'
-                            }}
+                            className="input"
                         >
-                            <option value="" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>Selecione uma categoria</option>
+                            <option value="">Selecione uma categoria</option>
                             {categories.map(cat => (
-                                <option key={cat.id} value={cat.id} style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>
+                                <option key={cat.id} value={cat.id}>
                                     {cat.name}
                                 </option>
                             ))}
