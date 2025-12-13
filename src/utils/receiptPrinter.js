@@ -96,13 +96,18 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
         </html>
     `);
     doc.close();
-    setTimeout(() => {
+    const trigger = () => {
         try {
             w.focus();
             w.print();
             setTimeout(() => { w.close(); }, 300);
         } catch {}
-    }, 50);
+    };
+    if (w.document.readyState === 'complete') {
+        setTimeout(trigger, 50);
+    } else {
+        w.addEventListener('load', () => setTimeout(trigger, 50));
+    }
 };
 
 export const printReceipt = (sale, settings = {}) => {

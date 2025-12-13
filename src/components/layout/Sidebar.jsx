@@ -27,7 +27,7 @@ const Sidebar = ({ onClose }) => {
         presales: { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
         financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
         cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
-        cashRegisterHistory: { path: '/cash-register-history', icon: Wallet, label: 'Histórico de Caixa', restricted: true },
+        cashRegisterHistory: { path: '/historico-caixa', icon: Wallet, label: 'Histórico de Caixa', restricted: true },
         settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
         resetData: { path: '/reset-data', icon: Database, label: 'Resetar Dados', restricted: true },
         dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
