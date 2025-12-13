@@ -86,12 +86,12 @@ const CashRegisterHistoryPage = () => {
                     <table className="w-full text-left">
                         <thead>
                             <tr className="border-b border-slate-700 text-gray-400">
-                                <th className="p-4">Data Fechamento</th>
-                                <th className="p-4">Operador</th>
-                                <th className="p-4">Saldo Inicial</th>
-                                <th className="p-4">Saldo Final</th>
-                                <th className="p-4">Diferença</th>
-                                <th className="p-4 text-right">Ações</th>
+                                <th className="p-4" style={{minWidth: 180}}>Data</th>
+                                <th className="p-4" style={{minWidth: 200}}>Operador</th>
+                                <th className="p-4" style={{minWidth: 140}}>Saldo Inicial</th>
+                                <th className="p-4" style={{minWidth: 140}}>Saldo Final</th>
+                                <th className="p-4" style={{minWidth: 140}}>Diferença</th>
+                                <th className="p-4 text-right" style={{minWidth: 140}}>Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
@@ -104,16 +104,19 @@ const CashRegisterHistoryPage = () => {
                             ) : (
                                 history.map((register) => (
                                     <tr key={register.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-4 text-white">
-                                            <div className="flex items-center gap-2">
-                                                <Calendar size={16} className="text-emerald-400" />
-                                                {formatDateTime(register.closedAt)}
+                                        <td className="p-4 text-white align-top">
+                                            <div className="flex items-start gap-2">
+                                                <Calendar size={16} className="text-emerald-400 mt-0.5" />
+                                                <div>
+                                                    <div className="font-medium">{formatDateTime(register.closedAt)}</div>
+                                                    <div className="text-gray-400 text-sm">Abertura: {formatDateTime(register.openedAt)}</div>
+                                                </div>
                                             </div>
                                         </td>
-                                        <td className="p-4 text-gray-300">
-                                            <div className="flex items-center gap-2">
-                                                <User size={16} className="text-blue-400" />
-                                                {register.closedBy || '-'}
+                                        <td className="p-4 text-gray-300 align-top">
+                                            <div className="flex items-start gap-2">
+                                                <User size={16} className="text-blue-400 mt-0.5" />
+                                                <div className="break-words">{register.closedBy || '-'}</div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-gray-300">
@@ -122,13 +125,26 @@ const CashRegisterHistoryPage = () => {
                                         <td className="p-4 font-medium text-emerald-400">
                                             {formatCurrency(register.closingBalance)}
                                         </td>
-                                        <td className={`p-4 font-medium ${!register.difference || register.difference === 0
-                                                ? 'text-gray-400'
-                                                : register.difference > 0
-                                                    ? 'text-emerald-400'
-                                                    : 'text-red-400'
-                                            }`}>
-                                            {register.difference ? formatCurrency(register.difference) : '-'}
+                                        <td className="p-4">
+                                            {(() => {
+                                                const diff = Number(register.difference || 0);
+                                                const label = diff === 0 ? 'Sem diferença' : diff > 0 ? 'Sobra' : 'Falta';
+                                                const color = diff === 0 ? 'var(--color-text-muted)'
+                                                    : diff > 0 ? 'var(--color-success)'
+                                                    : 'var(--color-danger)';
+                                                return (
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '9999px',
+                                                        background: 'rgba(148, 163, 184, 0.15)',
+                                                        color,
+                                                        fontWeight: 600
+                                                    }}>
+                                                        {label}{diff !== 0 ? ` ${formatCurrency(diff)}` : ''}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="p-4 text-right">
                                             <Button

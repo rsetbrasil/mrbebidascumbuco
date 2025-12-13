@@ -1,4 +1,4 @@
-import { formatCurrency, formatDateTime, formatNumber, truncate } from './formatters';
+import { formatCurrency, formatDateTime, formatNumber, truncate, formatPercentage } from './formatters';
 
 const getPrintStyles = (paperWidthMm = 80) => `
     <style>
@@ -274,6 +274,33 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const dateStr = formatDateTime(data.closedAt || new Date());
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
 
+    const lucroTotal = (data.totalProfit != null
+        ? Number(data.totalProfit || 0)
+        : (Number(data.profitWholesale || 0) + Number(data.profitMercearia || 0)));
+
+    const revW = Number(data.revenueWholesale || 0);
+    const revM = Number(data.revenueMercearia || 0);
+    const marginW = revW > 0 ? (Number(data.profitWholesale || 0) / revW) * 100 : 0;
+    const marginM = revM > 0 ? (Number(data.profitMercearia || 0) / revM) * 100 : 0;
+
+    const paymentSummaryHtml = Array.isArray(data.paymentSummary) && data.paymentSummary.length > 0
+        ? data.paymentSummary.map(p => `
+            <div class="flex text-sm">
+                <span>${p.method}</span>
+                <span>${formatCurrency(p.amount)}${p.count ? ` (${p.count})` : ''}</span>
+            </div>
+        `).join('')
+        : `
+            <div class="flex text-sm">
+                <span>-</span>
+                <span>${formatCurrency(0)}</span>
+            </div>
+        `;
+
+    const openedAtStr = data.openedAt ? formatDateTime(data.openedAt) : '-';
+    const closedAtStr = data.closedAt ? formatDateTime(data.closedAt) : dateStr;
+    const operatorStr = data.closedBy || '-';
+
     const html = `
         <div class="text-center mb-2">
             <div class="font-bold">${companyName}</div>
@@ -283,18 +310,10 @@ export const printCashRegisterReport = (data, settings = {}) => {
         <div class="border-b mb-2"></div>
 
         <div class="mb-2 text-sm">
-            <div class="flex">
-                <span>Abertura:</span>
-                <span>${formatDateTime(data.openedAt)}</span>
-            </div>
-            <div class="flex">
-                <span>Fechamento:</span>
-                <span>${dateStr}</span>
-            </div>
-            <div class="flex">
-                <span>Operador:</span>
-                <span>${data.closedBy || 'Admin'}</span>
-            </div>
+            <div class="font-bold text-center mb-1">DADOS DO FECHAMENTO</div>
+            <div class="details-row"><span>Abertura:</span><span>${openedAtStr}</span></div>
+            <div class="details-row"><span>Fechamento:</span><span>${closedAtStr}</span></div>
+            <div class="details-row"><span>Operador:</span><span class="text">${operatorStr}</span></div>
         </div>
 
         <div class="border-b mb-2"></div>
@@ -316,7 +335,23 @@ export const printCashRegisterReport = (data, settings = {}) => {
             </div>
             <div class="flex font-bold">
                 <span>Lucro:</span>
-                <span>${formatCurrency((data.totalProfit != null ? data.totalProfit : Math.max(0, (data.totalSales || 0) - (data.totalCost || 0))))}</span>
+                <span>${formatCurrency(lucroTotal)}</span>
+            </div>
+            <div class="flex">
+                <span>Lucro Atacado:</span>
+                <span>${formatCurrency(Number(data.profitWholesale || 0))}</span>
+            </div>
+            <div class="flex">
+                <span>Lucro Mercearia:</span>
+                <span>${formatCurrency(Number(data.profitMercearia || 0))}</span>
+            </div>
+            <div class="flex">
+                <span>Margem Atacado:</span>
+                <span>${formatPercentage(marginW)}</span>
+            </div>
+            <div class="flex">
+                <span>Margem Mercearia:</span>
+                <span>${formatPercentage(marginM)}</span>
             </div>
             <div class="flex">
                 <span>Suprimentos (+):</span>
@@ -343,6 +378,11 @@ export const printCashRegisterReport = (data, settings = {}) => {
                     <span>${formatCurrency(data.difference)}</span>
                 </div>
             ` : ''}
+        </div>
+
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1">VENDAS POR FORMA DE PAGAMENTO</div>
+            ${paymentSummaryHtml}
         </div>
 
         ${data.notes ? `

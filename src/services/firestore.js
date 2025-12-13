@@ -618,7 +618,8 @@ export const presalesService = {
     async getByStatus(status) {
         return firestoreService.query(
             COLLECTIONS.PRESALES,
-            [{ field: 'status', operator: '==', value: status }]
+            [{ field: 'status', operator: '==', value: status }],
+            null
         );
     },
 

@@ -9,9 +9,11 @@ const Modal = ({
     children,
     footer,
     size = 'md',
-    closeOnOverlayClick = true
+    closeOnOverlayClick = true,
+    noBodyLock = false
 }) => {
     useEffect(() => {
+        if (noBodyLock) return;
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         } else {
@@ -19,9 +21,9 @@ const Modal = ({
         }
 
         return () => {
-            document.body.style.overflow = 'unset';
+            if (!noBodyLock) document.body.style.overflow = 'unset';
         };
-    }, [isOpen]);
+    }, [isOpen, noBodyLock]);
 
     useEffect(() => {
         const handleEscape = (e) => {
@@ -50,9 +52,22 @@ const Modal = ({
         full: { maxWidth: '95vw' }
     };
 
+    const modalStyle = (() => {
+        const base = { ...sizeStyles[size] };
+        if (size === 'full') {
+            base.maxHeight = 'none';
+            base.overflowY = 'visible';
+        }
+        return base;
+    })();
+
+    const bodyStyle = size === 'full'
+        ? { maxHeight: 'none', overflowY: 'visible' }
+        : { maxHeight: 'calc(90vh - 180px)', overflowY: 'auto' };
+
     return (
         <div className="modal-overlay" onClick={handleOverlayClick}>
-            <div className="modal" style={sizeStyles[size]}>
+            <div className="modal" style={modalStyle}>
                 <div className="modal-header">
                     <h3 className="modal-title">{title}</h3>
                     <Button
@@ -64,7 +79,7 @@ const Modal = ({
                     />
                 </div>
 
-                <div className="modal-body" style={{ maxHeight: 'calc(90vh - 180px)', overflowY: 'auto' }}>
+                <div className="modal-body" style={bodyStyle}>
                     {children}
                 </div>
 

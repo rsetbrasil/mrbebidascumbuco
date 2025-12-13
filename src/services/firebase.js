@@ -38,7 +38,9 @@ if (isConfigured && !isDemoMode) {
     try {
         app = initializeApp(firebaseConfig);
         db = initializeFirestore(app, {
-            ignoreUndefinedProperties: true
+            ignoreUndefinedProperties: true,
+            experimentalForceLongPolling: true,
+            useFetchStreams: false
         });
         if (!isLocalhost) {
             (async () => {

@@ -354,6 +354,10 @@ p {
   margin-bottom: 0;
 }
 
+.input-group.no-margin .input-label {
+  margin-bottom: 0;
+}
+
 .input-label {
   display: block;
   margin-bottom: var(--spacing-sm);

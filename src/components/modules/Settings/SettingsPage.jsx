@@ -30,7 +30,6 @@ const SettingsPage = () => {
             { key: 'categories', visible: true, label: 'Categorias' },
             { key: 'customers', visible: true, label: 'Clientes' },
             { key: 'cashRegister', visible: true, label: 'Caixa' },
-            { key: 'cashRegisterHistory', visible: true, label: 'Histórico de Caixa' },
             { key: 'presales', visible: true, label: 'Pré-vendas' },
             { key: 'financial', visible: true, label: 'Financeiro' },
             { key: 'settings', visible: true, label: 'Configurações' },

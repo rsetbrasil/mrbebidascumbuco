@@ -316,7 +316,7 @@ const SalesPage = () => {
         const stockType = isCold ? 'mercearia' : 'natural';
 
         if (totalStockUsed + deduction > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
+            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock} (Reservado: ${reserved})`, 'warning');
             return;
         }
 
@@ -352,7 +352,7 @@ const SalesPage = () => {
         const stockType = isCold ? 'mercearia' : 'atacado';
 
         if (totalStockUsed + qty > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock}`, 'warning');
+            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock} (Reservado: ${reserved})`, 'warning');
             return;
         }
 
@@ -794,12 +794,18 @@ const SalesPage = () => {
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                                                 {product.barcode || 'Sem código'}
                                             </div>
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                                            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
                                                 <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px' }}>
-                                                    Atacado: <strong>{Math.max(0, Number(product.stock || 0) - Number(product.reservedStock || 0))}</strong> {product.unitOfMeasure || 'UN'}
+                                                    Disponível Atacado: <strong>{Math.max(0, Number(product.stock || 0) - Number(product.reservedStock || 0))}</strong> {product.unitOfMeasure || 'UN'}
                                                 </span>
                                                 <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-info)' }}>
-                                                    Mercearia: <strong>{Math.max(0, Number(product.coldStock || 0) - Number(product.reservedColdStock || 0))}</strong> {product.coldUnit || product.unitOfMeasure || 'UN'}
+                                                    Disponível Mercearia: <strong>{Math.max(0, Number(product.coldStock || 0) - Number(product.reservedColdStock || 0))}</strong> {product.coldUnit || product.unitOfMeasure || 'UN'}
+                                                </span>
+                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-warning)' }}>
+                                                    Reservado Pré-venda (Atacado): <strong>{Number(product.reservedStock || 0)}</strong>
+                                                </span>
+                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-warning)' }}>
+                                                    Reservado Pré-venda (Mercearia): <strong>{Number(product.reservedColdStock || 0)}</strong>
                                                 </span>
                                             </div>
                                         </div>
@@ -980,7 +986,7 @@ const SalesPage = () => {
                 isOpen={quantityModalOpen}
                 onClose={() => setQuantityModalOpen(false)}
                 title="Quantidade"
-                size="sm"
+                size="md"
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                     <p>
@@ -1037,6 +1043,8 @@ const SalesPage = () => {
                                         }, 0);
                                     } else if (e.key === 'ArrowRight') {
                                         e.preventDefault();
+                                        setItemPriceType('cold');
+                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
                                         coldBtnRef.current?.focus();
                                     } else if (e.key === 'Tab') {
                                         e.preventDefault();
@@ -1072,6 +1080,8 @@ const SalesPage = () => {
                                         }, 0);
                                     } else if (e.key === 'ArrowLeft') {
                                         e.preventDefault();
+                                        setItemPriceType('wholesale');
+                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
                                         wholesaleBtnRef.current?.focus();
                                     } else if (e.key === 'Tab') {
                                         e.preventDefault();
@@ -1086,6 +1096,14 @@ const SalesPage = () => {
                                 Mercearia
                             </Button>
                         </div>
+                        <div style={{ marginTop: '6px', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                            Preço Selecionado: <span style={{ color: 'var(--color-primary)' }}>
+                                {formatCurrency(itemPriceType === 'cold'
+                                    ? (selectedProduct ? (selectedProduct.coldPrice || selectedProduct.price || 0) : 0)
+                                    : (selectedProduct ? (selectedProduct.wholesalePrice || selectedProduct.price || 0) : 0)
+                                )}
+                            </span>
+                        </div>
                         <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)' }}>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                                 Atacado: <strong>{selectedProduct ? formatCurrency((selectedProduct.wholesalePrice ?? selectedProduct.price) || 0) : '-'}</strong>
@@ -1094,12 +1112,18 @@ const SalesPage = () => {
                                 Mercearia: <strong>{selectedProduct ? formatCurrency((selectedProduct.coldPrice ?? selectedProduct.price) || 0) : '-'}</strong>
                             </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)' }}>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Estoque Atacado: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.stock ?? 0) - Number(selectedProduct.reservedStock ?? 0))) : '-'}</strong>
+                                Disponível Atacado: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.stock ?? 0) - Number(selectedProduct.reservedStock ?? 0))) : '-'}</strong>
                             </span>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Estoque Mercearia: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.coldStock ?? 0) - Number(selectedProduct.reservedColdStock ?? 0))) : '-'}</strong>
+                                Disponível Mercearia: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.coldStock ?? 0) - Number(selectedProduct.reservedColdStock ?? 0))) : '-'}</strong>
+                            </span>
+                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
+                                Reservado Pré-venda (Atacado): <strong>{selectedProduct ? String(Number(selectedProduct.reservedStock ?? 0)) : '-'}</strong>
+                            </span>
+                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
+                                Reservado Pré-venda (Mercearia): <strong>{selectedProduct ? String(Number(selectedProduct.reservedColdStock ?? 0)) : '-'}</strong>
                             </span>
                         </div>
                     </div>

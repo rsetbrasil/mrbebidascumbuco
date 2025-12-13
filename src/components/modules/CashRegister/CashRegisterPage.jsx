@@ -10,7 +10,9 @@ import {
     DollarSign,
     AlertCircle,
     Printer,
-    Eye
+    Eye,
+    RotateCcw,
+    Trash2
 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -21,7 +23,7 @@ import Notification from '../../common/Notification';
 import Modal from '../../common/Modal';
 import MovementModal from './MovementModal';
 import { useApp } from '../../../contexts/AppContext';
-import { cashRegisterService, salesService, userService } from '../../../services/firestore';
+import { cashRegisterService, salesService, userService, firestoreService, COLLECTIONS } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatCurrency, formatDateTime, parseCurrency } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
@@ -63,6 +65,9 @@ const CashRegisterPage = () => {
         marginWholesale: 0,
         marginMercearia: 0
     });
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyItems, setHistoryItems] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     const isRegisterOpen = !!currentCashRegister;
 
@@ -80,6 +85,51 @@ const CashRegisterPage = () => {
         } catch (error) {
             console.error('Error loading movements:', error);
             showNotification('error', 'Erro ao carregar movimentações');
+        }
+    };
+
+    const openHistoryModal = async () => {
+        try {
+            setHistoryLoading(true);
+            const list = await cashRegisterService.getHistory();
+            setHistoryItems(list || []);
+            setHistoryOpen(true);
+        } catch (e) {
+            showNotification('error', 'Erro ao carregar histórico');
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    const handlePrintHistory = async (register) => {
+        try {
+            const sales = await salesService.getByCashRegister(register.id);
+            const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
+            const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+            const totalCost = validSales.reduce((sum, s) => {
+                const items = Array.isArray(s.items) ? s.items : [];
+                const cost = items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
+                return sum + cost;
+            }, 0);
+            const totalProfit = Math.max(0, totalSales - totalCost);
+
+            printCashRegisterReport({
+                openedAt: register.openedAt,
+                closedAt: register.closedAt,
+                closedBy: register.closedBy || 'Admin',
+                openingBalance: register.openingBalance,
+                totalSales,
+                totalCost,
+                totalProfit,
+                totalSupplies: register.totalSupplies || 0,
+                totalBleeds: register.totalBleeds || 0,
+                totalChange: register.totalChange || 0,
+                finalBalance: register.closingBalance,
+                difference: register.difference,
+                notes: register.notes
+            }, settings || {});
+        } catch (error) {
+            showNotification('error', 'Erro ao gerar relatório');
         }
     };
 
@@ -141,6 +191,10 @@ const CashRegisterPage = () => {
             // Compute profit breakdown: Atacado (wholesale) vs Mercearia (cold)
             let profitWholesale = 0;
             let profitMercearia = 0;
+            let revenueWholesale = 0;
+            let revenueMercearia = 0;
+            let costWholesale = 0;
+            let costMercearia = 0;
             for (const sale of activeSales) {
                 const items = sale.items || [];
                 let revW = 0, revM = 0, revOther = 0;
@@ -161,8 +215,14 @@ const CashRegisterPage = () => {
                 const saleDiscount = Number(sale.discount || 0);
                 const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
                 const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
-                profitWholesale += (revW - discW) - costW;
-                profitMercearia += (revM - discM) - costM;
+                const netW = revW - discW;
+                const netM = revM - discM;
+                profitWholesale += netW - costW;
+                profitMercearia += netM - costM;
+                revenueWholesale += netW;
+                revenueMercearia += netM;
+                costWholesale += costW;
+                costMercearia += costM;
             }
 
             const paymentsMap = new Map();
@@ -191,6 +251,8 @@ const CashRegisterPage = () => {
                 totalChange,
                 profitWholesale,
                 profitMercearia,
+                revenueWholesale,
+                revenueMercearia,
                 paymentSummary
             });
 
@@ -208,6 +270,8 @@ const CashRegisterPage = () => {
                 notes: closingNote,
                 profitWholesale,
                 profitMercearia,
+                revenueWholesale,
+                revenueMercearia,
                 paymentSummary
             }, {}); // Pass settings if available
 
@@ -224,6 +288,8 @@ const CashRegisterPage = () => {
                 notes: closingNote,
                 profitWholesale,
                 profitMercearia,
+                revenueWholesale,
+                revenueMercearia,
                 paymentSummary
             }, { duplicate: true });
 
@@ -231,7 +297,7 @@ const CashRegisterPage = () => {
             setClosingNote('');
             setMovements([]);
             setSales([]);
-            navigate('/historico-caixa');
+            openHistoryModal();
         } catch (error) {
             console.error('Error closing register:', error);
             showNotification('error', 'Erro ao fechar caixa');
@@ -264,6 +330,10 @@ const CashRegisterPage = () => {
 
             let profitWholesale = 0;
             let profitMercearia = 0;
+            let revenueWholesale = 0;
+            let revenueMercearia = 0;
+            let costWholesale = 0;
+            let costMercearia = 0;
             for (const sale of activeSales) {
                 const items = sale.items || [];
                 let revW = 0, revM = 0, revOther = 0;
@@ -284,8 +354,14 @@ const CashRegisterPage = () => {
                 const saleDiscount = Number(sale.discount || 0);
                 const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
                 const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
-                profitWholesale += (revW - discW) - costW;
-                profitMercearia += (revM - discM) - costM;
+                const netW = revW - discW;
+                const netM = revM - discM;
+                profitWholesale += netW - costW;
+                profitMercearia += netM - costM;
+                revenueWholesale += netW;
+                revenueMercearia += netM;
+                costWholesale += costW;
+                costMercearia += costM;
             }
 
             const paymentsMap = new Map();
@@ -316,6 +392,8 @@ const CashRegisterPage = () => {
                 notes: 'Relatório parcial (caixa aberto)',
                 profitWholesale,
                 profitMercearia,
+                revenueWholesale,
+                revenueMercearia,
                 paymentSummary
             }, settings || {});
         } catch (error) {
@@ -331,6 +409,35 @@ const CashRegisterPage = () => {
             loadMovements();
         } catch (error) {
             throw error;
+        }
+    };
+
+    const handleRevertMovement = async (mov) => {
+        try {
+            if (!(mov && (mov.type === 'supply' || mov.type === 'bleed'))) return;
+            const opposite = mov.type === 'supply' ? 'bleed' : 'supply';
+            const ok = window.confirm(`Confirmar estorno de ${mov.type === 'supply' ? 'suprimento' : 'sangria'} no valor de ${formatCurrency(mov.amount)}?`);
+            if (!ok) return;
+            await addCashMovement(opposite, Number(mov.amount || 0), `Estorno de ${mov.type === 'supply' ? 'suprimento' : 'sangria'}: ${mov.description || ''}`, user?.name || 'Operador');
+            showNotification('success', 'Estorno registrado');
+            loadMovements();
+        } catch (error) {
+            console.error('Error reverting movement:', error);
+            showNotification('error', 'Erro ao estornar movimentação');
+        }
+    };
+
+    const handleDeleteMovement = async (mov) => {
+        try {
+            if (!mov?.id) return;
+            const ok = window.confirm('Excluir esta movimentação? Esta ação não pode ser desfeita.');
+            if (!ok) return;
+            await firestoreService.delete(COLLECTIONS.CASH_MOVEMENTS, mov.id);
+            showNotification('success', 'Movimentação excluída');
+            loadMovements();
+        } catch (error) {
+            console.error('Error deleting movement:', error);
+            showNotification('error', 'Erro ao excluir movimentação');
         }
     };
 
@@ -463,7 +570,7 @@ const CashRegisterPage = () => {
                                     variant="secondary"
                                     size="lg"
                                     icon={History}
-                                    onClick={() => navigate('/historico-caixa')}
+                                    onClick={openHistoryModal}
                                 >
                                     Ver Histórico
                                 </Button>
@@ -521,7 +628,7 @@ const CashRegisterPage = () => {
                 >
                     <Button
                         variant="secondary"
-                        onClick={() => navigate('/historico-caixa')}
+                        onClick={openHistoryModal}
                         icon={History}
                     >
                         Histórico
@@ -590,6 +697,7 @@ const CashRegisterPage = () => {
                         <h3 className="text-2xl font-bold text-emerald-400">
                             {formatCurrency(totalSupplies)}
                         </h3>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
                     </div>
                 </Card>
 
@@ -599,6 +707,7 @@ const CashRegisterPage = () => {
                         <h3 className="text-2xl font-bold text-red-400">
                             {formatCurrency(totalBleeds)}
                         </h3>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
                     </div>
                 </Card>
 
@@ -608,7 +717,7 @@ const CashRegisterPage = () => {
                         <h3 className="text-2xl font-bold text-orange-400">
                             {formatCurrency(totalChange)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">Saída de caixa</p>
+                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
                     </div>
                 </Card>
 
@@ -618,38 +727,6 @@ const CashRegisterPage = () => {
                         <h3 className="text-2xl font-bold text-primary-400">
                             {formatCurrency(currentBalance)}
                         </h3>
-                    </div>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-emerald-500">
-                    <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><ArrowUpCircle size={16} className="text-emerald-400" /> Suprimentos</p>
-                        <h3 className="text-2xl font-bold text-emerald-400">
-                            {formatCurrency(totalSupplies)}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
-                    </div>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-red-500">
-                    <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><ArrowDownCircle size={16} className="text-red-400" /> Sangrias</p>
-                        <h3 className="text-2xl font-bold text-red-400">
-                            {formatCurrency(totalBleeds)}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
-                    </div>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-orange-500">
-                    <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-orange-400" /> Trocos</p>
-                        <h3 className="text-2xl font-bold text-orange-400">
-                            {formatCurrency(totalChange)}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
                     </div>
                 </Card>
             </div>
@@ -665,6 +742,7 @@ const CashRegisterPage = () => {
                                         <th>Tipo</th>
                                         <th>Descrição</th>
                                         <th style={{ textAlign: 'right' }}>Valor</th>
+                                        <th style={{ textAlign: 'right' }}>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -674,13 +752,13 @@ const CashRegisterPage = () => {
                                                 Nenhuma movimentação registrada
                                             </td>
                                         </tr>
-                                    ) : (
-                                        movements.map((mov) => (
-                                            <tr key={mov.id}>
-                                                <td>
-                                                    {formatDateTime(mov.createdAt).split(' ')[1]}
-                                                </td>
-                                                <td>
+                                        ) : (
+                                            movements.map((mov) => (
+                                                <tr key={mov.id}>
+                                                    <td>
+                                                        {formatDateTime(mov.createdAt).split(' ')[1]}
+                                                    </td>
+                                                    <td>
                                                     <span className={`px-2 py-1 rounded text-xs font-medium ${mov.type === 'supply'
                                                         ? 'bg-emerald-500/10 text-emerald-400'
                                                         : 'bg-red-500/10 text-red-400'
@@ -689,15 +767,39 @@ const CashRegisterPage = () => {
                                                     </span>
                                                 </td>
                                                 <td>{mov.description}</td>
-                                                <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
-                                                    }`}>
-                                                    {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                                    <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
+                                                        }`}>
+                                                        {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
+                                                    </td>
+                                                    <td style={{ textAlign: 'right' }}>
+                                                        {(mov.type === 'supply' || mov.type === 'bleed') ? (
+                                                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    icon={RotateCcw}
+                                                                    onClick={() => handleRevertMovement(mov)}
+                                                                >
+                                                                    Estornar
+                                                                </Button>
+                                                                <Button
+                                                                    variant="danger"
+                                                                    size="sm"
+                                                                    icon={Trash2}
+                                                                    onClick={() => handleDeleteMovement(mov)}
+                                                                >
+                                                                    Excluir
+                                                                </Button>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                         </div>
                     </Card>
                 </div>
@@ -815,6 +917,101 @@ const CashRegisterPage = () => {
                             </div>
                         )}
                     </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+                title="Histórico de Caixas"
+                size="full"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button variant="secondary" onClick={() => setHistoryOpen(false)}>Fechar</Button>
+                    </div>
+                }
+            >
+                <div className="table-container">
+                    {historyLoading ? (
+                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            Carregando...
+                        </div>
+                    ) : (
+                        <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                            <thead>
+                                <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>FECHAMENTO</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>OPERADOR</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO INICIAL</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO FINAL</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>DIFERENÇA</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right' }}>AÇÃO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {historyItems.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                            Nenhum registro encontrado
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    historyItems.map((register, idx) => (
+                                        <tr key={register.id} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(148,163,184,0.06)' }}>
+                                            <td style={{ padding: '12px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{formatDateTime(register.closedAt)}</span>
+                                                    <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                                                        Abertura: {formatDateTime(register.openedAt)}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>
+                                                {register.closedBy || '-'}
+                                            </td>
+                                            <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>
+                                                {formatCurrency(register.openingBalance)}
+                                            </td>
+                                            <td style={{ padding: '12px', fontWeight: 600, color: 'var(--color-success)' }}>
+                                                {formatCurrency(register.closingBalance)}
+                                            </td>
+                                            <td style={{ padding: '12px' }}>
+                                                {(() => {
+                                                    const diff = Number(register.difference || 0);
+                                                    const label = diff === 0 ? 'Sem diferença' : diff > 0 ? 'Sobra' : 'Falta';
+                                                    const color = diff === 0 ? 'var(--color-text-muted)'
+                                                        : diff > 0 ? 'var(--color-success)'
+                                                        : 'var(--color-danger)';
+                                                    return (
+                                                        <span style={{
+                                                            display: 'inline-block',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '9999px',
+                                                            background: 'rgba(148,163,184,0.12)',
+                                                            color,
+                                                            fontWeight: 600
+                                                        }}>
+                                                            {label}{diff !== 0 ? ` ${formatCurrency(diff)}` : ''}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </td>
+                                            <td style={{ padding: '12px', textAlign: 'right' }}>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    icon={Printer}
+                                                    onClick={() => handlePrintHistory(register)}
+                                                >
+                                                    Imprimir
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </Modal>
 

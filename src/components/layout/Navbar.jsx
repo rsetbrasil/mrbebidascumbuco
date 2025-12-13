@@ -252,7 +252,7 @@ const Navbar = ({ onMenuClick }) => {
                                 alignItems: 'center',
                                 display: 'inline-flex'
                             }}
-                            onClick={() => navigate('/caixa')}
+                            onClick={() => navigate('/cash-register')}
                         >
                             Caixa Aberto
                         </Button>
@@ -269,7 +269,7 @@ const Navbar = ({ onMenuClick }) => {
                                 alignItems: 'center',
                                 display: 'inline-flex'
                             }}
-                            onClick={() => navigate('/caixa')}
+                            onClick={() => navigate('/cash-register')}
                         >
                             Caixa Fechado
                         </Button>

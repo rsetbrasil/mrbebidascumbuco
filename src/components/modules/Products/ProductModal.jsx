@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Plus } from 'lucide-react';
+import { Save } from 'lucide-react';
 import Modal from '../../common/Modal';
 import Input from '../../common/Input';
 import CurrencyInput from '../../common/CurrencyInput';
 import Button from '../../common/Button';
 import { categoryService, unitsService } from '../../../services/firestore';
-import { parseCurrency, formatCurrency } from '../../../utils/formatters';
+ 
 
 const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const [formData, setFormData] = useState({
@@ -27,12 +27,6 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const [newUnit, setNewUnit] = useState({
-        name: '',
-        multiplier: '',
-        barcode: '',
-        price: ''
-    });
 
     useEffect(() => {
         loadCategories();
@@ -116,26 +110,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleAddUnit = () => {
-        if (!newUnit.name || !newUnit.multiplier || !newUnit.price) return;
-
-        setFormData(prev => ({
-            ...prev,
-            units: [...(prev.units || []), {
-                ...newUnit,
-                multiplier: parseInt(newUnit.multiplier) || 1,
-                price: parseFloat(newUnit.price) || 0
-            }]
-        }));
-        setNewUnit({ name: '', multiplier: '', barcode: '', price: '' });
-    };
-
-    const handleRemoveUnit = (index) => {
-        setFormData(prev => ({
-            ...prev,
-            units: prev.units.filter((_, i) => i !== index)
-        }));
-    };
+ 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -172,17 +147,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
             size="xl"
         >
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                    <Input
-                        label="Nome do Produto"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        error={errors.name}
-                        placeholder="Ex: Coca-Cola 2L"
-                        autoFocus
-                    />
-
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                         <div style={{ flex: 1 }}>
                             <Input
@@ -191,6 +156,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 value={formData.barcode}
                                 onChange={handleChange}
                                 placeholder="Escaneie ou digite"
+                                className="no-margin"
                             />
                         </div>
                         <Button
@@ -202,132 +168,136 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 setFormData(prev => ({ ...prev, barcode: newBarcode }));
                             }}
                             title="Gerar código aleatório"
-                            style={{ marginBottom: '2px' }}
+                            style={{ height: '48px', alignSelf: 'flex-end' }}
                         >
                             Gerar
                         </Button>
                     </div>
+                    <Input
+                        label="Nome do Produto"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
+                        error={errors.name}
+                        placeholder="Ex: Coca-Cola 2L"
+                        autoFocus
+                        className="no-margin"
+                    />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
-
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                            <div style={{ flex: 1 }}>
+                                <CurrencyInput
+                                    label="Preço (Atacado)"
+                                    name="wholesalePrice"
+                                    value={formData.wholesalePrice}
+                                    onChange={handleChange}
+                                    placeholder="0,00"
+                                    className="no-margin"
+                                />
+                            </div>
+                            <div className="input-group no-margin" style={{ width: '80px' }}>
+                                <label className="input-label">Un.</label>
+                                <select
+                                    name="wholesaleUnit"
+                                    value={formData.wholesaleUnit}
+                                    onChange={handleChange}
+                                    className="input"
+                                    style={{ width: '100%' }}
+                                >
+                                    {units.map(unit => (
+                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                             <CurrencyInput
-                                label="Preço (Atacado)"
-                                name="wholesalePrice"
-                                value={formData.wholesalePrice}
+                                label="Preço Custo (Atacado)"
+                                name="cost"
+                                value={formData.cost}
                                 onChange={handleChange}
                                 placeholder="0,00"
+                                className="no-margin"
                             />
                         </div>
-                        <div style={{ width: '80px' }}>
-                            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                Un.
-                            </label>
-                            <select
-                                name="wholesaleUnit"
-                                value={formData.wholesaleUnit}
-                                onChange={handleChange}
-                                style={{
-                                    width: '100%'
-                                }}
-                                className="input"
-                            >
-                                {units.map(unit => (
-                                    <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1 }}>
-                            <CurrencyInput
-                                label="Preço (Mercearia)"
-                                name="coldPrice"
-                                value={formData.coldPrice}
-                                onChange={handleChange}
-                                placeholder="0,00"
-                            />
-                        </div>
-                        <div style={{ width: '80px' }}>
-                            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                Un.
-                            </label>
-                            <select
-                                name="coldUnit"
-                                value={formData.coldUnit}
-                                onChange={handleChange}
-                                style={{
-                                    width: '100%'
-                                }}
-                                className="input"
-                            >
-                                {units.map(unit => (
-                                    <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <CurrencyInput
-                            label="Preço Custo (Atacado)"
-                            name="cost"
-                            value={formData.cost}
+                        <Input
+                            label="Estoque Atual"
+                            name="stock"
+                            type="number"
+                            value={formData.stock}
                             onChange={handleChange}
-                            placeholder="0,00"
+                            placeholder="0"
+                            className="no-margin"
                         />
                     </div>
-                    <div>
-                        <CurrencyInput
-                            label="Preço Custo (Mercearia)"
-                            name="coldCost"
-                            value={formData.coldCost}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                            <div style={{ flex: 1 }}>
+                                <CurrencyInput
+                                    label="Preço (Mercearia)"
+                                    name="coldPrice"
+                                    value={formData.coldPrice}
+                                    onChange={handleChange}
+                                    placeholder="0,00"
+                                    className="no-margin"
+                                />
+                            </div>
+                            <div className="input-group no-margin" style={{ width: '80px' }}>
+                                <label className="input-label">Un.</label>
+                                <select
+                                    name="coldUnit"
+                                    value={formData.coldUnit}
+                                    onChange={handleChange}
+                                    className="input"
+                                    style={{ width: '100%' }}
+                                >
+                                    {units.map(unit => (
+                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                            <CurrencyInput
+                                label="Preço Custo (Mercearia)"
+                                name="coldCost"
+                                value={formData.coldCost}
+                                onChange={handleChange}
+                                placeholder="0,00"
+                                className="no-margin"
+                            />
+                        </div>
+                        <Input
+                            label="Estoque Mercearia"
+                            name="coldStock"
+                            type="number"
+                            value={formData.coldStock}
                             onChange={handleChange}
-                            placeholder="0,00"
+                            placeholder="0"
+                            className="no-margin"
                         />
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
-                    <Input
-                        label="Estoque Atual"
-                        name="stock"
-                        type="number"
-                        value={formData.stock}
+                <div className="input-group no-margin">
+                    <label className="input-label">Categoria</label>
+                    <select
+                        name="categoryId"
+                        value={formData.categoryId}
                         onChange={handleChange}
-                        placeholder="0"
-                    />
-
-                    <Input
-                        label="Estoque Mercearia"
-                        name="coldStock"
-                        type="number"
-                        value={formData.coldStock}
-                        onChange={handleChange}
-                        placeholder="0"
-                    />
-
-                    <div>
-                        <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                            Categoria
-                        </label>
-                        <select
-                            name="categoryId"
-                            value={formData.categoryId}
-                            onChange={handleChange}
-                            className="input"
-                        >
-                            <option value="">Selecione uma categoria</option>
-                            {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                        className="input"
+                    >
+                        <option value="">Selecione uma categoria</option>
+                        {categories.map(cat => (
+                            <option key={cat.id} value={cat.id}>
+                                {cat.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', paddingTop: 'var(--spacing-xs)' }}>
@@ -351,79 +321,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     </label>
                 </div>
 
-                {/* Additional Units Section */}
-                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-md)', marginTop: 'var(--spacing-sm)' }}>
-                    <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--spacing-md)' }}>Unidades Adicionais (Fardos, Kits)</h3>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr 1.5fr auto', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)', alignItems: 'flex-end' }}>
-                        <Input
-                            label="Nome (ex: Fardo)"
-                            value={newUnit.name}
-                            onChange={(e) => setNewUnit(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Nome da unidade"
-                        />
-                        <Input
-                            label="Qtd. Itens"
-                            type="number"
-                            value={newUnit.multiplier}
-                            onChange={(e) => setNewUnit(prev => ({ ...prev, multiplier: e.target.value }))}
-                            placeholder="12"
-                        />
-                        <Input
-                            label="Cód. Barras"
-                            value={newUnit.barcode}
-                            onChange={(e) => setNewUnit(prev => ({ ...prev, barcode: e.target.value }))}
-                            placeholder="Código do fardo"
-                        />
-                        <CurrencyInput
-                            label="Preço (R$)"
-                            value={newUnit.price}
-                            onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '') / 100;
-                                setNewUnit(prev => ({ ...prev, price: val }));
-                            }}
-                            placeholder="0,00"
-                        />
-                        <Button
-                            type="button"
-                            onClick={handleAddUnit}
-                            disabled={!newUnit.name || !newUnit.multiplier || !newUnit.price}
-                            icon={<Plus size={18} />}
-                            style={{ marginBottom: '2px' }}
-                        >
-                            Add
-                        </Button>
-                    </div>
-
-                    {formData.units && formData.units.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
-                            {formData.units.map((unit, index) => (
-                                <div key={index} style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: 'var(--spacing-sm)',
-                                    background: 'var(--color-bg-secondary)',
-                                    borderRadius: 'var(--radius-sm)'
-                                }}>
-                                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', fontSize: 'var(--font-size-sm)' }}>
-                                        <span style={{ fontWeight: 600 }}>{unit.name}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>x{unit.multiplier}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>{unit.barcode || '-'}</span>
-                                        <span style={{ fontWeight: 500, color: 'var(--color-success)' }}>{formatCurrency(unit.price)}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRemoveUnit(index)}
-                                        style={{ color: 'var(--color-danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+ 
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)', marginTop: 'var(--spacing-md)' }}>
                     <Button

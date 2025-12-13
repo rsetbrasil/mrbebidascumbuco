@@ -15,7 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
 const Sidebar = ({ onClose }) => {
-    const { isManager } = useAuth();
+    const { isManager, user } = useAuth();
     const { settings } = useApp();
 
     const baseMenu = {
@@ -27,7 +27,6 @@ const Sidebar = ({ onClose }) => {
         presales: { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
         financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
         cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
-        cashRegisterHistory: { path: '/historico-caixa', icon: Wallet, label: 'Histórico de Caixa', restricted: true },
         settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
         resetData: { path: '/reset-data', icon: Database, label: 'Resetar Dados', restricted: true },
         dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
@@ -58,7 +57,6 @@ const Sidebar = ({ onClose }) => {
             'presales',
             'financial',
             'cashRegister',
-            'cashRegisterHistory',
             'settings',
             'resetData',
             'dashboard'
@@ -73,7 +71,14 @@ const Sidebar = ({ onClose }) => {
         });
     }
 
-    const filteredItems = menuItems.filter(item => item.visible && (!item.restricted || isManager));
+    const cashierAllowed = ['cashRegister'];
+    const filteredItems = menuItems.filter(item => {
+        if (!item.visible) return false;
+        if (!item.restricted) return true;
+        if (isManager) return true;
+        if (user?.role === 'cashier' && cashierAllowed.includes(item.key)) return true;
+        return false;
+    });
 
     const handleNavClick = () => {
         if (onClose) onClose();

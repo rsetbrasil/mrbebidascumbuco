@@ -89,8 +89,6 @@ function App() {
               <Route path="/sales-history" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
               <Route path="/presales" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
               <Route path="/cash-register" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
-              <Route path="/cash-register-history" element={<PrivateRoute><CashRegisterHistoryPage /></PrivateRoute>} />
-              <Route path="/historico-caixa" element={<PrivateRoute><CashRegisterHistoryPage /></PrivateRoute>} />
               <Route path="/financial" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
               <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
               <Route path="/categories" element={<PrivateRoute><CategoriesPage /></PrivateRoute>} />

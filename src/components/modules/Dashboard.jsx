@@ -7,7 +7,7 @@ import Loading from '../common/Loading';
 import Modal from '../common/Modal';
 import Input from '../common/Input';
 import { useApp } from '../../contexts/AppContext';
-import { salesService, productService } from '../../services/firestore';
+import { salesService, productService, presalesService } from '../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 
 const Dashboard = () => {
@@ -54,16 +54,64 @@ const Dashboard = () => {
 
             const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
 
-            // Load products for stock check
             const products = await productService.getAll();
-            const lowStock = products.filter(p => (p.stock ?? 0) <= (p.minStock || 0));
-            setLowStockItems(lowStock.sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)));
+            const lowStock = products.filter(p => {
+                const toNum = (v) => {
+                    const n = Number(v ?? 0);
+                    return Number.isFinite(n) ? n : 0;
+                };
+                const min = toNum(p.minStock || 0);
+                const aAvailRaw = toNum(p.stock) - toNum(p.reservedStock);
+                const mAvailRaw = toNum(p.coldStock) - toNum(p.reservedColdStock);
+                const aAvail = Math.max(0, aAvailRaw);
+                const mAvail = Math.max(0, mAvailRaw);
+                return (aAvail <= min) || (mAvail <= min) || (aAvail <= 0) || (mAvail <= 0);
+            });
+
+            const aMap = new Map();
+            const mMap = new Map();
+            try {
+                const pendingPresales = await presalesService.getByStatus('pending');
+                (pendingPresales || []).forEach(ps => {
+                    const customerName = ps.customerName || 'Cliente';
+                    const items = Array.isArray(ps.items) ? ps.items : [];
+                    items.forEach(it => {
+                        const pid = it?.productId;
+                        if (!pid) return;
+                        if (it?.isCold) {
+                            const set = mMap.get(pid) || new Set();
+                            set.add(customerName);
+                            mMap.set(pid, set);
+                        } else {
+                            const set = aMap.get(pid) || new Set();
+                            set.add(customerName);
+                            aMap.set(pid, set);
+                        }
+                    });
+                });
+            } catch {
+            }
+
+            const enrichedLowStock = lowStock
+                .map(p => ({
+                    ...p,
+                    reservedWholesaleNames: Array.from(aMap.get(p.id) || []),
+                    reservedColdNames: Array.from(mMap.get(p.id) || [])
+                }))
+                .sort((a, b) => {
+                    const an = String(a.name || '').toLowerCase();
+                    const bn = String(b.name || '').toLowerCase();
+                    if (an < bn) return -1;
+                    if (an > bn) return 1;
+                    return 0;
+                });
+            setLowStockItems(enrichedLowStock);
 
             setStats({
                 todaySales: todaySales.length,
                 todayRevenue,
-                lowStockProducts: lowStock.length,
-                openPresales: 0 // TODO: Load from presales
+                lowStockProducts: enrichedLowStock.length,
+                openPresales: 0
             });
 
         } catch (error) {
@@ -277,6 +325,8 @@ const Dashboard = () => {
                             <tr>
                                 <th>Produto</th>
                                 <th>Estoque</th>
+                                <th>Mercearia</th>
+                                <th>Reservas</th>
                                 <th>Mínimo</th>
                                 <th style={{ textAlign: 'right' }}>Ajustar</th>
                             </tr>
@@ -290,7 +340,7 @@ const Dashboard = () => {
                                 </tr>
                             ) : (
                                 lowStockItems.map((p) => {
-                                    const current = adjustments[p.id] || { stock: p.stock ?? 0, minStock: p.minStock || 0 };
+                                    const current = adjustments[p.id] || { stock: p.stock ?? 0, coldStock: p.coldStock ?? 0, minStock: p.minStock || 0 };
                                     return (
                                         <tr key={p.id}>
                                             <td>
@@ -300,12 +350,80 @@ const Dashboard = () => {
                                             <td style={{ width: '160px' }}>
                                                 <Input
                                                     type="number"
+                                                    inputMode="numeric"
+                                                    step="1"
+                                                    min="0"
                                                     value={current.stock}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
                                                         setAdjustments(prev => ({ ...prev, [p.id]: { ...current, stock: val } }));
                                                     }}
                                                 />
+                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                                                    {p.wholesaleUnit || p.unitOfMeasure || 'UN'}
+                                                </div>
+                                            </td>
+                                            <td style={{ width: '160px' }}>
+                                                <Input
+                                                    type="number"
+                                                    inputMode="numeric"
+                                                    step="1"
+                                                    min="0"
+                                                    value={current.coldStock}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setAdjustments(prev => ({ ...prev, [p.id]: { ...current, coldStock: val } }));
+                                                    }}
+                                                />
+                                                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+                                                    {p.coldUnit || p.unitOfMeasure || 'UN'}
+                                                </div>
+                                            </td>
+                                            <td style={{ width: '160px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
+                                                        Atacado: {Number(p.reservedStock ?? 0)}
+                                                    </span>
+                                                    {(() => {
+                                                        const names = Array.isArray(p.reservedWholesaleNames) ? p.reservedWholesaleNames.filter(n => {
+                                                            const s = String(n || '').trim().toLowerCase();
+                                                            return s !== '' && s !== 'sss';
+                                                        }) : [];
+                                                        return names.length > 0;
+                                                    })() && (
+                                                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                            {Array.isArray(p.reservedWholesaleNames)
+                                                                ? p.reservedWholesaleNames
+                                                                    .filter(n => {
+                                                                        const s = String(n || '').trim().toLowerCase();
+                                                                        return s !== '' && s !== 'sss';
+                                                                    })
+                                                                    .join(', ')
+                                                                : ''}
+                                                        </span>
+                                                    )}
+                                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
+                                                        Mercearia: {Number(p.reservedColdStock ?? 0)}
+                                                    </span>
+                                                    {(() => {
+                                                        const names = Array.isArray(p.reservedColdNames) ? p.reservedColdNames.filter(n => {
+                                                            const s = String(n || '').trim().toLowerCase();
+                                                            return s !== '' && s !== 'sss';
+                                                        }) : [];
+                                                        return names.length > 0;
+                                                    })() && (
+                                                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                            {Array.isArray(p.reservedColdNames)
+                                                                ? p.reservedColdNames
+                                                                    .filter(n => {
+                                                                        const s = String(n || '').trim().toLowerCase();
+                                                                        return s !== '' && s !== 'sss';
+                                                                    })
+                                                                    .join(', ')
+                                                                : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td style={{ width: '160px' }}>
                                                 <Input
@@ -317,15 +435,19 @@ const Dashboard = () => {
                                                     }}
                                                 />
                                             </td>
-                                            <td style={{ textAlign: 'right' }}>
+                                            <td style={{ textAlign: 'right', verticalAlign: 'middle' }}>
                                                 <Button
                                                     size="sm"
                                                     loading={updatingId === p.id}
                                                     onClick={async () => {
-                                                        const payload = adjustments[p.id] || { stock: p.stock ?? 0, minStock: p.minStock || 0 };
+                                                        const payload = adjustments[p.id] || { stock: p.stock ?? 0, coldStock: p.coldStock ?? 0, minStock: p.minStock || 0 };
                                                         setUpdatingId(p.id);
                                                         try {
-                                                            await productService.update(p.id, { stock: parseInt(payload.stock) || 0, minStock: parseInt(payload.minStock) || 0 });
+                                                            await productService.update(p.id, {
+                                                                stock: Math.max(0, Number.parseInt(payload.stock, 10) || 0),
+                                                                coldStock: Math.max(0, Number.parseInt(payload.coldStock, 10) || 0),
+                                                                minStock: Math.max(0, Number.parseInt(payload.minStock, 10) || 0)
+                                                            });
                                                             await loadDashboardData();
                                                         } catch (err) {
                                                         } finally {
