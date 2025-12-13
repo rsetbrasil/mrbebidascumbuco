@@ -13,7 +13,6 @@ const getPrintStyles = (paperWidthMm = 80) => `
                 height: auto;
             }
             header, footer { display: none !important; }
-            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: auto; overflow: visible; }
@@ -25,17 +24,16 @@ const getPrintStyles = (paperWidthMm = 80) => `
             font-size: 12px;
             color: #000;
             line-height: 1.2;
-            font-weight: 600;
         }
         .text-center { text-align: center; }
         .text-right { text-align: right; }
-        .font-bold { font-weight: 800; }
+        .font-bold { font-weight: bold; }
         .text-sm { font-size: 11px; }
         .text-xs { font-size: 10px; }
         .mb-1 { margin-bottom: 2px; }
         .mb-2 { margin-bottom: 4px; }
-        .border-b { border-bottom: 2px solid #000; }
-        .border-t { border-top: 2px solid #000; }
+        .border-b { border-bottom: 1px dashed #000; }
+        .border-t { border-top: 1px dashed #000; }
         .py-1 { padding-top: 1px; padding-bottom: 1px; }
         .flex { display: flex; justify-content: space-between; }
         .w-full { width: 100%; }
@@ -48,165 +46,77 @@ const getPrintStyles = (paperWidthMm = 80) => `
 `;
 
 const printHtml = (htmlContent, paperWidthMm = 80) => {
-    const printWindow = window.open('', '', 'width=280,height=600');
-    if (!printWindow) {
+    const w = window.open('', '', 'width=280,height=600');
+    if (!w) {
+        alert('Por favor, permita popups para imprimir o comprovante.');
         return;
     }
-
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Imprimir Comprovante</title>
-                <style id="dynamic-styles">
-                    @media print {
-                        @page {
-                            margin: 0 !important;
-                        }
-                        html, body {
-                            margin: 0 !important;
-                            padding: 0 !important;
-                            width: 100% !important;
-                            height: auto;
-                        }
-                        header, footer { display: none !important; }
-                    }
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html, body { height: auto; overflow: visible; }
-                    body {
-                        font-family: 'Courier New', Courier, monospace;
-                        width: 100%;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        font-size: 12px;
-                        color: #000;
-                        line-height: 1.2;
-                        height: auto;
-                        min-height: 0;
-                        font-weight: 600;
-                        -webkit-print-color-adjust: exact;
-                        print-color-adjust: exact;
-                    }
-                    /* Utility Classes */
-                    .text-center { text-align: center; }
-                    .text-right { text-align: right; }
-                    .font-bold { font-weight: 800; }
-                    .text-sm { font-size: 11px; }
-                    .text-xs { font-size: 10px; }
-                    .mb-1 { margin-bottom: 2px; }
-                    .mb-2 { margin-bottom: 4px; }
-                    .border-b { border-bottom: 2px solid #000; }
-                    .border-t { border-top: 2px solid #000; }
-                    .py-1 { padding-top: 1px; padding-bottom: 1px; }
-                    .flex { display: flex; justify-content: space-between; }
-                    .w-full { width: 100%; }
-                    
-                    /* Specific Receipt Classes */
-                    .header { margin-bottom: 5px; }
-                    .company-name { font-size: 14px; font-weight: 900; margin-bottom: 2px; }
-                    .receipt-title { font-size: 13px; font-weight: 800; margin: 5px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 5px 0; }
-                    
-                    .details-row { display: flex; justify-content: space-between; margin-bottom: 1px; }
-                    
-                    .items-section { margin-bottom: 5px; }
-                    .item-name { font-weight: 800; }
-                    .item-meta { font-size: 11px; }
-                    .item-total { font-weight: 800; }
-                    
-                    .totals-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-                    .final-total { margin-top: 5px; border-top: 2px solid #000; padding-top: 5px; }
-                    
-                    .payment-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-                    
-                    .footer { margin-top: 10px; text-align: center; font-size: 10px; border-top: 2px solid #000; padding-top: 5px; }
-                </style>
-            </head>
-            <body>
-                <div id="receipt-root">${htmlContent}</div>
-                <script>
-                    window.onload = function() {
-                        var dyn = document.createElement('style');
-                        dyn.type = 'text/css';
-                        dyn.innerHTML = '@page{margin:0 !important;}';
-                        document.head.appendChild(dyn);
-                        window.focus();
-                        setTimeout(function(){
-                            window.print();
-                        }, 0);
-                        window.onafterprint = function() {
-                            window.close();
-                        };
-                    }
-                </script>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-};
-
-const printInline = (htmlContent, paperWidthMm = 80) => {
-    let iframe = document.getElementById('receipt_iframe');
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'receipt_iframe';
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-    }
-    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    const doc = w.document;
     doc.open();
     doc.write(`
         <html>
             <head>
                 <title>Imprimir Comprovante</title>
-                ${getPrintStyles(paperWidthMm)}
+                <style>
+                    @media print {
+                        @page { margin: 0 !important; }
+                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto; }
+                    }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; line-height: 1.2; }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: bold; }
+                    .text-sm { font-size: 11px; }
+                    .text-xs { font-size: 10px; }
+                    .mb-1 { margin-bottom: 2px; }
+                    .mb-2 { margin-bottom: 4px; }
+                    .border-b { border-bottom: 1px dashed #000; }
+                    .border-t { border-top: 1px dashed #000; }
+                    .py-1 { padding-top: 1px; padding-bottom: 1px; }
+                    .flex { display: flex; justify-content: space-between; }
+                    .w-full { width: 100%; }
+                    .header { margin-bottom: 5px; }
+                    .company-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+                    .receipt-title { font-size: 13px; font-weight: bold; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; }
+                    .details-row { display: flex; justify-content: space-between; margin-bottom: 1px; }
+                    .items-section { margin-bottom: 5px; }
+                    .item-name { font-weight: bold; }
+                    .item-meta { font-size: 11px; }
+                    .item-total { font-weight: bold; }
+                    .totals-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
+                    .final-total { margin-top: 5px; border-top: 1px solid #000; padding-top: 5px; }
+                    .payment-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
+                    .footer { margin-top: 10px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+                </style>
             </head>
             <body>
                 <div id="receipt-root">${htmlContent}</div>
-                <script>
-                    (function(){
-                        var cleaned = false;
-                        var cleanup = function(){
-                            if (cleaned) return;
-                            cleaned = true;
-                            try {
-                                var p = window.parent && window.parent.document;
-                                var el = p && p.getElementById('receipt_iframe');
-                                if (el) {
-                                    p.body.removeChild(el);
-                                }
-                            } catch(e) {}
-                        };
-                        window.onafterprint = cleanup;
-                        setTimeout(cleanup, 600);
-                    })();
-                </script>
             </body>
         </html>
     `);
     doc.close();
-    try {
-        setTimeout(() => {
-            const w = iframe.contentWindow;
-            if (w) {
-                w.focus();
-                w.print();
-            }
-        }, 0);
-    } catch (e) {}
+    setTimeout(() => {
+        try {
+            w.focus();
+            w.print();
+            setTimeout(() => { w.close(); }, 300);
+        } catch {}
+    }, 50);
 };
 
-export const buildReceiptHtml = (sale, settings = {}) => {
+export const printReceipt = (sale, settings = {}) => {
     const sanitize = (s) => (s || '').trim().replace(/\n+/g, '\n');
     const companyName = sanitize(settings.companyName) || 'MR BEBIDAS DISTRIBUIDORA';
     const address = sanitize(settings.companyAddress) || 'Rua Firmo Ananias Cardoso, 269';
     const phone = sanitize(settings.companyPhone) || 'Tel: (11) 1234-5678';
     const dateStr = formatDateTime(sale.createdAt || new Date());
-    
+    const isColdSale = sale.priceType === 'cold';
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
+    const itemsArr = Array.isArray(sale.items) ? sale.items : [];
+    const hasColdItems = itemsArr.some(it => it && it.isCold);
+    const hasWarmItems = itemsArr.some(it => it && !it.isCold);
+    const saleTypeLabel = hasColdItems && hasWarmItems ? 'Atacado + Mercearia' : (hasColdItems ? 'Mercearia' : 'Atacado');
 
     let itemsHtml = '';
     const approxEq = (a, b) => {
@@ -215,10 +125,7 @@ export const buildReceiptHtml = (sale, settings = {}) => {
         return Math.abs(na - nb) < 0.005; // ~0.5 centavos
     };
 
-    const hasCold = (sale.items || []).some(i => !!i.isCold);
-    const hasWholesale = (sale.items || []).some(i => !!i.isWholesale);
-
-    (sale.items || []).forEach((item, index) => {
+    itemsArr.forEach((item, index) => {
         const total = formatCurrency(item.total).replace('R$', '').trim();
         const unitPriceStr = formatCurrency(item.unitPrice).replace('R$', '').trim();
         const qty = formatNumber(item.quantity, 0);
@@ -226,12 +133,15 @@ export const buildReceiptHtml = (sale, settings = {}) => {
         let typeBadge = '';
         if (item.isCold) {
             typeBadge = ' • Mercearia';
+        } else if (approxEq(item.unitPrice, item.wholesalePrice)) {
+            typeBadge = ' • Atacado';
         }
 
-        const unitName = (item.unit && (item.unit.abbreviation || item.unit.name))
-            ? (item.unit.abbreviation || item.unit.name)
-            : ((item.isWholesale && !item.isCold) ? (settings.wholesaleUnitLabel || 'FD') : 'un');
-        let displayName = item.productName || item.name || `Produto ${index + 1}`;
+        const unitName = (item.unit && (item.unit.abbreviation || item.unit.name)) ? (item.unit.abbreviation || item.unit.name) : 'un';
+        let displayName = item.name || item.productName || 'Item';
+        if ((!displayName || displayName === 'Produto Sem Nome') && sale._productNames && item.productId && sale._productNames[item.productId]) {
+            displayName = sale._productNames[item.productId] || displayName;
+        }
         if (item.unit && item.unit.name && !String(displayName).includes(item.unit.name)) {
             displayName = `${displayName} (${item.unit.name})`;
         }
@@ -244,9 +154,19 @@ export const buildReceiptHtml = (sale, settings = {}) => {
                     <span class="item-total">${total}</span>
                 </div>
             </div>
-            ${index < ((sale.items || []).length - 1) ? '<div class="border-b mb-1"></div>' : ''}
         `;
     });
+    if (!itemsHtml) {
+        itemsHtml = `
+            <div class="mb-1">
+                <div class="item-name">Sem itens</div>
+                <div class="flex">
+                    <span class="item-meta">-</span>
+                    <span class="item-total">-</span>
+                </div>
+            </div>
+        `;
+    }
 
     let paymentsHtml = '';
     if (sale.payments && sale.payments.length > 0) {
@@ -267,7 +187,26 @@ export const buildReceiptHtml = (sale, settings = {}) => {
         `;
     }
 
-    
+    let savingsHtml = '';
+    if (!isColdSale && sale.totalSavings && sale.totalSavings > 0) {
+        const retailTotal = sale.total + sale.totalSavings;
+        savingsHtml = `
+            <div class="totals-section text-sm">
+                <div class="flex">
+                    <span>Preço Varejo:</span>
+                    <span>${formatCurrency(retailTotal)}</span>
+                </div>
+                <div class="flex">
+                    <span>Preço Atacado:</span>
+                    <span>${formatCurrency(sale.total)}</span>
+                </div>
+                <div class="flex font-bold mt-1">
+                    <span>Você Economizou:</span>
+                    <span>${formatCurrency(sale.totalSavings)}</span>
+                </div>
+            </div>
+        `;
+    }
 
     let changeHtml = '';
     if (sale.change && sale.change > 0) {
@@ -289,13 +228,14 @@ export const buildReceiptHtml = (sale, settings = {}) => {
         <div class="text-center receipt-title">
             CUPOM NÃO FISCAL
         </div>
-
+        
         <div class="mb-2 text-sm">
             <div class="details-row"><span>Pedido:</span><span>#${sale.saleNumber || '0'}</span></div>
             <div class="details-row"><span>Cliente:</span><span>${(sale.customerName || 'Consumidor Final').substring(0, 24)}</span></div>
             <div class="details-row"><span>Data:</span><span>${dateStr}</span></div>
-            <div class="details-row"><span>Tipos:</span><span>${[hasCold ? 'Mercearia' : null, hasWholesale ? 'Atacado' : null].filter(Boolean).join(' + ') || '-'}</span></div>
+            <div class="details-row"><span>Tipo:</span><span>${saleTypeLabel}</span></div>
         </div>
+        
         <div class="border-b mb-2"></div>
         
         <div class="items-section">
@@ -307,6 +247,7 @@ export const buildReceiptHtml = (sale, settings = {}) => {
                 <span>TOTAL:</span>
                 <span>${formatCurrency(sale.total)}</span>
             </div>
+            ${savingsHtml}
         </div>
 
         <div class="payment-section">
@@ -319,30 +260,19 @@ export const buildReceiptHtml = (sale, settings = {}) => {
             ${sanitize(settings.receiptFooter) || 'Obrigado e volte sempre!'}
         </div>
     `;
-    return { html, paperWidthMm };
-};
 
-export const printReceipt = (sale, settings = {}) => {
-    const { html, paperWidthMm } = buildReceiptHtml(sale, settings);
-    const preferInline = settings.inlinePrint === true || settings.silentPrint === true || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_INLINE_PRINT === 'true');
-    if (preferInline) {
-        printInline(html, paperWidthMm);
-    } else {
-        printHtml(html, paperWidthMm);
-    }
+    printHtml(html, paperWidthMm);
 };
 
 export const printCashRegisterReport = (data, settings = {}) => {
     const companyName = settings.companyName || 'MR BEBIDAS DISTRIBUIDORA';
     const dateStr = formatDateTime(data.closedAt || new Date());
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
-    const isDuplicate = !!settings.duplicate;
 
     const html = `
         <div class="text-center mb-2">
             <div class="font-bold">${companyName}</div>
             <div class="font-bold mt-1">FECHAMENTO DE CAIXA</div>
-            ${isDuplicate ? '<div class="text-xs mt-1">2ª VIA</div>' : ''}
         </div>
 
         <div class="border-b mb-2"></div>
@@ -376,6 +306,14 @@ export const printCashRegisterReport = (data, settings = {}) => {
                 <span>${formatCurrency(data.totalSales)}</span>
             </div>
             <div class="flex">
+                <span>Custo (-):</span>
+                <span>${formatCurrency(data.totalCost || 0)}</span>
+            </div>
+            <div class="flex font-bold">
+                <span>Lucro:</span>
+                <span>${formatCurrency((data.totalProfit != null ? data.totalProfit : Math.max(0, (data.totalSales || 0) - (data.totalCost || 0))))}</span>
+            </div>
+            <div class="flex">
                 <span>Suprimentos (+):</span>
                 <span>${formatCurrency(data.totalSupplies)}</span>
             </div>
@@ -402,31 +340,6 @@ export const printCashRegisterReport = (data, settings = {}) => {
             ` : ''}
         </div>
 
-        <div class="font-bold text-center mb-1">RESUMO DE LUCRO</div>
-        <div class="mb-2 text-sm">
-            <div class="flex">
-                <span>Lucro Atacado:</span>
-                <span>${formatCurrency(Number(data.profitWholesale || 0))}</span>
-            </div>
-            <div class="flex">
-                <span>Lucro Mercearia:</span>
-                <span>${formatCurrency(Number(data.profitMercearia || 0))}</span>
-            </div>
-        </div>
-
-        <div class="border-b mb-2"></div>
-        <div class="font-bold text-center mb-1">FORMAS DE PAGAMENTO</div>
-        <div class="mb-2 text-sm">
-            ${(Array.isArray(data.paymentSummary) && data.paymentSummary.length > 0)
-                ? data.paymentSummary.map(p => `
-                    <div class="flex">
-                        <span>${p.method}${Number(p.count || 0) > 0 ? ` (${p.count})` : ''}</span>
-                        <span>${formatCurrency(Number(p.amount || 0))}</span>
-                    </div>
-                `).join('')
-                : '<div class="text-xs text-center">-</div>'}
-        </div>
-
         ${data.notes ? `
             <div class="mb-2 text-sm">
                 <div class="font-bold">Observações:</div>
@@ -444,13 +357,11 @@ export const printCashRegisterReport = (data, settings = {}) => {
     printHtml(html, paperWidthMm);
 };
 
-
 // Keep for backward compatibility if needed, or remove
 export const downloadReceipt = (sale, settings = {}) => {
     printReceipt(sale, settings);
 };
 
 export const previewReceipt = (sale, settings = {}) => {
-    const { html, paperWidthMm } = buildReceiptHtml(sale, settings);
-    return `${getPrintStyles(paperWidthMm)}${html}`;
+    return ''; // Not supported in HTML mode
 };

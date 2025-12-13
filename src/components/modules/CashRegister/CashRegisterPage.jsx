@@ -242,21 +242,10 @@ const CashRegisterPage = () => {
 
     const handleCloseRegister = async () => {
         if (!window.confirm('Tem certeza que deseja fechar o caixa?')) return;
-
-        if (isManager) {
-            await proceedClose();
-            return;
-        }
-
-        if (isCashier) {
-            setManagerUsername('');
-            setManagerPassword('');
-            setManagerError('');
-            setManagerModalOpen(true);
-            return;
-        }
-
-        showNotification('error', 'Somente gerente pode fechar o caixa');
+        setManagerUsername(isManager ? (user?.username || '') : '');
+        setManagerPassword('');
+        setManagerError('');
+        setManagerModalOpen(true);
     };
 
     const handlePrintOpenRegister = () => {

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Button = React.forwardRef(({ 
+const Button = React.forwardRef(({
     children,
     onClick,
     variant = 'primary',

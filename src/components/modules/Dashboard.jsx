@@ -35,12 +35,19 @@ const Dashboard = () => {
 
             // Load recent sales
             const sales = await salesService.getAll(10);
-            setRecentSales(sales);
+            const enriched = (sales || []).map((sale) => {
+                const items = Array.isArray(sale.items) ? sale.items : [];
+                const hasCold = items.some(it => it && it.isCold);
+                const hasWholesale = items.some(it => it && !it.isCold);
+                const type = hasCold && hasWholesale ? 'Atacado + Mercearia' : (hasCold ? 'Mercearia' : 'Atacado');
+                return { ...sale, type };
+            });
+            setRecentSales(enriched);
 
             // Calculate today's stats
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const todaySales = sales.filter(sale => {
+            const todaySales = enriched.filter(sale => {
                 const saleDate = sale.createdAt.toDate();
                 return saleDate >= today;
             });
@@ -232,6 +239,7 @@ const Dashboard = () => {
                                     <th>Número</th>
                                     <th>Data</th>
                                     <th>Cliente</th>
+                                    <th>Tipo</th>
                                     <th>Total</th>
                                     <th>Pagamento</th>
                                 </tr>
@@ -242,6 +250,7 @@ const Dashboard = () => {
                                         <td><strong>{sale.saleNumber}</strong></td>
                                         <td>{formatDateTime(sale.createdAt)}</td>
                                         <td>{sale.customerName || 'Cliente Padrão'}</td>
+                                        <td>{sale.type}</td>
                                         <td><strong>{formatCurrency(sale.total)}</strong></td>
                                         <td>
                                             <span className="badge badge-success">

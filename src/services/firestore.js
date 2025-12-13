@@ -34,10 +34,10 @@ export const COLLECTIONS = {
 // Mock Data Store
 const mockStore = {
     products: [
-        { id: '1', name: 'Coca-Cola 2L', barcode: '7894900011517', price: 10.00, cost: 7.50, coldCost: 7.50, stock: 100, coldStock: 0, categoryId: '1', active: true, createdAt: new Date() },
-        { id: '2', name: 'Heineken Long Neck', barcode: '7893249823', price: 8.50, cost: 5.00, coldCost: 5.00, stock: 200, coldStock: 0, categoryId: '2', active: true, createdAt: new Date() },
-        { id: '3', name: 'Água Mineral 500ml', barcode: '789123456', price: 3.00, cost: 1.00, coldCost: 1.00, stock: 500, coldStock: 0, categoryId: '3', active: true, createdAt: new Date() },
-        { id: '4', name: 'Red Bull 250ml', barcode: '9002490205', price: 12.00, cost: 8.00, coldCost: 8.00, stock: 50, coldStock: 0, categoryId: '3', active: true, createdAt: new Date() }
+        { id: '1', name: 'Coca-Cola 2L', barcode: '7894900011517', price: 10.00, cost: 7.50, stock: 100, categoryId: '1', active: true, createdAt: new Date() },
+        { id: '2', name: 'Heineken Long Neck', barcode: '7893249823', price: 8.50, cost: 5.00, stock: 200, categoryId: '2', active: true, createdAt: new Date() },
+        { id: '3', name: 'Água Mineral 500ml', barcode: '789123456', price: 3.00, cost: 1.00, stock: 500, categoryId: '3', active: true, createdAt: new Date() },
+        { id: '4', name: 'Red Bull 250ml', barcode: '9002490205', price: 12.00, cost: 8.00, stock: 50, categoryId: '3', active: true, createdAt: new Date() }
     ],
     customers: [
         { id: '1', name: 'Cliente Balcão', document: '', phone: '', createdAt: new Date() },
@@ -58,8 +58,8 @@ const mockStore = {
     ]
 };
 
-// Helper to simulate async delay
-const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
+// Helper to simulate async delay (keep minimal in demo mode)
+const delay = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Generic CRUD operations
 export const firestoreService = {
@@ -113,8 +113,26 @@ export const firestoreService = {
                 ...doc.data()
             }));
         } catch (error) {
-            console.error('Error getting documents:', error);
-            throw error;
+            try {
+                // Fallback: run without server-side order and sort on client
+                let qNoOrder = collection(db, collectionName);
+                const snapshot = await getDocs(qNoOrder);
+                let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (orderByField) {
+                    results.sort((a, b) => {
+                        const av = a[orderByField];
+                        const bv = b[orderByField];
+                        if (av === undefined && bv === undefined) return 0;
+                        if (av === undefined) return orderDirection === 'asc' ? 1 : -1;
+                        if (bv === undefined) return orderDirection === 'asc' ? -1 : 1;
+                        return av < bv ? (orderDirection === 'asc' ? -1 : 1) : av > bv ? (orderDirection === 'asc' ? 1 : -1) : 0;
+                    });
+                }
+                return results;
+            } catch (fallbackErr) {
+                console.error('Error getting documents (fallback):', fallbackErr);
+                return [];
+            }
         }
     },
 
@@ -162,15 +180,6 @@ export const firestoreService = {
             });
             return { id, ...data };
         } catch (error) {
-            // If the document does not exist, fall back to setDoc with merge
-            if (error?.code === 'not-found') {
-                const docRef = doc(db, collectionName, id);
-                await setDoc(docRef, {
-                    ...data,
-                    updatedAt: Timestamp.now()
-                }, { merge: true });
-                return { id, ...data };
-            }
             console.error('Error updating document:', error);
             throw error;
         }
@@ -242,69 +251,44 @@ export const firestoreService = {
         try {
             let q = collection(db, collectionName);
 
+            // Apply where conditions
             conditions.forEach(condition => {
                 q = query(q, where(condition.field, condition.operator, condition.value));
             });
 
+            // Apply ordering
             if (orderByField) {
                 q = query(q, orderBy(orderByField, orderDirection));
             }
 
+            // Apply limit
             if (limitCount) {
                 q = query(q, limit(limitCount));
             }
 
             const querySnapshot = await getDocs(q);
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
         } catch (error) {
-            const code = error?.code;
-            const needsIndex = code === 'failed-precondition' || /requires an index/i.test(String(error?.message || ''));
-            if (needsIndex && orderByField) {
-                try {
-                    let qNoOrder = collection(db, collectionName);
-                    conditions.forEach(condition => {
-                        qNoOrder = query(qNoOrder, where(condition.field, condition.operator, condition.value));
-                    });
-                    const snapshot = await getDocs(qNoOrder);
-                    let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    results.sort((a, b) => {
-                        const av = a[orderByField];
-                        const bv = b[orderByField];
-                        if (av === undefined && bv === undefined) return 0;
-                        if (av === undefined) return orderDirection === 'asc' ? 1 : -1;
-                        if (bv === undefined) return orderDirection === 'asc' ? -1 : 1;
-                        return av < bv ? (orderDirection === 'asc' ? -1 : 1) : av > bv ? (orderDirection === 'asc' ? 1 : -1) : 0;
-                    });
-                    if (limitCount) {
-                        results = results.slice(0, limitCount);
-                    }
-                    return results;
-                } catch (fallbackErr) {
-                    console.error('Firestore fallback query error:', fallbackErr);
-                }
-            }
             console.error('Error querying documents:', error);
             throw error;
         }
     },
 
     // Real-time listener
-    subscribe(collectionName, callback, conditions = [], orderByField = null, orderDirection = 'asc') {
+    subscribe(collectionName, callback, conditions = []) {
         if (isDemoMode) {
             const data = mockStore[collectionName] || [];
             callback(data);
             return () => { };
         }
-
         let q = collection(db, collectionName);
 
         conditions.forEach(condition => {
             q = query(q, where(condition.field, condition.operator, condition.value));
         });
-
-        if (orderByField) {
-            q = query(q, orderBy(orderByField, orderDirection));
-        }
 
         return onSnapshot(
             q,
@@ -330,6 +314,16 @@ export const firestoreService = {
 export const productService = {
     async getAll() {
         return firestoreService.getAll(COLLECTIONS.PRODUCTS, 'name', 'asc');
+    },
+
+    async getAllLimited(limitCount = 200) {
+        return firestoreService.query(
+            COLLECTIONS.PRODUCTS,
+            [],
+            'name',
+            'asc',
+            limitCount
+        );
     },
 
     async getById(id) {
@@ -369,6 +363,145 @@ export const productService = {
         const products = await this.getAll();
         const promises = products.map(p => this.delete(p.id));
         return Promise.all(promises);
+    },
+
+    async deduplicateAndMerge() {
+        const normalizeBarcode = (bc) => String(bc || '').replace(/\D/g, '').replace(/^0+/, '');
+        const normalizeName = (n) => String(n || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const looseNameKey = (n) => normalizeName(n)
+            .replace(/\b(\d+(\.\d+)?)\s*(ml|l)\b/g, '')
+            .replace(/\bpet\b/g, '')
+            .replace(/\blong\s*neck\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const approx = (a, b) => {
+            const x = Number(a || 0);
+            const y = Number(b || 0);
+            const m = Math.max(x, y, 1);
+            return Math.abs(x - y) <= 0.05 * m;
+        };
+        const all = await this.getAll();
+        const processed = new Set();
+        const groups = [];
+        const byBarcode = new Map();
+        const byNameEmptyBarcode = new Map();
+        const byLooseName = new Map();
+        for (const p of all) {
+            const bc = normalizeBarcode(p.barcode);
+            const nk = normalizeName(p.name);
+            const lk = looseNameKey(p.name);
+            if (bc) {
+                const arr = byBarcode.get(bc) || [];
+                arr.push(p);
+                byBarcode.set(bc, arr);
+            }
+            if (!bc && nk) {
+                const arr = byNameEmptyBarcode.get(nk) || [];
+                arr.push(p);
+                byNameEmptyBarcode.set(nk, arr);
+            }
+            if (lk) {
+                const arr = byLooseName.get(lk) || [];
+                arr.push(p);
+                byLooseName.set(lk, arr);
+            }
+        }
+        for (const [, arr] of byBarcode.entries()) {
+            if (arr.length > 1) groups.push(arr);
+        }
+        for (const [, arr] of byNameEmptyBarcode.entries()) {
+            if (arr.length > 1) groups.push(arr);
+        }
+        for (const [, arr] of byLooseName.entries()) {
+            const hasNonEmpty = arr.some(p => normalizeBarcode(p.barcode));
+            if (!hasNonEmpty && arr.length > 1) {
+                groups.push(arr);
+            } else if (hasNonEmpty) {
+                const primary = arr.find(p => normalizeBarcode(p.barcode)) || arr[0];
+                const pbc = normalizeBarcode(primary.barcode);
+                const pun = primary.wholesaleUnit || primary.unitOfMeasure || '';
+                const candidates = arr.filter(p => {
+                    const bc = normalizeBarcode(p.barcode);
+                    const un = p.wholesaleUnit || p.unitOfMeasure || '';
+                    const sameBc = bc === pbc || !bc;
+                    const sameCat = String(p.categoryId || '') === String(primary.categoryId || '');
+                    const pricesClose = approx(p.wholesalePrice || p.price, primary.wholesalePrice || primary.price) &&
+                        approx(p.cost, primary.cost);
+                    const unitsMatch = String(un || '') === String(pun || '');
+                    return (sameBc || !bc) && sameCat && pricesClose && unitsMatch;
+                });
+                if (candidates.length > 1) groups.push(candidates);
+            }
+        }
+        let removed = 0;
+        let mergedGroups = 0;
+        for (const arr of groups) {
+            const pool = arr.filter(p => !processed.has(p.id));
+            if (pool.length <= 1) continue;
+            mergedGroups++;
+            const primary = pool.find(p => normalizeBarcode(p.barcode)) || pool[0];
+            const others = pool.filter(p => p.id !== primary.id);
+            let stockSum = 0;
+            let coldSum = 0;
+            let wholesalePrice = Number(primary.wholesalePrice || primary.price || 0);
+            let coldPrice = Number(primary.coldPrice || 0);
+            let cost = Number(primary.cost || 0);
+            let coldCost = Number(primary.coldCost || 0);
+            let wholesaleUnit = primary.wholesaleUnit || primary.unitOfMeasure || 'UN';
+            let coldUnit = primary.coldUnit || primary.unitOfMeasure || 'UN';
+            for (const p of pool) {
+                stockSum += Number(p.stock || 0);
+                coldSum += Number(p.coldStock || 0);
+                if (!wholesalePrice || wholesalePrice <= 0) wholesalePrice = Number(p.wholesalePrice || p.price || wholesalePrice);
+                if (!coldPrice || coldPrice <= 0) coldPrice = Number(p.coldPrice || coldPrice);
+                if (!cost || cost <= 0) cost = Number(p.cost || cost);
+                if (!coldCost || coldCost <= 0) coldCost = Number(p.coldCost || coldCost);
+                if (!wholesaleUnit && p.wholesaleUnit) wholesaleUnit = p.wholesaleUnit;
+                if (!coldUnit && p.coldUnit) coldUnit = p.coldUnit;
+            }
+            const updateData = {
+                name: primary.name,
+                barcode: normalizeBarcode(primary.barcode) ? primary.barcode : primary.barcode,
+                stock: stockSum,
+                coldStock: coldSum,
+                wholesalePrice: wholesalePrice || 0,
+                price: wholesalePrice || Number(primary.price || 0),
+                coldPrice: coldPrice || 0,
+                cost: cost || 0,
+                coldCost: coldCost || 0,
+                wholesaleUnit,
+                coldUnit,
+                categoryId: primary.categoryId || null,
+                active: primary.active !== false
+            };
+            await firestoreService.update(COLLECTIONS.PRODUCTS, primary.id, updateData);
+            processed.add(primary.id);
+            for (const dup of others) {
+                if (processed.has(dup.id)) continue;
+                await firestoreService.delete(COLLECTIONS.PRODUCTS, dup.id);
+                processed.add(dup.id);
+                removed++;
+            }
+        }
+        return { removed, mergedGroups };
+    }
+    ,
+    async resetBarcodesSequential(pad = 3) {
+        const all = await this.getAll();
+        const sorted = [...all].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+        let updatedCount = 0;
+        for (let i = 0; i < sorted.length; i++) {
+            const seq = String(i + 1).padStart(pad, '0');
+            await firestoreService.update(COLLECTIONS.PRODUCTS, sorted[i].id, { barcode: seq });
+            updatedCount++;
+        }
+        return updatedCount;
     }
 };
 
@@ -403,11 +536,24 @@ export const customerService = {
 
 // Sales-specific operations
 export const salesService = {
-    async create(sale) {
-        // Sequential sale number starting at 1
-        const nextNumber = await counterService.getNextNumber('sales');
-        const provisional = typeof nextNumber === 'string' && nextNumber.startsWith('OFF-');
-        const saleWithNumber = { ...sale, saleNumber: String(nextNumber), provisional };
+    async create(sale, fast = false) {
+        let next = await counterService.getNextNumber('sales');
+        if (!Number.isFinite(next) || next <= 0) {
+            try {
+                const latest = await this.getAll(1);
+                const last = latest && latest.length > 0 ? latest[0] : null;
+                const lastNum = Number(last?.saleNumber);
+                next = Number.isFinite(lastNum) && lastNum >= 1 ? (lastNum + 1) : 1;
+            } catch {
+                next = 1;
+            }
+        }
+        const saleNumber = String(next);
+
+        const saleWithNumber = {
+            ...sale,
+            saleNumber: saleNumber
+        };
         return firestoreService.create(COLLECTIONS.SALES, saleWithNumber);
     },
 
@@ -450,72 +596,8 @@ export const salesService = {
         return firestoreService.update(COLLECTIONS.SALES, id, sale);
     },
 
-    async delete(id) {
-        return firestoreService.delete(COLLECTIONS.SALES, id);
-    },
-
-    async deleteDuplicates() {
-        const list = await firestoreService.getAll(COLLECTIONS.SALES, 'createdAt', 'asc');
-        const seen = new Map();
-        const toDelete = [];
-        const normDate = (v) => {
-            try {
-                const d = v?.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${day}`;
-            } catch {
-                return '';
-            }
-        };
-        const itemsKey = (items) => {
-            if (!Array.isArray(items)) return '';
-            return items
-                .map(i => `${i.productId || i.id || ''}:${Number(i.quantity) || 0}`)
-                .sort()
-                .join('|');
-        };
-        for (const s of list) {
-            if (s?.status === 'cancelled') continue;
-            const key = [
-                s.customerId || s.customer?.id || '',
-                itemsKey(s.items || []),
-                Number(s.total || 0).toFixed(2),
-                normDate(s.createdAt)
-            ].join('|');
-            if (seen.has(key)) {
-                toDelete.push(s.id);
-            } else {
-                seen.set(key, s.id);
-            }
-        }
-        await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.SALES, id)));
-        return { deleted: toDelete.length };
-    }
-    ,
-    async normalizeProvisional() {
-        if (isDemoMode) return 0;
-        if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
-        const list = await firestoreService.query(
-            COLLECTIONS.SALES,
-            [{ field: 'provisional', operator: '==', value: true }],
-            'createdAt',
-            'asc'
-        );
-        let count = 0;
-        for (const s of list) {
-            try {
-                const nextNumber = await counterService.getNextNumber('sales');
-                await firestoreService.update(COLLECTIONS.SALES, s.id, {
-                    saleNumber: String(nextNumber),
-                    provisional: false
-                });
-                count++;
-            } catch (e) {
-            }
-        }
-        return count;
+    subscribeAll(callback) {
+        return firestoreService.subscribe(COLLECTIONS.SALES, callback, []);
     }
 };
 
@@ -552,171 +634,8 @@ export const presalesService = {
         return firestoreService.delete(COLLECTIONS.PRESALES, id);
     },
 
-    async finalizeToSaleTxn(presaleId, saleData, operatorName = 'Operador') {
-        try {
-            const sale = await salesService.create(saleData);
-            try {
-                await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
-                    status: 'finalized',
-                    finalizedBy: operatorName,
-                    finalizedAt: Timestamp.now()
-                });
-            } catch {}
-            try {
-                await firestoreService.delete(COLLECTIONS.PRESALES, presaleId);
-            } catch {}
-            return sale;
-        } catch (error) {
-            throw error;
-        }
-    },
-
-    async deleteDuplicates() {
-        const list = await firestoreService.getAll(COLLECTIONS.PRESALES, 'createdAt', 'asc');
-        const seen = new Map();
-        const toDelete = [];
-        const normDate = (v) => {
-            try {
-                const d = v?.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${day}`;
-            } catch {
-                return '';
-            }
-        };
-        const itemsKey = (items) => {
-            if (!Array.isArray(items)) return '';
-            return items
-                .map(i => `${i.productId || i.id || ''}:${Number(i.quantity) || 0}`)
-                .sort()
-                .join('|');
-        };
-        for (const p of list) {
-            if (p?.status !== 'pending') continue;
-            const key = [
-                p.customerId || p.customer?.id || '',
-                itemsKey(p.items || []),
-                Number(p.total || 0).toFixed(2),
-                normDate(p.createdAt)
-            ].join('|');
-            if (seen.has(key)) {
-                toDelete.push(p.id);
-            } else {
-                seen.set(key, p.id);
-            }
-        }
-        await Promise.all(toDelete.map(id => firestoreService.delete(COLLECTIONS.PRESALES, id)));
-        return { deleted: toDelete.length };
-    },
-    async finalizeToSaleTxn(presaleId, saleData, actor = 'Operador') {
-        try {
-            if (isDemoMode) {
-                const nextNumber = await counterService.getNextNumber('sales');
-                const sale = await firestoreService.create(COLLECTIONS.SALES, {
-                    ...saleData,
-                    saleNumber: String(nextNumber),
-                    provisional: false,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    presaleId,
-                    finalizedBy: actor
-                });
-                await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
-                    status: 'completed',
-                    reserved: false,
-                    completedAt: new Date(),
-                    saleId: sale.id,
-                    saleNumber: sale.saleNumber,
-                    finalizedBy: actor
-                });
-                return sale;
-            }
-            const { runTransaction } = await import('firebase/firestore');
-            const presaleRef = doc(db, COLLECTIONS.PRESALES, presaleId);
-            const countersRef = doc(db, COLLECTIONS.COUNTERS, 'sales');
-            const saleCol = collection(db, COLLECTIONS.SALES);
-            const result = await runTransaction(db, async (tx) => {
-                const pSnap = await tx.get(presaleRef);
-                if (!pSnap.exists()) {
-                    throw new Error('Pré-venda não encontrada');
-                }
-                const p = pSnap.data();
-                if (p.status !== 'pending') {
-                    throw new Error('Conflito: pré-venda já finalizada ou cancelada');
-                }
-                if (p.saleId) {
-                    throw new Error('Conflito: venda já associada à pré-venda');
-                }
-                const cSnap = await tx.get(countersRef);
-                let saleNumber = 1;
-                if (cSnap.exists()) {
-                    saleNumber = (cSnap.data().value || 0) + 1;
-                    tx.update(countersRef, { value: saleNumber });
-                } else {
-                    tx.set(countersRef, { value: saleNumber });
-                }
-                const saleRef = doc(saleCol);
-                const nowTs = Timestamp.now();
-                const salePayload = {
-                    ...saleData,
-                    saleNumber: String(saleNumber),
-                    provisional: false,
-                    createdAt: nowTs,
-                    updatedAt: nowTs,
-                    presaleId,
-                    finalizedBy: actor
-                };
-                tx.set(saleRef, salePayload);
-                tx.update(presaleRef, {
-                    status: 'completed',
-                    reserved: false,
-                    completedAt: nowTs,
-                    saleId: saleRef.id,
-                    saleNumber: String(saleNumber),
-                    finalizedBy: actor
-                });
-                return { id: saleRef.id, ...salePayload };
-            });
-            return result;
-        } catch (error) {
-            const code = error?.code;
-            const allowFallback = code === 'resource-exhausted' || code === 'unavailable' || code === 'aborted' || code === 'failed-precondition';
-            if (!allowFallback) throw error;
-            const nextNumber = await counterService.getNextNumber('sales');
-            const provisional = String(nextNumber).startsWith('OFF-');
-            const now = new Date();
-            const sale = await firestoreService.create(COLLECTIONS.SALES, {
-                ...saleData,
-                saleNumber: String(nextNumber),
-                provisional,
-                createdAt: now,
-                updatedAt: now,
-                presaleId,
-                finalizedBy: actor
-            });
-            await firestoreService.update(COLLECTIONS.PRESALES, presaleId, {
-                status: 'completed',
-                reserved: false,
-                completedAt: now,
-                saleId: sale.id,
-                saleNumber: sale.saleNumber,
-                finalizedBy: actor
-            });
-            return sale;
-        }
-    },
-    async simulateConcurrentFinalization(presaleId, saleData, users = 5) {
-        const actors = Array.from({ length: users }, (_, i) => `SimUser${i + 1}`);
-        const results = await Promise.allSettled(
-            actors.map(actor => this.finalizeToSaleTxn(presaleId, saleData, actor))
-        );
-        const successes = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-        const errors = results.filter(r => r.status === 'rejected').map(r => r.reason?.message || String(r.reason));
-        const uniqueSaleIds = new Set(successes.map(s => s.id));
-        const duplicates = successes.length > uniqueSaleIds.size;
-        return { successes, errors, duplicates };
+    subscribeAll(callback) {
+        return firestoreService.subscribe(COLLECTIONS.PRESALES, callback, []);
     }
 };
 
@@ -766,23 +685,15 @@ export const cashRegisterService = {
         return results[0] || null;
     },
 
-    subscribeOpen(callback) {
-        return firestoreService.subscribe(
-            COLLECTIONS.CASH_REGISTER,
-            callback,
-            [{ field: 'status', operator: '==', value: 'open' }],
-            'openedAt',
-            'desc'
-        );
-    },
-
     async getHistory() {
-        return firestoreService.query(
-            COLLECTIONS.CASH_REGISTER,
-            [], // No explicit filter needed, orderBy 'closedAt' implicitly filters documents where it exists
-            'closedAt',
-            'desc'
-        );
+        const all = await firestoreService.getAll(COLLECTIONS.CASH_REGISTER, null, null);
+        const closed = all.filter(r => !!r.closedAt);
+        closed.sort((a, b) => {
+            const av = (a.closedAt && a.closedAt.toMillis) ? a.closedAt.toMillis() : new Date(a.closedAt || 0).getTime();
+            const bv = (b.closedAt && b.closedAt.toMillis) ? b.closedAt.toMillis() : new Date(b.closedAt || 0).getTime();
+            return bv - av;
+        });
+        return closed;
     },
 
     async getAll() {
@@ -825,10 +736,6 @@ export const settingsService = {
 
     async getAll() {
         return firestoreService.getAll(COLLECTIONS.SETTINGS, null, null); // No ordering
-    },
-
-    subscribeAll(callback) {
-        return firestoreService.subscribe(COLLECTIONS.SETTINGS, callback);
     }
 };
 
@@ -940,16 +847,6 @@ export const userService = {
         return firestoreService.delete(COLLECTIONS.USERS, id);
     },
 
-    subscribeById(id, callback) {
-        return firestoreService.subscribe(
-            COLLECTIONS.USERS,
-            (list) => {
-                const found = (list || []).find(u => u.id === id) || null;
-                callback(found);
-            }
-        );
-    },
-
     // Initialize default admin user if no users exist
     async initDefaultUser() {
         const users = await this.getAll();
@@ -977,7 +874,6 @@ export const counterService = {
             return mockStore.counters[counterName];
         }
 
-        const isOffline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
         try {
             const { runTransaction } = await import('firebase/firestore');
             const counterRef = doc(db, COLLECTIONS.COUNTERS, counterName);
@@ -998,22 +894,7 @@ export const counterService = {
 
             return nextNumber;
         } catch (error) {
-            if (isOffline || (error && (error.code === 'unavailable' || error.code === 'failed-precondition' || error.code === 'aborted' || error.code === 'resource-exhausted'))) {
-                try {
-                    const d = new Date();
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const key = `offline_counter_${counterName}_${y}${m}${day}`;
-                    const current = Number(localStorage.getItem(key) || '0') + 1;
-                    localStorage.setItem(key, String(current));
-                    return `OFF-${y}${m}${day}-${current}`;
-                } catch (e) {
-                    throw error;
-                }
-            }
-            console.error('Error getting next number:', error);
-            throw error;
+            return null;
         }
     },
 

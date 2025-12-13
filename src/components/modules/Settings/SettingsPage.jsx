@@ -1,45 +1,45 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Save, Printer, Building, AlertTriangle, Trash2, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Printer, Building, AlertTriangle, Trash2, Settings } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { settingsService, productService, salesService, presalesService } from '../../../services/firestore';
+import { settingsService, productService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useApp } from '../../../contexts/AppContext';
-import { storage, isDemoMode } from '../../../services/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import UsersManagement from './UsersManagement';
 import UnitsManagement from './UnitsManagement';
 
 const SettingsPage = () => {
     const { isManager } = useAuth();
-    const { updateSettings } = useApp();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [notification, setNotification] = useState(null);
-    const [bulkLoading, setBulkLoading] = useState(false);
-    const [bulkQty, setBulkQty] = useState('');
-    const [bulkTarget, setBulkTarget] = useState('stock'); // 'stock' | 'coldStock'
-    const [bulkMode, setBulkMode] = useState('set'); // 'set' | 'add'
     const [settings, setSettings] = useState({
         receiptHeader: '',
         receiptFooter: '',
-        silentPrint: true,
         companyName: '',
         companyAddress: '',
         companyPhone: '',
-        brandTitle: '',
-        headerTitle: '',
-        cardCreditFee: '',
-        cardDebitFee: '',
-        brandLogoUrl: ''
+        menu: [
+            { key: 'dashboard', visible: true, label: 'Painel' },
+            { key: 'pdv', visible: true, label: 'PDV' },
+            { key: 'sales', visible: true, label: 'Vendas' },
+            { key: 'products', visible: true, label: 'Produtos' },
+            { key: 'categories', visible: true, label: 'Categorias' },
+            { key: 'customers', visible: true, label: 'Clientes' },
+            { key: 'cashRegister', visible: true, label: 'Caixa' },
+            { key: 'cashRegisterHistory', visible: true, label: 'Histórico de Caixa' },
+            { key: 'presales', visible: true, label: 'Pré-vendas' },
+            { key: 'financial', visible: true, label: 'Financeiro' },
+            { key: 'settings', visible: true, label: 'Configurações' },
+            { key: 'resetData', visible: true, label: 'Resetar Dados' }
+        ]
     });
-    const [logoFile, setLogoFile] = useState(null);
-    const [logoUploading, setLogoUploading] = useState(false);
-    const logoInputRef = useRef(null);
+    const [devDemoEnabled, setDevDemoEnabled] = useState(() => {
+        try { return localStorage.getItem('pdv_force_demo') === 'true'; } catch { return false; }
+    });
 
     useEffect(() => {
         loadSettings();
@@ -77,60 +77,24 @@ const SettingsPage = () => {
         }));
     };
 
-    const handleSelectLogo = () => {
-        logoInputRef.current?.click();
+    const moveMenuItem = (index, direction) => {
+        setSettings(prev => {
+            const arr = Array.isArray(prev.menu) ? [...prev.menu] : [];
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= arr.length) return prev;
+            const tmp = arr[index];
+            arr[index] = arr[newIndex];
+            arr[newIndex] = tmp;
+            return { ...prev, menu: arr };
+        });
     };
 
-    const handleLogoChange = (e) => {
-        const file = e.target.files?.[0] || null;
-        if (file) {
-            if (!file.type.startsWith('image/')) {
-                showNotification('error', 'Selecione uma imagem válida');
-                return;
-            }
-            setLogoFile(file);
-        }
-    };
-
-    const handleUploadLogo = async () => {
-        if (!logoFile) {
-            showNotification('error', 'Selecione uma imagem primeiro');
-            return;
-        }
-        setLogoUploading(true);
-        try {
-            if (!storage || isDemoMode) {
-                const reader = new FileReader();
-                reader.onload = async () => {
-                    const dataUrl = reader.result;
-                    setSettings(prev => ({ ...prev, brandLogoUrl: dataUrl }));
-                    await settingsService.set('brandLogoUrl', dataUrl);
-                    try { await updateSettings('brandLogoUrl', dataUrl); } catch {}
-                    showNotification('success', 'Logo salva localmente');
-                    setLogoFile(null);
-                };
-                reader.onerror = () => {
-                    showNotification('error', 'Erro ao ler arquivo da logo');
-                };
-                reader.readAsDataURL(logoFile);
-                return;
-            }
-
-            const ext = (logoFile.name.split('.').pop() || 'png').toLowerCase();
-            const objectRef = ref(storage, `branding/logo.${ext}`);
-            await uploadBytes(objectRef, logoFile, { contentType: logoFile.type });
-            const url = await getDownloadURL(objectRef);
-            setSettings(prev => ({ ...prev, brandLogoUrl: url }));
-            await settingsService.set('brandLogoUrl', url);
-            try { await updateSettings('brandLogoUrl', url); } catch {}
-            showNotification('success', 'Logo enviada com sucesso');
-            setLogoFile(null);
-        } catch (error) {
-            console.error('Logo upload error:', error);
-            showNotification('error', 'Erro ao enviar logo');
-        } finally {
-            setLogoUploading(false);
-        }
+    const toggleMenuItem = (index) => {
+        setSettings(prev => {
+            const arr = Array.isArray(prev.menu) ? [...prev.menu] : [];
+            arr[index] = { ...arr[index], visible: !arr[index].visible };
+            return { ...prev, menu: arr };
+        });
     };
 
     const handleSave = async (e) => {
@@ -149,39 +113,6 @@ const SettingsPage = () => {
             showNotification('error', 'Erro ao salvar configurações');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleApplyBulkStock = async () => {
-        const qty = parseFloat(bulkQty);
-        if (isNaN(qty) || qty < 0) {
-            showNotification('error', 'Informe uma quantidade válida');
-            return;
-        }
-
-        const targetLabel = bulkTarget === 'stock' ? 'Estoque Atacado' : 'Estoque Mercearia';
-        const modeLabel = bulkMode === 'set' ? 'DEFINIR' : 'SOMAR';
-
-        if (!window.confirm(`Confirmar: ${modeLabel} ${targetLabel} para ${qty} em TODOS os produtos?`)) {
-            return;
-        }
-
-        setBulkLoading(true);
-        try {
-            const products = await productService.getAll();
-            let updated = 0;
-            for (const p of products) {
-                const current = Number(p[bulkTarget] || 0);
-                const next = bulkMode === 'set' ? qty : current + qty;
-                await productService.update(p.id, { [bulkTarget]: next });
-                updated++;
-            }
-            showNotification('success', `Quantidade aplicada em ${updated} produto(s)`);
-        } catch (error) {
-            console.error('Bulk stock update error:', error);
-            showNotification('error', 'Erro ao aplicar quantidade em massa');
-        } finally {
-            setBulkLoading(false);
         }
     };
 
@@ -240,96 +171,6 @@ const SettingsPage = () => {
 
             <form onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card title="Interface" icon={Printer}>
-                        <div className="space-y-4 p-4">
-                            <Input
-                                label="Título da Marca (Sidebar)"
-                                name="brandTitle"
-                                value={settings.brandTitle}
-                                onChange={handleChange}
-                                placeholder="Ex: MR BEBIDAS"
-                            />
-                            <Input
-                                label="Logo da Marca (URL)"
-                                name="brandLogoUrl"
-                                value={settings.brandLogoUrl || ''}
-                                onChange={handleChange}
-                                placeholder="Ex: /logo.png"
-                                helperText="Coloque seu arquivo na pasta public e use /logo.png"
-                            />
-                            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-                                <div>
-                                    <input
-                                        ref={logoInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleLogoChange}
-                                        style={{ display: 'none' }}
-                                    />
-                                    <Button type="button" variant="secondary" onClick={handleSelectLogo}>
-                                        Selecionar Logo
-                                    </Button>
-                                </div>
-                                <Button type="button" variant="primary" onClick={handleUploadLogo} loading={logoUploading}>
-                                    Enviar Logo
-                                </Button>
-                                {logoFile && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                        <img src={URL.createObjectURL(logoFile)} alt="Preview" style={{ width: 40, height: 40, borderRadius: 'var(--radius-full)', objectFit: 'cover', border: '1px solid var(--color-border)' }} />
-                                        <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>{logoFile.name}</span>
-                                    </div>
-                                )}
-                            </div>
-                            <Input
-                                label="Título do Cabeçalho (Navbar)"
-                                name="headerTitle"
-                                value={settings.headerTitle}
-                                onChange={handleChange}
-                                placeholder="Ex: Deus é Fiel!"
-                            />
-                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                                <Button
-                                    type="button"
-                                    variant="primary"
-                                    onClick={async () => {
-                                        try {
-                                            const val = Date.now();
-                                            await settingsService.set('reloadToken', val);
-                                            try { await updateSettings('reloadToken', val); } catch {}
-                                            showNotification('success', 'Atualização enviada para todos os dispositivos');
-                                        } catch (error) {
-                                            console.error('Force refresh error:', error);
-                                            showNotification('error', 'Erro ao enviar atualização');
-                                        }
-                                    }}
-                                >
-                                    Forçar Atualização dos Dispositivos
-                                </Button>
-                            </div>
-                            <Input
-                                label="Taxa Cartão Crédito (%)"
-                                name="cardCreditFee"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={settings.cardCreditFee}
-                                onChange={handleChange}
-                                placeholder="Ex: 2.99"
-                                helperText="Percentual cobrado pela operadora (não repassado)"
-                            />
-                            <Input
-                                label="Taxa Cartão Débito (%)"
-                                name="cardDebitFee"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={settings.cardDebitFee}
-                                onChange={handleChange}
-                                placeholder="Ex: 1.50"
-                                helperText="Percentual cobrado pela operadora (não repassado)"
-                            />
-                        </div>
-                    </Card>
                     {/* Receipt Settings */}
                     <Card title="Cupom Fiscal" icon={Printer}>
                         <div className="space-y-4 p-4">
@@ -353,22 +194,6 @@ const SettingsPage = () => {
                                 textarea
                                 rows={3}
                             />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <input
-                                    type="checkbox"
-                                    id="silent-print"
-                                    name="silentPrint"
-                                    checked={settings.silentPrint === true}
-                                    onChange={(e) => {
-                                        const v = e.target.checked;
-                                        setSettings(prev => ({ ...prev, silentPrint: v }));
-                                    }}
-                                />
-                                <label htmlFor="silent-print">Imprimir silenciosamente (sem diálogo)</label>
-                            </div>
-                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
-                                Requer navegador com `--kiosk-printing` para não exibir diálogo
-                            </div>
                         </div>
                     </Card>
 
@@ -400,6 +225,46 @@ const SettingsPage = () => {
                                 onChange={handleChange}
                                 placeholder="Rua, Número, Bairro, Cidade - UF"
                             />
+                        </div>
+                    </Card>
+
+                    <Card title="Menu" icon={Settings}>
+                        <div className="space-y-2 p-4">
+                            {Array.isArray(settings.menu) && settings.menu.map((item, idx) => (
+                                <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ width: '180px' }}>{item.label}</div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button type="button" onClick={() => moveMenuItem(idx, 'up')} style={{ padding: '6px 10px', borderRadius: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}>↑</button>
+                                        <button type="button" onClick={() => moveMenuItem(idx, 'down')} style={{ padding: '6px 10px', borderRadius: '6px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}>↓</button>
+                                    </div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input type="checkbox" checked={!!item.visible} onChange={() => toggleMenuItem(idx)} />
+                                        <span>Visível</span>
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card title="Desenvolvimento" icon={AlertTriangle}>
+                        <div className="space-y-4 p-4">
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={devDemoEnabled}
+                                    onChange={(e) => {
+                                        const val = e.target.checked;
+                                        setDevDemoEnabled(val);
+                                        try {
+                                            if (val) localStorage.setItem('pdv_force_demo', 'true');
+                                            else localStorage.removeItem('pdv_force_demo');
+                                        } catch {}
+                                        showNotification('success', 'Modo Demo local atualizado. Recarregue a página para aplicar.');
+                                    }}
+                                />
+                                <span>Modo Demo local (desativar Firestore no preview)</span>
+                            </label>
+                            <p className="text-gray-400 text-sm">Ao ativar, o sistema usa dados internos e evita conexões com o Firestore durante o desenvolvimento.</p>
                         </div>
                     </Card>
 
@@ -464,8 +329,6 @@ const SettingsPage = () => {
                                 Fazer Backup do Sistema
                             </Button>
 
-                            
-
                             <div className="border-t border-slate-700 pt-4 mt-4">
                                 <p className="text-red-400 text-sm font-medium mb-2">
                                     ⚠️ Restaurar Backup
@@ -527,81 +390,6 @@ const SettingsPage = () => {
                                     Restaurar Backup
                                 </Button>
                             </div>
-                        </div>
-                    </Card>
-
-                    {/* Estoque em Massa */}
-                    <Card title="Estoque em Massa" icon={Package}>
-                        <div className="space-y-4 p-4">
-                            <p className="text-gray-400 text-sm">
-                                Defina ou some uma quantidade de estoque para todos os produtos.
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <Input
-                                    label="Quantidade"
-                                    name="bulkQty"
-                                    type="number"
-                                    value={bulkQty}
-                                    onChange={(e) => setBulkQty(e.target.value)}
-                                    placeholder="Ex: 10"
-                                />
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                        Alvo
-                                    </label>
-                                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                                        <Button
-                                            type="button"
-                                            variant={bulkTarget === 'stock' ? 'primary' : 'secondary'}
-                                            onClick={() => setBulkTarget('stock')}
-                                            className="flex-1"
-                                        >
-                                            Estoque Atacado
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant={bulkTarget === 'coldStock' ? 'primary' : 'secondary'}
-                                            onClick={() => setBulkTarget('coldStock')}
-                                            className="flex-1"
-                                        >
-                                            Estoque Mercearia
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-xs)' }}>
-                                        Modo
-                                    </label>
-                                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                                        <Button
-                                            type="button"
-                                            variant={bulkMode === 'set' ? 'primary' : 'secondary'}
-                                            onClick={() => setBulkMode('set')}
-                                            className="flex-1"
-                                        >
-                                            Definir
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant={bulkMode === 'add' ? 'primary' : 'secondary'}
-                                            onClick={() => setBulkMode('add')}
-                                            className="flex-1"
-                                        >
-                                            Somar
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <Button
-                                type="button"
-                                variant="success"
-                                onClick={handleApplyBulkStock}
-                                loading={bulkLoading}
-                                className="w-full justify-center"
-                            >
-                                Aplicar nos Produtos
-                            </Button>
                         </div>
                     </Card>
                 </div>

@@ -113,6 +113,14 @@ const ImportProductsModal = ({ isOpen, onClose, onImportSuccess }) => {
 
         return parseFloat(clean) || 0;
     };
+    const normalizeBarcode = (v) => String(v || '').replace(/\D/g, '').replace(/^0+/, '');
+    const normalizeName = (n) => String(n || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const handleImport = async () => {
         if (previewData.length === 0) return;
@@ -133,6 +141,43 @@ const ImportProductsModal = ({ isOpen, onClose, onImportSuccess }) => {
                 defaultCategoryId = categories[0].id;
             }
 
+            // Fetch existing products to prevent duplicates
+            const existingProducts = await productService.getAll();
+            const byBarcode = new Map();
+            const byName = new Map();
+            existingProducts.forEach(p => {
+                const bc = normalizeBarcode(p.barcode);
+                if (bc) byBarcode.set(bc, p);
+                const nk = normalizeName(p.name);
+                if (nk) byName.set(nk, p);
+            });
+
+            // Track newly created/updated during this import to avoid duplicates inside same file
+            const seenBarcodes = new Set();
+            const seenNames = new Set();
+
+            const neededCategories = new Set();
+            for (const item of previewData) {
+                const categoryName = item.categoria || item.category || 'Geral';
+                if (categoryName) {
+                    const key = String(categoryName).toLowerCase();
+                    if (!categoryMap[key]) neededCategories.add(categoryName);
+                }
+            }
+            if (neededCategories.size > 0) {
+                const creations = Array.from(neededCategories).map(async (categoryName) => {
+                    const newCat = await categoryService.create({
+                        name: categoryName,
+                        description: 'Importada automaticamente'
+                    });
+                    const normalizedCat = String(categoryName).toLowerCase();
+                    categoryMap[normalizedCat] = newCat.id;
+                    if (!defaultCategoryId) defaultCategoryId = newCat.id;
+                });
+                await Promise.all(creations);
+            }
+
+            const operations = [];
             for (const item of previewData) {
                 try {
                     // Map fields based on expected CSV headers or common variations
@@ -143,6 +188,12 @@ const ImportProductsModal = ({ isOpen, onClose, onImportSuccess }) => {
                     const price = parseNumber(item.preco || item.price || item.valor || item.venda);
                     const cost = parseNumber(item.custo || item.cost || item.compra);
                     const stock = parseInt(item.estoque || item.stock || item.quantidade || '0');
+                    const coldStockCsv = parseInt(
+                        item.estoque_mercearia || item.coldstock || item.cold_stock || item.mercearia || item.gelado || '0'
+                    ) || 0;
+                    const coldCostCsv = parseNumber(
+                        item.custo_mercearia || item.cold_cost || item.custo_gelado || item.custogelado || item.coldcost
+                    );
 
                     const categoryName = item.categoria || item.category || 'Geral';
 
@@ -165,23 +216,80 @@ const ImportProductsModal = ({ isOpen, onClose, onImportSuccess }) => {
                         }
                     }
 
-                    const product = {
+                    const normalizedName = normalizeName(name);
+                    const normalizedBarcode = normalizeBarcode(barcode);
+
+                    // Prepare data for create/update without wiping existing fields unintentionally
+                    const productData = {
                         name,
-                        barcode,
                         price,
                         cost,
                         stock,
-                        categoryId: categoryId || '1', // Fallback
+                        categoryId: categoryId || '1',
                         active: true
                     };
+                    if (normalizedBarcode) {
+                        productData.barcode = normalizedBarcode;
+                    }
+                    if (coldCostCsv && coldCostCsv > 0) {
+                        productData.coldCost = coldCostCsv;
+                    }
 
-                    await productService.create(product);
-                    successCount++;
+                    // Decide whether to update existing or create new
+                    let target = null;
+                    if (normalizedBarcode) {
+                        if (seenBarcodes.has(normalizedBarcode)) {
+                            // Already processed in this import run: skip to avoid duplicates
+                            successCount++;
+                            continue;
+                        }
+                        target = byBarcode.get(normalizedBarcode) || null;
+                    }
+                    if (!target) {
+                        if (seenNames.has(normalizedName)) {
+                            successCount++;
+                            continue;
+                        }
+                        target = byName.get(normalizedName) || null;
+                    }
+
+                    if (target && target.id) {
+                        const updated = {
+                            ...productData,
+                            stock: (Number(target.stock || 0) || 0) + (Number(stock || 0) || 0),
+                            coldStock: (Number(target.coldStock || 0) || 0) + (Number(coldStockCsv || 0) || 0)
+                        };
+                        if (!(cost && cost > 0)) updated.cost = target.cost || 0;
+                        if (!(coldCostCsv && coldCostCsv > 0)) updated.coldCost = target.coldCost || 0;
+                        operations.push(async () => {
+                            await productService.update(target.id, updated);
+                            successCount++;
+                        });
+                    } else {
+                        operations.push(async () => {
+                            await productService.create({
+                                ...productData,
+                                coldStock: coldStockCsv || 0
+                            });
+                            successCount++;
+                        });
+                    }
+
+                    if (normalizedBarcode) seenBarcodes.add(normalizedBarcode);
+                    if (normalizedName) seenNames.add(normalizedName);
                 } catch (err) {
                     console.error('Error importing item:', item, err);
                     errorCount++;
                 }
             }
+
+            const concurrency = 25;
+            for (let i = 0; i < operations.length; i += concurrency) {
+                const slice = operations.slice(i, i + concurrency);
+                await Promise.allSettled(slice.map(op => op()));
+            }
+
+            await productService.resetBarcodesSequential(3);
 
             onImportSuccess(successCount, errorCount);
             handleClose();

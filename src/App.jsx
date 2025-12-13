@@ -68,7 +68,7 @@ const PrivateRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/entrar" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <Layout>{children}</Layout>;
@@ -76,30 +76,28 @@ const PrivateRoute = ({ children }) => {
 
 function App() {
   return (
-    <BrowserRouter
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true
-      }}
-    >
+    <BrowserRouter>
       <AuthProvider>
         <AppProvider>
           <CartProvider>
             <Routes>
-              <Route path="/entrar" element={<LoginPage />} />
+              <Route path="/login" element={<LoginPage />} />
 
               <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-              <Route path="/pdv" element={<PrivateRoute><SalesPage /></PrivateRoute>} />
-              <Route path="/vendas" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
-              <Route path="/pre-vendas" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
-              <Route path="/caixa" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
+              <Route path="/pdv" element={<Navigate to="/sales" replace />} />
+              <Route path="/sales" element={<PrivateRoute><SalesPage /></PrivateRoute>} />
+              <Route path="/sales-history" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
+              <Route path="/presales" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
+              <Route path="/cash-register" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
+              <Route path="/cash-register-history" element={<PrivateRoute><CashRegisterHistoryPage /></PrivateRoute>} />
               <Route path="/historico-caixa" element={<PrivateRoute><CashRegisterHistoryPage /></PrivateRoute>} />
-              <Route path="/financeiro" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
-              <Route path="/produtos" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
-              <Route path="/categorias" element={<PrivateRoute><CategoriesPage /></PrivateRoute>} />
-              <Route path="/clientes" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
+              <Route path="/financial" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
+              <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
+              <Route path="/categories" element={<PrivateRoute><CategoriesPage /></PrivateRoute>} />
+              <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
+              <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
               <Route path="/configuracoes" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
-              <Route path="/zerar-dados" element={<PrivateRoute><ResetDataPage /></PrivateRoute>} />
+              <Route path="/reset-data" element={<PrivateRoute><ResetDataPage /></PrivateRoute>} />
             </Routes>
           </CartProvider>
         </AppProvider>

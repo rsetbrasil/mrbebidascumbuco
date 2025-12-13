@@ -15,30 +15,65 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
 const Sidebar = ({ onClose }) => {
-    const { isManager, isCashier } = useAuth();
+    const { isManager } = useAuth();
     const { settings } = useApp();
 
-    const menuItems = [
-        { path: '/', icon: Home, label: 'Painel', restricted: true },
-        { path: '/pdv', icon: ShoppingCart, label: 'PDV' },
-        { path: '/vendas', icon: ClipboardList, label: 'Vendas' },
-        { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
-        { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
-        { path: '/produtos', icon: Package, label: 'Produtos' },
-        { path: '/categorias', icon: Database, label: 'Categorias' },
-        { path: '/clientes', icon: Users, label: 'Clientes' },
-        { path: '/financeiro', icon: BarChart3, label: 'Financeiro', restricted: true },
-        { path: '/configuracoes', icon: Settings, label: 'Configurações', restricted: true },
-        { path: '/zerar-dados', icon: Database, label: 'Resetar Dados', restricted: true }
-    ];
+    const baseMenu = {
+        pdv: { path: '/sales', icon: ShoppingCart, label: 'PDV' },
+        products: { path: '/products', icon: Package, label: 'Produtos' },
+        categories: { path: '/categories', icon: Database, label: 'Categorias' },
+        customers: { path: '/customers', icon: Users, label: 'Clientes' },
+        sales: { path: '/sales-history', icon: ClipboardList, label: 'Vendas' },
+        presales: { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
+        financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
+        cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
+        cashRegisterHistory: { path: '/cash-register-history', icon: Wallet, label: 'Histórico de Caixa', restricted: true },
+        settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
+        resetData: { path: '/reset-data', icon: Database, label: 'Resetar Dados', restricted: true },
+        dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
+    };
 
-    const filteredItems = menuItems.filter(item => {
-        if (!item.restricted) return true;
-        if (item.path === '/caixa') {
-            return isManager || isCashier;
-        }
-        return isManager;
-    });
+    const pref = Array.isArray(settings?.menu) ? settings.menu : null;
+    let menuItems = Object.entries(baseMenu).map(([key, def]) => ({ key, visible: true, ...def }));
+    if (pref) {
+        const visibility = new Map(pref.map(item => [item.key, item.visible !== false]));
+        const order = pref.map(item => item.key);
+        menuItems = menuItems
+            .map(it => ({ ...it, visible: visibility.has(it.key) ? visibility.get(it.key) : true }))
+            .sort((a, b) => {
+                const ia = order.indexOf(a.key);
+                const ib = order.indexOf(b.key);
+                if (ia === -1 && ib === -1) return 0;
+                if (ia === -1) return 1;
+                if (ib === -1) return -1;
+                return ia - ib;
+            });
+    } else {
+        const defaultOrder = [
+            'pdv',
+            'products',
+            'categories',
+            'customers',
+            'sales',
+            'presales',
+            'financial',
+            'cashRegister',
+            'cashRegisterHistory',
+            'settings',
+            'resetData',
+            'dashboard'
+        ];
+        menuItems = menuItems.sort((a, b) => {
+            const ia = defaultOrder.indexOf(a.key);
+            const ib = defaultOrder.indexOf(b.key);
+            if (ia === -1 && ib === -1) return 0;
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+    }
+
+    const filteredItems = menuItems.filter(item => item.visible && (!item.restricted || isManager));
 
     const handleNavClick = () => {
         if (onClose) onClose();
@@ -61,25 +96,16 @@ const Sidebar = ({ onClose }) => {
                 padding: 'var(--spacing-xl)',
                 borderBottom: '1px solid var(--color-border)'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                    <img
-                        src={settings?.brandLogoUrl || '/logo.png'}
-                        alt={settings?.brandTitle || 'Logo'}
-                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}
-                        onError={(e) => { e.currentTarget.src = '/logo.png'; e.currentTarget.style.display = 'inline-block'; }}
-                        loading="lazy"
-                    />
-                    <h2 style={{
-                        fontSize: 'var(--font-size-xl)',
-                        fontWeight: 700,
-                        background: 'var(--gradient-primary)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        margin: 0
-                    }}>
-                        {settings?.brandTitle || 'MR BEBIDAS'}
-                    </h2>
-                </div>
+                <h2 style={{
+                    fontSize: 'var(--font-size-xl)',
+                    fontWeight: 700,
+                    background: 'var(--gradient-primary)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    margin: 0
+                }}>
+                    PDV MR Bebidas
+                </h2>
             </div>
 
             {/* Navigation */}
@@ -132,8 +158,7 @@ const Sidebar = ({ onClose }) => {
                 color: 'var(--color-text-muted)',
                 textAlign: 'center'
             }}>
-                <div>© 2024 MR Bebidas</div>
-                <div style={{ marginTop: '4px', fontWeight: 600 }}>Deus é Fiel</div>
+                © 2024 MR Bebidas
             </div>
         </aside>
     );

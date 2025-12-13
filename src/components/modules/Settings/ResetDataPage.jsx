@@ -23,7 +23,7 @@ const ResetDataPage = () => {
             }
 
             // Reset sale number counter
-            await counterService.reset('saleNumber');
+            await counterService.reset('sales');
 
             showNotification('Vendas zeradas com sucesso! Próxima venda será número 1.', 'success');
             setConfirmModal({ open: false, type: '', title: '', message: '' });

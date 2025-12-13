@@ -56,14 +56,15 @@ export const CartProvider = ({ children }) => {
             const isWholesale = type === 'wholesale';
 
             let priceToUse = product.wholesalePrice || product.price;
-            const baseCost = isCold ? (product.coldCost ?? product.cost ?? 0) : (product.cost ?? 0);
-            let costToUse = baseCost;
+            let costToUse = product.cost || 0;
             let stockDeduction = 1;
 
             if (unit) {
                 // If selling a specific unit (Pack/Kit)
                 priceToUse = unit.price;
-                costToUse = baseCost * unit.multiplier;
+                // Cost should ideally be calculated based on multiplier, but for now we might need to approximate or add cost to unit
+                // Assuming unit cost is proportional to base cost for now
+                costToUse = (product.cost || 0) * unit.multiplier;
                 stockDeduction = unit.multiplier;
             } else {
                 // Standard unit logic
@@ -85,9 +86,7 @@ export const CartProvider = ({ children }) => {
                     quantity: item.quantity + quantity,
                     // If it's a unit, price is fixed. If base product, it follows priceType
                     unitPrice: unit ? (options.customPrice !== undefined ? Number(options.customPrice) : unit.price) : priceToUse,
-                    stockDeduction: (item.quantity + quantity) * stockDeduction,
-                    isCold,
-                    isWholesale
+                    stockDeduction: (item.quantity + quantity) * stockDeduction
                 };
 
                 // Recalculate total for this item
@@ -114,7 +113,6 @@ export const CartProvider = ({ children }) => {
                 stockDeductionPerUnit: stockDeduction, // How much to deduct from stock per 1 quantity
                 unit: unit, // Store the unit details if any
                 isCold: isCold, // Track if this is a cold item
-                isWholesale,
                 discount: 0,
                 total: (quantity * priceToUse)
             }];
@@ -153,22 +151,9 @@ export const CartProvider = ({ children }) => {
         setItems(prevItems => {
             return prevItems.map(item => {
                 if (item.id === productId) {
-                    const perUnit = item.stockDeductionPerUnit ?? (item.unit?.multiplier ?? 1);
-                    const isCold = !!item.isCold;
-                    const available = isCold ? (item.coldStock ?? 0) : (item.stock ?? 0);
-
-                    // Total deduction of other items of same product and same stock type (cold/natural)
-                    const otherDeduction = prevItems.reduce((acc, it) => {
-                        if (it.id !== productId) return acc;
-                        if (!!it.isCold !== isCold) return acc;
-                        const dpu = it.stockDeductionPerUnit ?? (it.unit?.multiplier ?? 1);
-                        if (it === item) return acc; // exclude current item
-                        return acc + dpu * it.quantity;
-                    }, 0);
-
-                    const required = quantity * perUnit;
-                    if (available && otherDeduction + required > available) {
-                        return item; // exceed available stock, do not update
+                    // Check stock limit
+                    if (item.stock !== undefined && quantity > item.stock) {
+                        return item; // Do not update if exceeds stock
                     }
 
                     const itemDiscount = item.discount || 0;
@@ -249,8 +234,8 @@ export const CartProvider = ({ children }) => {
 
         return {
             items: items.map(item => ({
-                productId: item.productId,
-                productName: item.productName,
+                productId: item.id,
+                productName: item.name,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 unitCost: item.unitCost,
@@ -277,12 +262,12 @@ export const CartProvider = ({ children }) => {
     const loadPresale = useCallback((presale) => {
         setItems(presale.items.map(item => ({
             id: item.productId,
+            name: item.productName || item.name,
             ...item,
             retailPrice: item.retailPrice || item.unitPrice,
             wholesalePrice: item.wholesalePrice || item.unitPrice,
             coldPrice: item.coldPrice || item.unitPrice,
-            isCold: item.isCold || presale.priceType === 'cold',
-            isWholesale: !!item.isWholesale
+            isCold: item.isCold || presale.priceType === 'cold'
         })));
 
         if (presale.customer) {
@@ -317,8 +302,7 @@ export const CartProvider = ({ children }) => {
             coldStock: undefined,
             stockDeductionPerUnit: item.unit?.multiplier ? item.unit.multiplier : 1,
             unit: item.unit || null,
-            isCold: !!item.isCold || sale.priceType === 'cold',
-            isWholesale: !!item.isWholesale,
+            isCold: sale.priceType === 'cold',
             discount: Number(item.discount) || 0,
             total: Number(item.total) || (Number(item.quantity) * Number(item.unitPrice))
         })));

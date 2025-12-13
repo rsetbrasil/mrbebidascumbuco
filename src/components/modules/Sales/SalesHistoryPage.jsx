@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, XCircle, Eye, Calendar, Filter, Printer, Trash2, MoreVertical } from 'lucide-react';
+import { Search, XCircle, Eye, Calendar, Filter, Printer } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { salesService, productService, cashRegisterService } from '../../../services/firestore';
+import { salesService, productService, cashRegisterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
@@ -28,41 +28,54 @@ const SalesHistoryPage = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
-    const [menuOpenId, setMenuOpenId] = useState(null);
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [confirmAction, setConfirmAction] = useState(null);
-    const [confirmSale, setConfirmSale] = useState(null);
 
     useEffect(() => {
-        loadSales();
-    }, []);
-
-    useEffect(() => {
-        const handleDocClick = () => setMenuOpenId(null);
-        document.addEventListener('click', handleDocClick);
-        return () => document.removeEventListener('click', handleDocClick);
-    }, []);
-
-    const loadSales = async () => {
         setLoading(true);
-        try {
-            const data = await salesService.getAll();
+        const unsub = salesService.subscribeAll((data) => {
             setSales(data);
-        } catch (error) {
-            console.error('Error loading sales:', error);
-            showNotification('error', 'Erro ao carregar vendas');
-        } finally {
             setLoading(false);
-        }
-    };
+        });
+        return () => { try { unsub && unsub(); } catch {} };
+    }, []);
+
+    const loadSales = async () => {};
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification(null), 3000);
     };
 
-    const handlePrint = (sale) => {
-        printReceipt(sale, settings);
+    const getSaleTypeLabel = (sale) => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        const hasCold = items.some(it => it && it.isCold);
+        const hasWarm = items.some(it => it && !it.isCold);
+        if (hasCold && hasWarm) return 'Atacado + Mercearia';
+        return hasCold ? 'Mercearia' : 'Atacado';
+    };
+
+    const handlePrint = async (sale) => {
+        try {
+            const nameMap = {};
+            const items = Array.isArray(sale.items) ? [...sale.items] : [];
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                const existing = it.productName || it.name;
+                const missing = !existing || existing === 'Produto Sem Nome' || existing === 'Item';
+                if (!missing && it.productId) {
+                    nameMap[it.productId] = existing;
+                } else if (it.productId) {
+                    const p = await productService.getById(it.productId);
+                    if (p && p.name) {
+                        nameMap[it.productId] = p.name;
+                        items[i] = { ...it, productName: p.name };
+                    }
+                }
+            }
+            const enriched = { ...sale, items, _productNames: nameMap };
+            printReceipt(enriched, settings);
+        } catch (e) {
+            printReceipt(sale, settings);
+        }
     };
 
     const handleViewSale = (sale) => {
@@ -70,42 +83,42 @@ const SalesHistoryPage = () => {
         setDetailsModalOpen(true);
     };
 
-    const openConfirm = (action, sale) => {
-        setConfirmAction(action);
-        setConfirmSale(sale);
-        setConfirmOpen(true);
-    };
+    const handleCancelSale = async (sale) => {
+        if (!window.confirm(`Tem certeza que deseja cancelar a venda #${sale.saleNumber}? Esta ação não pode ser desfeita.`)) {
+            return;
+        }
 
-    const performCancelSale = async (sale) => {
         try {
             for (const item of sale.items || []) {
                 const productId = item.productId;
                 if (!productId) continue;
                 const product = await productService.getById(productId);
                 if (!product) continue;
-                const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
-                if (sale.priceType === 'cold') {
-                    const newColdStock = (product.coldStock || 0) + deduction;
+
+                const deduction = Number(item.stockDeduction || (item.unit && item.unit.multiplier ? (Number(item.quantity) || 0) * item.unit.multiplier : Number(item.quantity) || 0));
+                if (item.isCold) {
+                    const newColdStock = Number(product.coldStock || 0) + deduction;
                     await productService.update(product.id, { coldStock: newColdStock });
                 } else {
-                    const newStock = (product.stock || 0) + deduction;
+                    const newStock = Number(product.stock || 0) + deduction;
                     await productService.update(product.id, { stock: newStock });
                 }
             }
-            await salesService.update(sale.id, { status: 'cancelled' });
-            try {
-                if (sale.cashRegisterId) {
+
+            const refundAmount = Number(sale.totalPaid || sale.total || 0);
+            if (sale.cashRegisterId && refundAmount > 0) {
+                try {
                     await cashRegisterService.addMovement({
                         cashRegisterId: sale.cashRegisterId,
                         type: 'refund',
-                        amount: Number(sale.total || 0),
-                        description: `Estorno da venda #${sale.saleNumber}`,
+                        amount: refundAmount,
+                        description: `Estorno venda #${sale.saleNumber}`,
                         createdBy: 'Sistema'
                     });
-                }
-            } catch (e) {
-                console.error('Error registering refund movement:', e);
+                } catch {}
             }
+
+            await firestoreService.delete(COLLECTIONS.SALES, sale.id);
             showNotification('success', `Venda #${sale.saleNumber} cancelada, estoque restaurado e pagamento estornado`);
             await loadSales();
         } catch (error) {
@@ -114,101 +127,16 @@ const SalesHistoryPage = () => {
         }
     };
 
-    const performDeleteSale = async (sale) => {
-        try {
-            for (const item of sale.items || []) {
-                const productId = item.productId;
-                if (!productId) continue;
-                const product = await productService.getById(productId);
-                if (!product) continue;
-                const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
-                if (sale.priceType === 'cold') {
-                    const newColdStock = (product.coldStock || 0) + deduction;
-                    await productService.update(product.id, { coldStock: newColdStock });
-                } else {
-                    const newStock = (product.stock || 0) + deduction;
-                    await productService.update(product.id, { stock: newStock });
-                }
-            }
-            try {
-                if (sale.cashRegisterId) {
-                    await cashRegisterService.addMovement({
-                        cashRegisterId: sale.cashRegisterId,
-                        type: 'refund',
-                        amount: Number(sale.total || 0),
-                        description: `Estorno da venda #${sale.saleNumber} (exclusão)`,
-                        createdBy: 'Sistema'
-                    });
-                }
-            } catch (e) {
-                console.error('Error registering refund movement:', e);
-            }
-            await salesService.delete(sale.id);
-            showNotification('success', `Venda #${sale.saleNumber} apagada, estoque restaurado e pagamento estornado`);
-            await loadSales();
-        } catch (error) {
-            console.error('Error deleting sale:', error);
-            showNotification('error', 'Erro ao apagar venda');
-        }
-    };
-
-    const performCancelAndDeleteSale = async (sale) => {
-        try {
-            const alreadyCancelled = sale.status === 'cancelled';
-            if (!alreadyCancelled) {
-                for (const item of sale.items || []) {
-                    const productId = item.productId;
-                    if (!productId) continue;
-                    const product = await productService.getById(productId);
-                    if (!product) continue;
-                    const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
-                    if (sale.priceType === 'cold') {
-                        const newColdStock = (product.coldStock || 0) + deduction;
-                        await productService.update(product.id, { coldStock: newColdStock });
-                    } else {
-                        const newStock = (product.stock || 0) + deduction;
-                        await productService.update(product.id, { stock: newStock });
-                    }
-                }
-                try {
-                    if (sale.cashRegisterId) {
-                        await cashRegisterService.addMovement({
-                            cashRegisterId: sale.cashRegisterId,
-                            type: 'refund',
-                            amount: Number(sale.total || 0),
-                            description: `Estorno da venda #${sale.saleNumber} (cancelar e excluir)`,
-                            createdBy: 'Sistema'
-                        });
-                    }
-                } catch (e) {
-                    console.error('Error registering refund movement:', e);
-                }
-                await salesService.update(sale.id, { status: 'cancelled' });
-            }
-            await salesService.delete(sale.id);
-            showNotification('success', `Venda #${sale.saleNumber} cancelada, estoque restaurado, estorno registrado e excluída`);
-            await loadSales();
-        } catch (error) {
-            console.error('Error cancelling and deleting sale:', error);
-            showNotification('error', 'Erro ao cancelar e excluir venda');
-        }
-    };
-
-    const handleCancelDeleteSale = (sale) => {
-        setMenuOpenId(null);
-        openConfirm('cancel_delete', sale);
-    };
-
     const restoreStockForItem = async (sale, item) => {
         try {
             const product = await productService.getById(item.productId);
             if (!product) return;
-            const deduction = item.stockDeduction || (item.unit && item.unit.multiplier ? item.quantity * item.unit.multiplier : item.quantity);
-            if (sale.priceType === 'cold') {
-                const newColdStock = (product.coldStock || 0) + deduction;
+            const deduction = Number(item.stockDeduction || (item.unit && item.unit.multiplier ? (Number(item.quantity) || 0) * item.unit.multiplier : Number(item.quantity) || 0));
+            if (item.isCold) {
+                const newColdStock = Number(product.coldStock || 0) + deduction;
                 await productService.update(product.id, { coldStock: newColdStock });
             } else {
-                const newStock = (product.stock || 0) + deduction;
+                const newStock = Number(product.stock || 0) + deduction;
                 await productService.update(product.id, { stock: newStock });
             }
         } catch (e) {
@@ -240,24 +168,10 @@ const SalesHistoryPage = () => {
         const newSubtotal = newItems.reduce((sum, it) => sum + (it.quantity * it.unitPrice), 0);
         const newItemsDiscount = newItems.reduce((sum, it) => sum + (it.discount || 0), 0);
         const newTotal = Math.max(0, newSubtotal - newItemsDiscount - (selectedSale.discount || 0));
-        const refundAmount = Math.max(0, Number(selectedSale.total || 0) - Number(newTotal || 0));
 
         await salesService.update(selectedSale.id, { items: newItems, subtotal: newSubtotal, total: newTotal, status: 'modified' });
         setSelectedSale({ ...selectedSale, items: newItems, subtotal: newSubtotal, total: newTotal, status: 'modified' });
-        try {
-            if (selectedSale.cashRegisterId && refundAmount > 0) {
-                await cashRegisterService.addMovement({
-                    cashRegisterId: selectedSale.cashRegisterId,
-                    type: 'refund',
-                    amount: refundAmount,
-                    description: `Estorno item venda #${selectedSale.saleNumber}`,
-                    createdBy: 'Sistema'
-                });
-            }
-        } catch (e) {
-            console.error('Error registering item refund movement:', e);
-        }
-        showNotification('success', 'Item cancelado, estoque restaurado e pagamento estornado');
+        showNotification('success', 'Item cancelado e estoque restaurado');
         await loadSales();
     };
 
@@ -298,7 +212,7 @@ const SalesHistoryPage = () => {
                 productName: product.name,
                 quantity,
                 unitPrice,
-                unitCost: (selectedSale.priceType === 'cold') ? (product.coldCost || product.cost || 0) : (product.cost || 0),
+                unitCost: product.cost || 0,
                 discount: 0,
                 total: quantity * unitPrice
             };
@@ -393,10 +307,50 @@ const SalesHistoryPage = () => {
         }
     };
 
-    const filteredSales = sales.filter(sale =>
-        sale.saleNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const parseNumber = (txt) => {
+        const s = String(txt).replace(/\s/g, '').replace(/\./g, '').replace(/,/g, '.');
+        const n = Number(s);
+        return Number.isFinite(n) ? n : null;
+    };
+    const term = searchTerm.trim();
+    const rangeMatch = term.match(/^([\d.,]+)\s*-\s*([\d.,]+)$/);
+    const opMatch = term.match(/^(>=|<=|>|<|=)?\s*([\d.,]+)$/);
+
+    const filteredSales = (sales || [])
+        .filter((sale) => {
+            const textMatch =
+                sale.saleNumber?.toLowerCase().includes(term.toLowerCase()) ||
+                sale.customerName?.toLowerCase().includes(term.toLowerCase());
+            if (textMatch || !term) return textMatch;
+            const total = Number(sale.total || 0);
+            if (rangeMatch) {
+                const a = parseNumber(rangeMatch[1]);
+                const b = parseNumber(rangeMatch[2]);
+                if (a == null || b == null) return false;
+                const min = Math.min(a, b), max = Math.max(a, b);
+                return total >= min && total <= max;
+            }
+            if (opMatch) {
+                const op = opMatch[1] || '=';
+                const val = parseNumber(opMatch[2]);
+                if (val == null) return false;
+                if (op === '>') return total > val;
+                if (op === '>=') return total >= val;
+                if (op === '<') return total < val;
+                if (op === '<=') return total <= val;
+                return Math.abs(total - val) < 0.005;
+            }
+            const numeric = parseNumber(term);
+            if (numeric != null) {
+                return Math.abs(total - numeric) < 0.005;
+            }
+            return false;
+        })
+        .sort((a, b) => {
+            const av = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
+            const bv = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : new Date(b.createdAt || 0).getTime();
+            return bv - av;
+        });
 
     if (loading) return <Loading fullScreen />;
 
@@ -438,13 +392,12 @@ const SalesHistoryPage = () => {
                 }}>
                     <div style={{ width: '100%', maxWidth: '400px' }}>
                         <Input
-                            placeholder="Buscar por número ou cliente..."
+                            placeholder="Buscar por número, cliente ou valor (ex: 50, >=100, 50-100)"
                             icon={Search}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -490,13 +443,13 @@ const SalesHistoryPage = () => {
                                             <span style={{
                                                 padding: '4px 8px',
                                                 borderRadius: 'var(--radius-sm)',
-                                                background: sale.priceType === 'wholesale' ? 'var(--color-info-bg)' : 'var(--color-bg-secondary)',
-                                                color: sale.priceType === 'wholesale' ? 'var(--color-info)' : 'var(--color-text-secondary)',
+                                                background: 'var(--color-bg-secondary)',
+                                                color: 'var(--color-text-secondary)',
                                                 fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 500,
-                                                border: sale.priceType === 'wholesale' ? '1px solid var(--color-info-border)' : '1px solid var(--color-border)'
+                                                border: '1px solid var(--color-border)'
                                             }}>
-                                                {sale.priceType === 'wholesale' ? 'Atacado' : 'Varejo'}
+                                                {getSaleTypeLabel(sale)}
                                             </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
@@ -511,7 +464,7 @@ const SalesHistoryPage = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', position: 'relative' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
                                                 <button
                                                     onClick={() => handleViewSale(sale)}
                                                     style={{
@@ -541,53 +494,19 @@ const SalesHistoryPage = () => {
                                                     <Printer size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === sale.id ? null : sale.id); }}
+                                                    onClick={() => handleCancelSale(sale)}
                                                     style={{
                                                         padding: '6px',
                                                         background: 'transparent',
                                                         border: 'none',
-                                                        color: 'var(--color-text-secondary)',
+                                                        color: 'var(--color-danger)',
                                                         cursor: 'pointer',
                                                         borderRadius: 'var(--radius-md)'
                                                     }}
-                                                    title="Mais ações"
+                                                    title="Cancelar Venda"
                                                 >
-                                                    <MoreVertical size={18} />
+                                                    <XCircle size={18} />
                                                 </button>
-                                                {menuOpenId === sale.id && (
-                                                    <div
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            right: 0,
-                                                            top: '36px',
-                                                            background: 'var(--color-bg-secondary)',
-                                                            border: '1px solid var(--color-border)',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            boxShadow: 'var(--shadow-lg)',
-                                                            minWidth: '180px',
-                                                            zIndex: 10
-                                                        }}
-                                                    >
-                                                        <button
-                                                            onClick={() => { setMenuOpenId(null); handleCancelDeleteSale(sale); }}
-                                                            style={{
-                                                                width: '100%',
-                                                                padding: '10px 12px',
-                                                                background: 'transparent',
-                                                                border: 'none',
-                                                                cursor: 'pointer',
-                                                                color: 'var(--color-danger)',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '8px'
-                                                            }}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                            <span>Cancelar e Excluir</span>
-                                                        </button>
-                                                    </div>
-                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -598,38 +517,6 @@ const SalesHistoryPage = () => {
                 </div>
             </Card>
 
-            <Modal
-                isOpen={confirmOpen}
-                onClose={() => setConfirmOpen(false)}
-                title={'Cancelar e Excluir venda'}
-                footer={
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', width: '100%' }}>
-                        <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Voltar</Button>
-                        <Button
-                            variant="danger"
-                            onClick={async () => {
-                                if (!confirmSale) return;
-                                setConfirmOpen(false);
-                                await performCancelAndDeleteSale(confirmSale);
-                            }}
-                        >
-                            Confirmar
-                        </Button>
-                    </div>
-                }
-            >
-                <div style={{ paddingTop: 'var(--spacing-sm)' }}>
-                    <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
-                        {confirmAction === 'delete'
-                            ? `Apagar a venda #${confirmSale?.saleNumber} irá removê-la definitivamente.`
-                            : `Cancelar a venda #${confirmSale?.saleNumber} restaurará o estoque dos itens.`}
-                    </p>
-                    <p style={{ marginTop: 'var(--spacing-sm)', fontWeight: 600 }}>
-                        {confirmAction === 'delete' ? 'Esta ação não pode ser desfeita.' : 'Esta ação não pode ser desfeita.'}
-                    </p>
-                </div>
-            </Modal>
-
             {/* Sale Details Modal */}
             <Modal
                 isOpen={detailsModalOpen}
@@ -637,18 +524,9 @@ const SalesHistoryPage = () => {
                 title={`Detalhes da Venda #${selectedSale?.saleNumber || ''}`}
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                            <Button
-                                variant="danger"
-                                onClick={() => selectedSale && openConfirm('cancel_delete', selectedSale)}
-                                disabled={!selectedSale}
-                            >
-                                Cancelar e Excluir
-                            </Button>
-                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/pdv'); }}>
-                                Editar no PDV
-                            </Button>
-                        </div>
+                        <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
+                            Editar no PDV
+                        </Button>
                         <Button variant="secondary" onClick={() => setDetailsModalOpen(false)}>
                             Fechar
                         </Button>
@@ -657,22 +535,6 @@ const SalesHistoryPage = () => {
             >
                 {selectedSale && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div />
-                            {selectedSale.status === 'cancelled' && (
-                                <span style={{
-                                    padding: '4px 8px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    background: 'rgba(239, 68, 68, 0.15)',
-                                    color: 'var(--color-danger)',
-                                    fontSize: 'var(--font-size-xs)',
-                                    fontWeight: 600,
-                                    border: '1px solid rgba(239, 68, 68, 0.25)'
-                                }}>
-                                    Venda Cancelada
-                                </span>
-                            )}
-                        </div>
                         {/* Header Info */}
                         <div style={{
                             display: 'grid',
@@ -693,6 +555,10 @@ const SalesHistoryPage = () => {
                             <div>
                                 <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Vendedor</div>
                                 <div style={{ fontWeight: 500 }}>{selectedSale.createdBy || 'Sistema'}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Tipo</div>
+                                <div style={{ fontWeight: 500 }}>{getSaleTypeLabel(selectedSale)}</div>
                             </div>
                         </div>
 

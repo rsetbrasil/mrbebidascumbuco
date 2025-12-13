@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload, FileText, MoreVertical } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -7,7 +7,7 @@ import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
 import ImportProductsModal from './ImportProductsModal';
-import { productService, categoryService, firestoreService, COLLECTIONS } from '../../../services/firestore';
+import { productService, categoryService } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
 
 const ProductsPage = () => {
@@ -15,51 +15,54 @@ const ProductsPage = () => {
     const [categories, setCategories] = useState({});
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [rawSearch, setRawSearch] = useState('');
-    const [page, setPage] = useState(1);
-    const pageSize = 50;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [notification, setNotification] = useState(null);
-    const [openMenuId, setOpenMenuId] = useState(null);
 
     useEffect(() => {
-        let unsubProducts = null;
-        let unsubCategories = null;
+        try {
+            const cachedProducts = JSON.parse(localStorage.getItem('pdv_products_cache') || 'null');
+            if (Array.isArray(cachedProducts) && cachedProducts.length > 0) {
+                setProducts(cachedProducts);
+                setLoading(false);
+            }
+            const cachedCategories = JSON.parse(localStorage.getItem('pdv_categories_cache') || 'null');
+            if (cachedCategories && typeof cachedCategories === 'object') {
+                setCategories(cachedCategories);
+            }
+        } catch {}
+        loadData();
+    }, []);
+
+    const [limit, setLimit] = useState(200);
+    const [loadedAll, setLoadedAll] = useState(true);
+
+    const loadData = async () => {
         setLoading(true);
         try {
-            unsubProducts = firestoreService.subscribe(
-                COLLECTIONS.PRODUCTS,
-                (list) => {
-                    setProducts(list);
-                    setLoading(false);
-                },
-                [],
-                'name',
-                'asc'
-            );
-            unsubCategories = firestoreService.subscribe(
-                COLLECTIONS.CATEGORIES,
-                (cats) => {
-                    const map = {};
-                    (cats || []).forEach(c => { map[c.id] = c.name; });
-                    setCategories(map);
-                },
-                [],
-                'name',
-                'asc'
-            );
+            const [productsData, categoriesData] = await Promise.all([
+                loadedAll ? productService.getAll() : productService.getAllLimited(limit),
+                categoryService.getAll()
+            ]);
+
+            setProducts(productsData);
+            try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch {}
+
+            // Create categories map for easy lookup
+            const catMap = {};
+            categoriesData.forEach(cat => {
+                catMap[cat.id] = cat.name;
+            });
+            setCategories(catMap);
+            try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch {}
         } catch (error) {
-            console.error('Error subscribing products/categories:', error);
-            showNotification('error', 'Erro ao assinar produtos e categorias');
+            console.error('Error loading data:', error);
+            showNotification('error', 'Erro ao carregar dados');
+        } finally {
             setLoading(false);
         }
-        return () => {
-            try { unsubProducts && unsubProducts(); } catch {}
-            try { unsubCategories && unsubCategories(); } catch {}
-        };
-    }, []);
+    };
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
@@ -67,13 +70,20 @@ const ProductsPage = () => {
     };
 
     const handleSearch = async (term) => {
-        setRawSearch(term);
+        setSearchTerm(term);
     };
 
-    useEffect(() => {
-        const h = setTimeout(() => setSearchTerm(rawSearch), 200);
-        return () => clearTimeout(h);
-    }, [rawSearch]);
+    const handleLoadMore = async () => {
+        setLoadedAll(true);
+        await loadData();
+    };
+
+    const handleIncreaseLimit = async () => {
+        const next = limit + 200;
+        setLimit(next);
+        setLoadedAll(false);
+        await loadData();
+    };
 
     const handleSave = async (productData) => {
         try {
@@ -84,8 +94,7 @@ const ProductsPage = () => {
                 await productService.create(productData);
                 showNotification('success', 'Produto criado com sucesso');
             }
-            // Atualiza automaticamente via assinatura
-            
+            loadData();
         } catch (error) {
             console.error('Error saving product:', error);
             showNotification('error', 'Erro ao salvar produto');
@@ -99,7 +108,7 @@ const ProductsPage = () => {
         try {
             await productService.delete(id);
             showNotification('success', 'Produto excluído com sucesso');
-            // Atualiza automaticamente via assinatura
+            loadData();
         } catch (error) {
             console.error('Error deleting product:', error);
             showNotification('error', 'Erro ao excluir produto');
@@ -113,82 +122,17 @@ const ProductsPage = () => {
                 showNotification('warning', `${errorCount} produtos falharam na importação.`);
             }, 3000);
         }
-        // Atualiza automaticamente via assinatura
+        loadData();
     };
 
-    const filteredProducts = React.useMemo(() => {
-        const term = (searchTerm || '').toLowerCase();
-        const list = products.filter(p =>
-            (p.name || '').toLowerCase().includes(term) ||
-            (p.barcode && String(p.barcode).includes(searchTerm))
-        );
-        return list; // já ordenado pela assinatura por 'name'
-    }, [products, searchTerm]);
-
-    useEffect(() => {
-        setPage(1);
-    }, [searchTerm, products]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-    const pageStart = (page - 1) * pageSize;
-    const pageEnd = Math.min(page * pageSize, filteredProducts.length);
-    const pagedProducts = React.useMemo(() => {
-        return filteredProducts.slice(pageStart, pageEnd);
-    }, [filteredProducts, pageStart, pageEnd]);
+    const filteredProducts = products
+        .filter(p =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.barcode && p.barcode.includes(searchTerm))
+        )
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
 
     if (loading && !products.length) return <Loading fullScreen />;
-
-    const exportProductsCSV = () => {
-        if (!products || products.length === 0) {
-            showNotification('warning', 'Nenhum produto para exportar');
-            return;
-        }
-
-        const header = [
-            'nome',
-            'codigo',
-            'preco',
-            'custo',
-            'custo_mercearia',
-            'estoque',
-            'categoria',
-            'preco_mercearia',
-            'preco_atacado',
-            'estoque_mercearia',
-            'unidade'
-        ].join(';');
-
-        const fmt = (n) => {
-            const num = Number(n || 0);
-            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-        };
-
-        const rows = products.map(p => [
-            (p.name || '').replace(/;/g, ','),
-            (p.barcode || ''),
-            fmt(p.price),
-            fmt(p.cost),
-            fmt(p.coldCost ?? p.cost),
-            String(p.stock ?? 0),
-            (categories[p.categoryId] || 'Geral').replace(/;/g, ','),
-            fmt(p.coldPrice ?? p.price),
-            fmt(p.wholesalePrice ?? p.price),
-            String(p.coldStock ?? 0),
-            (p.retailUnit || p.unitOfMeasure || 'UN').toString().replace(/;/g, ',')
-        ].join(';'));
-
-        const csv = ['\uFEFF' + header, ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'produtos.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showNotification('success', 'Lista de produtos exportada');
-    };
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
@@ -225,7 +169,7 @@ const ProductsPage = () => {
 
                             setLoading(true);
                             try {
-                                // Ordena por nome (asc) e gera códigos sequenciais 1..N (atacado)
+                                // Ordena por nome (asc) e gera códigos sequenciais 1..N (sem zeros à esquerda)
                                 const sorted = [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
                                 let updatedCount = 0;
 
@@ -251,17 +195,52 @@ const ProductsPage = () => {
                     </Button>
                     <Button
                         variant="secondary"
+                        onClick={async () => {
+                            if (!window.confirm('Deseja remover produtos duplicados e somar estoques automaticamente?')) return;
+                            setLoading(true);
+                            try {
+                                const { mergedGroups, removed } = await productService.deduplicateAndMerge();
+                                showNotification('success', `Mesclados ${mergedGroups} grupos, removidos ${removed} duplicados`);
+                                await loadData();
+                            } catch (error) {
+                                console.error('Erro ao remover duplicados:', error);
+                                showNotification('error', 'Falha ao remover duplicados');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        icon={<AlertCircle size={20} />}
+                    >
+                        Remover Duplicados
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={async () => {
+                            if (!window.confirm('ATENÇÃO: Isso vai APAGAR TODOS os produtos. Deseja continuar?')) return;
+                            if (!window.confirm('Confirme novamente: apagar todos os produtos?')) return;
+                            setLoading(true);
+                            try {
+                                await productService.deleteAll();
+                                setProducts([]);
+                                try { localStorage.removeItem('pdv_products_cache'); } catch {}
+                                showNotification('success', 'Todos os produtos foram apagados');
+                            } catch (error) {
+                                console.error('Erro ao apagar todos os produtos:', error);
+                                showNotification('error', 'Falha ao apagar todos os produtos');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        icon={<Trash2 size={20} />}
+                    >
+                        Apagar Todos os Produtos
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={() => setIsImportModalOpen(true)}
                         icon={<Upload size={20} />}
                     >
                         Importar CSV
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={exportProductsCSV}
-                        icon={<FileText size={20} />}
-                    >
-                        Exportar CSV
                     </Button>
                     <Button
                         onClick={() => {
@@ -281,9 +260,24 @@ const ProductsPage = () => {
                         <Input
                             placeholder="Buscar por nome ou código de barras..."
                             icon={Search}
-                            value={rawSearch}
-                            onChange={(e) => handleSearch(e.target.value)}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                    </div>
+                    <div style={{ marginTop: 'var(--spacing-sm)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {!loadedAll && (
+                            <>
+                                <Button variant="secondary" onClick={handleIncreaseLimit}>
+                                    Carregar +{200}
+                                </Button>
+                                <Button variant="secondary" onClick={handleLoadMore}>
+                                    Carregar tudo
+                                </Button>
+                            </>
+                        )}
+                        <Button variant="ghost" onClick={loadData}>
+                            Atualizar
+                        </Button>
                     </div>
                 </div>
 
@@ -304,7 +298,7 @@ const ProductsPage = () => {
                         <tbody>
                             {filteredProducts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                    <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                                             <Package size={48} style={{ opacity: 0.2 }} />
                                             <p>Nenhum produto encontrado</p>
@@ -312,7 +306,7 @@ const ProductsPage = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                pagedProducts.map((product) => (
+                                filteredProducts.map((product) => (
                                     <tr key={product.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{product.name}</div>
@@ -324,8 +318,8 @@ const ProductsPage = () => {
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-success)' }}>
                                             {formatCurrency(product.wholesalePrice || product.price)}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: '#3b82f6' }}>
-                                            {formatCurrency(product.coldPrice || product.price)}
+                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-info)' }}>
+                                            {formatCurrency(product.coldPrice || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <span style={{
@@ -345,8 +339,8 @@ const ProductsPage = () => {
                                                 borderRadius: 'var(--radius-sm)',
                                                 fontSize: 'var(--font-size-xs)',
                                                 fontWeight: 500,
-                                                background: (product.coldStock || 0) <= 5 ? 'rgba(59, 130, 246, 0.12)' : 'var(--color-bg-secondary)',
-                                                color: (product.coldStock || 0) <= 5 ? '#3b82f6' : 'var(--color-text-secondary)'
+                                                background: 'var(--color-bg-secondary)',
+                                                color: 'var(--color-info)'
                                             }}>
                                                 {product.coldStock || 0} {product.coldUnit || product.unitOfMeasure || 'UN'}
                                             </span>
@@ -365,7 +359,7 @@ const ProductsPage = () => {
                                             </div>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)', position: 'relative' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
                                                 <button
                                                     onClick={() => {
                                                         setEditingProduct(product);
@@ -387,53 +381,22 @@ const ProductsPage = () => {
                                                     <Edit size={18} />
                                                 </button>
                                                 <button
-                                                    onClick={() => setOpenMenuId(openMenuId === product.id ? null : product.id)}
+                                                    onClick={() => handleDelete(product.id)}
                                                     style={{
                                                         padding: '8px',
                                                         background: 'transparent',
                                                         border: 'none',
-                                                        color: 'var(--color-text-secondary)',
+                                                        color: 'var(--color-danger)',
                                                         cursor: 'pointer',
                                                         borderRadius: 'var(--radius-md)',
                                                         transition: 'background var(--transition-fast)'
                                                     }}
                                                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
                                                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Mais"
+                                                    title="Excluir"
                                                 >
-                                                    <MoreVertical size={18} />
+                                                    <Trash2 size={18} />
                                                 </button>
-                                                {openMenuId === product.id && (
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        right: 0,
-                                                        top: '36px',
-                                                        background: 'var(--color-bg-secondary)',
-                                                        border: '1px solid var(--color-border)',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        boxShadow: 'var(--shadow-md)',
-                                                        minWidth: '160px',
-                                                        zIndex: 10
-                                                    }}>
-                                                        <button
-                                                            onClick={() => { setOpenMenuId(null); handleDelete(product.id); }}
-                                                            style={{
-                                                                width: '100%',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '8px',
-                                                                padding: '8px 12px',
-                                                                background: 'transparent',
-                                                                border: 'none',
-                                                                color: 'var(--color-danger)',
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            <Trash2 size={16} />
-                                                            Excluir
-                                                        </button>
-                                                    </div>
-                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -441,35 +404,6 @@ const ProductsPage = () => {
                             )}
                         </tbody>
                     </table>
-                    {filteredProducts.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: 'var(--spacing-md)',
-                            borderTop: '1px solid var(--color-border)'
-                        }}>
-                            <div style={{ color: 'var(--color-text-secondary)' }}>
-                                Mostrando {pageStart + 1}–{pageEnd} de {filteredProducts.length}
-                            </div>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page <= 1}
-                                >
-                                    Anterior
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page >= totalPages}
-                                >
-                                    Próxima
-                                </Button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </Card>
 

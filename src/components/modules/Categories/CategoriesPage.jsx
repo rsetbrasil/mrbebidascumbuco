@@ -40,10 +40,12 @@ const CategoriesPage = () => {
         setSearchTerm(e.target.value);
     };
 
-    const filteredCategories = categories.filter(cat =>
-        cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (cat.description && cat.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredCategories = categories
+        .filter(cat =>
+            cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (cat.description && cat.description.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
 
     const handleOpenModal = (category = null) => {
         if (category) {

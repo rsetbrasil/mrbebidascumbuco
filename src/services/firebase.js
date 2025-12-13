@@ -20,7 +20,10 @@ setLogLevel('silent');
 const isConfigured = firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== 'your_api_key_here';
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const forceDemo = import.meta.env.VITE_USE_DEMO === 'true';
+const localDemo = typeof window !== 'undefined' && (() => {
+    try { return localStorage.getItem('pdv_force_demo') === 'true'; } catch { return false; }
+})();
+const forceDemo = (import.meta.env.VITE_USE_DEMO === 'true') || localDemo;
 const enableAnonAuth = import.meta.env.VITE_ENABLE_ANON_AUTH === 'true';
 
 export const isDemoMode = forceDemo || !isConfigured;
@@ -35,20 +38,19 @@ if (isConfigured && !isDemoMode) {
     try {
         app = initializeApp(firebaseConfig);
         db = initializeFirestore(app, {
-            experimentalForceLongPolling: isLocalhost ? true : false,
-            experimentalAutoDetectLongPolling: !isLocalhost,
-            useFetchStreams: !isLocalhost,
             ignoreUndefinedProperties: true
         });
-        (async () => {
-            try {
-                await enableIndexedDbPersistence(db);
-            } catch (err) {
+        if (!isLocalhost) {
+            (async () => {
                 try {
-                    await enableMultiTabIndexedDbPersistence(db);
-                } catch {}
-            }
-        })();
+                    await enableIndexedDbPersistence(db);
+                } catch (err) {
+                    try {
+                        await enableMultiTabIndexedDbPersistence(db);
+                    } catch {}
+                }
+            })();
+        }
         auth = getAuth(app);
         try {
             const bucket = String(firebaseConfig.storageBucket || '').toLowerCase();
