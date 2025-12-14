@@ -95,34 +95,41 @@ const PresalesPage = () => {
         }
     };
 
-    const handleCancel = async (id) => {
+    const handleCancel = async (presale) => {
         if (!window.confirm('Tem certeza que deseja cancelar este pedido?')) return;
 
         try {
-            const presale = await presalesService.getById(id);
+            const id = presale.id;
             const getDeduction = (it) => {
                 if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * (Number(it.quantity) || 0);
                 if (it.unit && it.unit.multiplier) return (Number(it.quantity) || 0) * it.unit.multiplier;
                 return Number(it.quantity) || 0;
             };
-            for (const item of (presale.items || [])) {
-                try {
-                    const product = await productService.getById(item.productId);
-                    if (!product) continue;
-                    const deduction = getDeduction(item);
-                    if (item.isCold) {
+            const items = presale.items || [];
+            const aggregates = new Map();
+            for (const it of items) {
+                const key = `${it.productId}|${it.isCold ? 'cold' : 'wholesale'}`;
+                const curr = aggregates.get(key) || 0;
+                aggregates.set(key, curr + getDeduction(it));
+            }
+            const ops = [];
+            for (const [key, totalDeduction] of aggregates.entries()) {
+                const [productId, type] = key.split('|');
+                ops.push((async () => {
+                    const product = await productService.getById(productId);
+                    if (!product) return;
+                    if (type === 'cold') {
                         const currentReserved = Number(product.reservedColdStock || 0);
-                        const newReserved = Math.max(0, currentReserved - deduction);
+                        const newReserved = Math.max(0, currentReserved - totalDeduction);
                         await productService.update(product.id, { reservedColdStock: newReserved });
                     } else {
                         const currentReserved = Number(product.reservedStock || 0);
-                        const newReserved = Math.max(0, currentReserved - deduction);
+                        const newReserved = Math.max(0, currentReserved - totalDeduction);
                         await productService.update(product.id, { reservedStock: newReserved });
                     }
-                } catch (e) {
-                    console.error('Error releasing reservation for cancelled presale item:', e);
-                }
+                })());
             }
+            await Promise.all(ops);
 
             await presalesService.update(id, { status: 'cancelled', reserved: false, cancelledAt: new Date() });
             showNotification('success', 'Pedido cancelado com sucesso');
@@ -451,7 +458,7 @@ const PresalesPage = () => {
                                                         Imprimir
                                                     </Button>
                                                     <button
-                                                        onClick={() => handleCancel(presale.id)}
+                                                        onClick={() => handleCancel(presale)}
                                                         style={{
                                                             padding: '8px',
                                                             background: 'transparent',

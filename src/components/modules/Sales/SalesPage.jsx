@@ -75,6 +75,7 @@ const SalesPage = () => {
     const priceInputRef = useRef(null);
 
     const isManager = user?.role === 'admin' || user?.role === 'manager';
+    const canFinalize = isManager || user?.role === 'cashier';
     const totals = calculateTotals();
     const isEditingSale = !!editingSale;
 
@@ -374,7 +375,7 @@ const SalesPage = () => {
     const handleCheckout = () => {
 
 
-        if (!isManager) {
+        if (!canFinalize) {
             showNotification('Apenas gerente pode finalizar vendas', 'warning');
             return;
         }
@@ -517,7 +518,7 @@ const SalesPage = () => {
         try {
             setProcessing(true);
 
-            if (!isManager) {
+            if (!canFinalize) {
                 showNotification('Permissão negada: somente gerente pode finalizar', 'error');
                 setProcessing(false);
                 return;
@@ -609,8 +610,9 @@ const SalesPage = () => {
 
             Promise.resolve().then(async () => {
                 try {
-                    const ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
+                    let ids = [];
                     const localById = new Map();
+                    ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
                     for (const id of ids) {
                         const cached = products.find(p => p.id === id);
                         if (cached) localById.set(id, cached);
@@ -634,7 +636,7 @@ const SalesPage = () => {
                     }
                 } catch {}
 
-                const missingIds = ids.filter(id => !localById.has(id));
+                const missingIds = Array.from(new Set(items.map(it => it.id).filter(Boolean))).filter(id => !localById.has(id));
                 if (missingIds.length > 0) {
                     try {
                         const fetched = await Promise.all(missingIds.map(id => productService.getById(id).catch(() => null)));
@@ -953,7 +955,7 @@ const SalesPage = () => {
                                 size="lg"
                                 icon={<CreditCard size={20} />}
                                 onClick={handleCheckout}
-                                disabled={items.length === 0 || !isManager}
+                                disabled={items.length === 0 || !canFinalize}
                             >
                                 Finalizar Venda (F2)
                             </Button>
@@ -1273,7 +1275,7 @@ const SalesPage = () => {
                             variant="success"
                             onClick={handleFinalizeSale}
                             disabled={
-                                !isManager ||
+                                !canFinalize ||
                                 processing ||
                                 (isEditingSale
                                     ? (payments.reduce((sum, p) => sum + p.amount, 0) < Math.max(0, totals.total - (editingSale?.originalTotal || 0)))
