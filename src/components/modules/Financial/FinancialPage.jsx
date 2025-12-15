@@ -32,7 +32,10 @@ const FinancialPage = () => {
         totalSales: 0,
         totalOrders: 0,
         avgTicket: 0,
-        topPaymentMethod: '-'
+        topPaymentMethod: '-',
+        totalCMV: 0,
+        profit: 0,
+        margin: 0
     });
     const [chartData, setChartData] = useState({
         daily: [],
@@ -106,6 +109,16 @@ const FinancialPage = () => {
         }
     };
 
+    const normalizePayments = (sale) => {
+        if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+            return sale.payments.map(p => ({
+                method: p.method,
+                amount: Number(p.amount || 0)
+            }));
+        }
+        return [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+    };
+
     const processMetrics = (data, catMap) => {
         if (!data.length) {
             setMetrics({
@@ -113,38 +126,32 @@ const FinancialPage = () => {
                 totalOrders: 0,
                 avgTicket: 0,
                 topPaymentMethod: '-',
-                totalProfit: 0,
-                profitMargin: 0
+                totalCMV: 0,
+                profit: 0,
+                margin: 0
             });
             setChartData({ daily: [], byCategory: [], byPayment: [] });
             return;
         }
 
-        // Basic Metrics
-        const totalSales = data.reduce((acc, curr) => acc + curr.total, 0);
+        const totalSales = data.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
+        const totalCMV = data.reduce((acc, curr) => acc + Number(curr.cmvTotal || 0), 0);
         const totalOrders = data.length;
         const avgTicket = totalSales / totalOrders;
+        const profit = totalSales - totalCMV;
+        const margin = totalSales > 0 ? (profit / totalSales) : 0;
 
-        // Calculate Profit
-        let totalCost = 0;
-        data.forEach(sale => {
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    const cost = item.unitCost || 0;
-                    totalCost += cost * item.quantity;
-                });
-            }
-        });
-        const totalProfit = totalSales - totalCost;
-        const profitMargin = totalSales > 0 ? (totalProfit / totalSales) * 100 : 0;
-
-        // Payment Methods
         const paymentCounts = {};
+        const paymentTotals = {};
         data.forEach(sale => {
-            const method = sale.paymentMethod;
-            paymentCounts[method] = (paymentCounts[method] || 0) + 1;
+            const list = normalizePayments(sale);
+            list.forEach(p => {
+                const method = String(p.method || 'Dinheiro');
+                paymentCounts[method] = (paymentCounts[method] || 0) + 1;
+                paymentTotals[method] = (paymentTotals[method] || 0) + Number(p.amount || 0);
+            });
         });
-        const topPaymentMethod = Object.entries(paymentCounts)
+        const topPaymentMethod = Object.entries(paymentTotals)
             .sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
 
         setMetrics({
@@ -152,8 +159,9 @@ const FinancialPage = () => {
             totalOrders,
             avgTicket,
             topPaymentMethod,
-            totalProfit,
-            profitMargin
+            totalCMV,
+            profit,
+            margin
         });
 
         // Chart Data: Daily Sales (Last 7 days or selected range)
@@ -178,7 +186,7 @@ const FinancialPage = () => {
         data.forEach(sale => {
             const date = new Date(sale.createdAt.toDate ? sale.createdAt.toDate() : sale.createdAt);
             const dateStr = date.toLocaleDateString('pt-BR').slice(0, 5);
-            dailyMap[dateStr] = (dailyMap[dateStr] || 0) + sale.total;
+            dailyMap[dateStr] = (dailyMap[dateStr] || 0) + Number(sale.total || 0);
         });
 
         const dailyData = Object.entries(dailyMap)
@@ -195,7 +203,7 @@ const FinancialPage = () => {
         data.forEach(sale => {
             sale.items.forEach(item => {
                 const catName = catMap[item.categoryId] || 'Outros';
-                catSales[catName] = (catSales[catName] || 0) + (item.unitPrice * item.quantity);
+                catSales[catName] = (catSales[catName] || 0) + (Number(item.unitPrice || 0) * Number(item.quantity || 0));
             });
         });
 
@@ -204,14 +212,7 @@ const FinancialPage = () => {
             .sort((a, b) => b.value - a.value)
             .slice(0, 5);
 
-        // Chart Data: By Payment Method
-        const paymentSales = {};
-        data.forEach(sale => {
-            const method = sale.paymentMethod;
-            paymentSales[method] = (paymentSales[method] || 0) + sale.total;
-        });
-
-        const byPaymentData = Object.entries(paymentSales).map(([name, value]) => ({
+        const byPaymentData = Object.entries(paymentTotals).map(([name, value]) => ({
             name,
             value
         }));
@@ -285,51 +286,7 @@ const FinancialPage = () => {
                     </div>
                 </Card>
 
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp style={{ color: 'var(--color-success)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Lucro Bruto
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.totalProfit)}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp style={{ color: '#3b82f6' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Margem
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {(metrics.profitMargin || 0).toFixed(1)}%
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
+                
 
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
@@ -395,6 +352,75 @@ const FinancialPage = () => {
                             </p>
                             <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-lg)', textTransform: 'capitalize' }}>
                                 {metrics.topPaymentMethod}
+                            </h3>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <DollarSign style={{ color: 'var(--color-danger)' }} size={24} />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+                                CMV
+                            </p>
+                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
+                                {formatCurrency(metrics.totalCMV)}
+                            </h3>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <TrendingUp style={{ color: 'var(--color-success)' }} size={24} />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+                                Lucro
+                            </p>
+                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
+                                {formatCurrency(metrics.profit)}
+                            </h3>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <TrendingUp style={{ color: 'var(--color-primary)' }} size={24} />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+                                Margem
+                            </p>
+                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
+                                {(metrics.margin * 100).toFixed(1)}%
                             </h3>
                         </div>
                     </div>

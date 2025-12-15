@@ -18,23 +18,28 @@ export const CartProvider = ({ children }) => {
     const [presaleId, setPresaleId] = useState(null);
     const [editingSale, setEditingSale] = useState(null); // { id, originalTotal, originalItems, priceType }
     const [priceType, setPriceType] = useState('wholesale'); // 'retail', 'wholesale', or 'cold'
+    const [cartVersion, setCartVersion] = useState(0);
 
     // Helper to recalculate prices
     const recalculatePrices = useCallback((type, currentItems) => {
         const isWholesale = type === 'wholesale';
         const isCold = type === 'cold';
         return currentItems.map(item => {
-            // If item is a specific unit (Pack/Kit), price doesn't change with global price type
-            if (item.unit) return item;
-
             let newPrice = item.retailPrice || item.unitPrice;
             if (isWholesale) newPrice = item.wholesalePrice || item.unitPrice;
             if (isCold) newPrice = item.coldPrice || item.retailPrice || item.unitPrice;
-
+            const baseCost = isCold
+                ? ((item.coldCost !== undefined ? item.coldCost : item.unitCost) || 0)
+                : ((item.wholesaleCost !== undefined ? item.wholesaleCost : item.unitCost) || 0);
+            const multiplier = item.unit?.multiplier ? item.unit.multiplier : 1;
+            const newCost = baseCost * multiplier;
             return {
                 ...item,
-                unitPrice: newPrice,
-                total: (item.quantity * newPrice) - (item.discount || 0)
+                unitPrice: item.unit ? item.unitPrice : newPrice,
+                unitCost: newCost,
+                isCold,
+                isWholesale,
+                total: (item.quantity * (item.unit ? item.unitPrice : newPrice)) - (item.discount || 0)
             };
         });
     }, []);
@@ -45,6 +50,7 @@ export const CartProvider = ({ children }) => {
             // Check if item already exists (same product, same unit choice, same cold flag)
             const type = options.itemPriceType ? options.itemPriceType : priceType;
             const isCold = type === 'cold';
+            const isWholesale = type === 'wholesale';
 
             const existingIndex = prevItems.findIndex(item =>
                 item.id === product.id &&
@@ -53,18 +59,16 @@ export const CartProvider = ({ children }) => {
             );
 
             // Determine price based on current price type
-            const isWholesale = type === 'wholesale';
 
             let priceToUse = product.wholesalePrice || product.price;
-            let costToUse = product.cost || 0;
+            const baseCost = isCold ? (product.coldCost || product.cost || 0) : (product.cost || 0);
+            let costToUse = baseCost;
             let stockDeduction = 1;
 
             if (unit) {
                 // If selling a specific unit (Pack/Kit)
                 priceToUse = unit.price;
-                // Cost should ideally be calculated based on multiplier, but for now we might need to approximate or add cost to unit
-                // Assuming unit cost is proportional to base cost for now
-                costToUse = (product.cost || 0) * unit.multiplier;
+                costToUse = baseCost * unit.multiplier;
                 stockDeduction = unit.multiplier;
             } else {
                 // Standard unit logic
@@ -86,6 +90,9 @@ export const CartProvider = ({ children }) => {
                     quantity: item.quantity + quantity,
                     // If it's a unit, price is fixed. If base product, it follows priceType
                     unitPrice: unit ? (options.customPrice !== undefined ? Number(options.customPrice) : unit.price) : priceToUse,
+                    unitCost: unit ? costToUse : baseCost,
+                    isCold,
+                    isWholesale,
                     stockDeduction: (item.quantity + quantity) * stockDeduction
                 };
 
@@ -108,11 +115,14 @@ export const CartProvider = ({ children }) => {
                 coldPrice: product.coldPrice || product.price, // Always store cold price
                 unitPrice: priceToUse,  // The price being charged
                 unitCost: costToUse,
+                wholesaleCost: product.cost || 0,
+                coldCost: product.coldCost || product.cost || 0,
                 stock: product.stock, // Store stock limit
                 coldStock: product.coldStock || 0, // Store cold stock limit
                 stockDeductionPerUnit: stockDeduction, // How much to deduct from stock per 1 quantity
                 unit: unit, // Store the unit details if any
                 isCold: isCold, // Track if this is a cold item
+                isWholesale,
                 discount: 0,
                 total: (quantity * priceToUse)
             }];
@@ -151,11 +161,6 @@ export const CartProvider = ({ children }) => {
         setItems(prevItems => {
             return prevItems.map(item => {
                 if (item.id === productId) {
-                    // Check stock limit
-                    if (item.stock !== undefined && quantity > item.stock) {
-                        return item; // Do not update if exceeds stock
-                    }
-
                     const itemDiscount = item.discount || 0;
                     const subtotal = quantity * item.unitPrice;
                     return {
@@ -225,7 +230,9 @@ export const CartProvider = ({ children }) => {
         setDiscount(0);
         setNotes('');
         setPresaleId(null);
+        setEditingSale(null);
         setPriceType('wholesale');
+        setCartVersion(v => v + 1);
     }, []);
 
     // Get cart data for sale
@@ -245,6 +252,8 @@ export const CartProvider = ({ children }) => {
                 wholesalePrice: item.wholesalePrice,
                 coldPrice: item.coldPrice,
                 unit: item.unit, // Include unit info
+                isCold: !!item.isCold,
+                isWholesale: !!item.isWholesale,
                 stockDeduction: item.stockDeductionPerUnit * item.quantity // Include total stock deduction
             })),
             customerId: customer?.id || null,
@@ -302,7 +311,8 @@ export const CartProvider = ({ children }) => {
             coldStock: undefined,
             stockDeductionPerUnit: item.unit?.multiplier ? item.unit.multiplier : 1,
             unit: item.unit || null,
-            isCold: sale.priceType === 'cold',
+            isCold: (item.isCold !== undefined) ? !!item.isCold : (sale.priceType === 'cold'),
+            isWholesale: (item.isWholesale !== undefined) ? !!item.isWholesale : (sale.priceType === 'wholesale'),
             discount: Number(item.discount) || 0,
             total: Number(item.total) || (Number(item.quantity) * Number(item.unitPrice))
         })));
@@ -344,6 +354,8 @@ export const CartProvider = ({ children }) => {
         loadSale,
         itemCount: items.length,
         totalItems: items.reduce((sum, item) => sum + item.quantity, 0)
+        ,
+        cartVersion
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

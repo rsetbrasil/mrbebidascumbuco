@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Printer, Building, AlertTriangle, Trash2, Settings } from 'lucide-react';
+import { Save, Printer, Building, AlertTriangle, Trash2, Settings, Upload, Download } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
-import { settingsService, productService } from '../../../services/firestore';
+import { settingsService, productService, categoryService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
 import UsersManagement from './UsersManagement';
 import UnitsManagement from './UnitsManagement';
+import ImportProductsModal from '../Products/ImportProductsModal';
 
 const SettingsPage = () => {
     const { isManager } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [settings, setSettings] = useState({
         receiptHeader: '',
         receiptFooter: '',
@@ -133,6 +136,27 @@ const SettingsPage = () => {
             showNotification('error', 'Erro ao excluir produtos.');
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleCancelAllPresales = async () => {
+        if (!window.confirm('ATENÇÃO: Isso cancelará TODOS os pedidos da pré-venda e liberará os estoques reservados. Tem certeza?')) {
+            return;
+        }
+        if (!window.confirm('Confirme novamente: Deseja realmente CANCELAR todas as pré-vendas pendentes?')) {
+            return;
+        }
+        setCancelling(true);
+        try {
+            const result = await presalesService.cancelAll();
+            const cancelled = Number(result?.cancelled || 0);
+            const releasedProducts = Number(result?.releasedProducts || 0);
+            showNotification('success', `Pré-vendas canceladas: ${cancelled}. Produtos atualizados: ${releasedProducts}.`);
+        } catch (error) {
+            console.error('Error cancelling presales:', error);
+            showNotification('error', 'Erro ao cancelar pré-vendas.');
+        } finally {
+            setCancelling(false);
         }
     };
 
@@ -267,6 +291,80 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
+                    <Card title="Produtos: Importação/Exportação" icon={Settings}>
+                        <div className="space-y-4 p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setIsImportModalOpen(true)}
+                                    icon={Upload}
+                                    className="w-full justify-center"
+                                >
+                                    Importar CSV de Produtos
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        try {
+                                            const [products, categories] = await Promise.all([
+                                                productService.getAll(),
+                                                categoryService.getAll()
+                                            ]);
+                                            const catMap = {};
+                                            categories.forEach(c => { catMap[c.id] = c.name; });
+                                            const headers = [
+                                                'nome','codigo','preco','custo','estoque','categoria',
+                                                'preco_mercearia','custo_mercearia','estoque_mercearia',
+                                                'unidade','unidade_mercearia'
+                                            ];
+                                            const escapeCSV = (v) => {
+                                                const s = String(v ?? '');
+                                                if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+                                                return s;
+                                            };
+                                            const rows = products.map(p => [
+                                                p.name || '',
+                                                p.barcode || '',
+                                                (p.wholesalePrice ?? p.price ?? 0),
+                                                (p.cost ?? 0),
+                                                (p.stock ?? 0),
+                                                catMap[p.categoryId] || '',
+                                                (p.coldPrice ?? 0),
+                                                (p.coldCost ?? 0),
+                                                (p.coldStock ?? 0),
+                                                p.wholesaleUnit || p.unitOfMeasure || '',
+                                                p.coldUnit || p.unitOfMeasure || ''
+                                            ]);
+                                            const csv = [headers.join(','), ...rows.map(r => r.map(escapeCSV).join(','))].join('\n');
+                                            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = `produtos-${new Date().toISOString().slice(0,10)}.csv`;
+                                            document.body.appendChild(a);
+                                            a.click();
+                                            window.URL.revokeObjectURL(url);
+                                            document.body.removeChild(a);
+                                            showNotification('success', 'Exportação concluída');
+                                        } catch (error) {
+                                            console.error('Export error:', error);
+                                            showNotification('error', 'Erro ao exportar produtos');
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    icon={Download}
+                                    className="w-full justify-center"
+                                >
+                                    Exportar Produtos (CSV)
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+
                     {/* Danger Zone */}
                     <Card title="Zona de Perigo" icon={AlertTriangle} className="border-red-900/50">
                         <div className="space-y-4 p-4">
@@ -285,6 +383,22 @@ const SettingsPage = () => {
                                     className="w-full justify-center"
                                 >
                                     Excluir Todos os Produtos
+                                </Button>
+                            </div>
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                <h3 className="text-red-400 font-medium mb-2">Cancelar Pré-vendas</h3>
+                                <p className="text-red-300/70 text-sm mb-4">
+                                    Cancela todas as pré-vendas pendentes e libera o estoque reservado (Atacado e Mercearia).
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="danger"
+                                    onClick={handleCancelAllPresales}
+                                    loading={cancelling}
+                                    icon={AlertTriangle}
+                                    className="w-full justify-center"
+                                >
+                                    Cancelar todos os pedidos da Pré-venda
                                 </Button>
                             </div>
                         </div>
@@ -405,6 +519,17 @@ const SettingsPage = () => {
                     </Button>
                 </div>
             </form>
+            <ImportProductsModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onImportSuccess={(successCount, errorCount) => {
+                    setIsImportModalOpen(false);
+                    showNotification('success', `${successCount} produtos importados`);
+                    if (errorCount > 0) {
+                        setTimeout(() => showNotification('warning', `${errorCount} itens falharam`), 2000);
+                    }
+                }}
+            />
         </div>
     );
 };

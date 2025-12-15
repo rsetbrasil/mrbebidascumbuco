@@ -28,7 +28,15 @@ export const COLLECTIONS = {
     SETTINGS: 'settings',
     USERS: 'users',
     COUNTERS: 'counters',
-    UNITS: 'units'
+    UNITS: 'units',
+    INVENTORY_ENTRIES: 'inventoryEntries',
+    STOCKS: 'stocks'
+};
+
+export const PRESALE_STATUS = {
+    PENDING: 'pending',
+    COMPLETED: 'completed',
+    CANCELLED: 'cancelled'
 };
 
 // Mock Data Store
@@ -55,7 +63,19 @@ const mockStore = {
     settings: [
         { id: '1', key: 'receiptHeader', value: 'MR BEBIDAS\nRua Demo, 123\n(11) 9999-9999' },
         { id: '2', key: 'receiptFooter', value: 'Obrigado pela preferência!\nVolte sempre!' }
-    ]
+    ],
+    inventoryEntries: [],
+    stocks: []
+};
+
+// Demo mode subscribers per collection for live updates in preview
+const demoSubscribers = new Map();
+const notifyDemoSubscribers = (collectionName) => {
+    const subs = demoSubscribers.get(collectionName) || [];
+    const data = [...(mockStore[collectionName] || [])];
+    subs.forEach(cb => {
+        try { cb(data); } catch {}
+    });
 };
 
 // Helper to simulate async delay (keep minimal in demo mode)
@@ -76,6 +96,7 @@ export const firestoreService = {
 
             if (!mockStore[collectionName]) mockStore[collectionName] = [];
             mockStore[collectionName].push(newItem);
+            notifyDemoSubscribers(collectionName);
             return newItem;
         }
 
@@ -167,6 +188,7 @@ export const firestoreService = {
                     ...data,
                     updatedAt: new Date()
                 };
+                notifyDemoSubscribers(collectionName);
                 return mockStore[collectionName][index];
             }
             throw new Error('Document not found');
@@ -192,6 +214,7 @@ export const firestoreService = {
             const index = mockStore[collectionName]?.findIndex(item => item.id === id);
             if (index >= 0) {
                 mockStore[collectionName].splice(index, 1);
+                notifyDemoSubscribers(collectionName);
                 return true;
             }
             return false;
@@ -281,8 +304,17 @@ export const firestoreService = {
     subscribe(collectionName, callback, conditions = []) {
         if (isDemoMode) {
             const data = mockStore[collectionName] || [];
-            callback(data);
-            return () => { };
+            callback([...data]);
+            const list = demoSubscribers.get(collectionName) || [];
+            list.push(callback);
+            demoSubscribers.set(collectionName, list);
+            return () => {
+                try {
+                    const arr = demoSubscribers.get(collectionName) || [];
+                    const next = arr.filter(cb => cb !== callback);
+                    demoSubscribers.set(collectionName, next);
+                } catch {}
+            };
         }
         let q = collection(db, collectionName);
 
@@ -635,6 +667,64 @@ export const presalesService = {
         return firestoreService.delete(COLLECTIONS.PRESALES, id);
     },
 
+    async cancelAll() {
+        const pendingReserved = await firestoreService.query(
+            COLLECTIONS.PRESALES,
+            [
+                { field: 'status', operator: '==', value: 'pending' },
+                { field: 'reserved', operator: '==', value: true }
+            ],
+            null
+        );
+        if (!pendingReserved || pendingReserved.length === 0) {
+            return { cancelled: 0, releasedProducts: 0 };
+        }
+        const totalsByProduct = new Map();
+        for (const presale of pendingReserved) {
+            const items = Array.isArray(presale.items) ? presale.items : [];
+            for (const item of items) {
+                const pid = item?.productId;
+                if (!pid) continue;
+                const qty = Number(item?.quantity || 0);
+                const multiplier = Number(item?.unit?.multiplier || 1);
+                const deduction = qty * multiplier;
+                const isCold = !!item?.isCold;
+                const acc = totalsByProduct.get(pid) || { warm: 0, cold: 0 };
+                if (isCold) acc.cold += deduction;
+                else acc.warm += deduction;
+                totalsByProduct.set(pid, acc);
+            }
+        }
+        let releasedProducts = 0;
+        for (const [pid, acc] of totalsByProduct.entries()) {
+            try {
+                const product = await productService.getById(pid);
+                if (!product) continue;
+                const payload = {};
+                if (acc.cold > 0) {
+                    const current = Number(product.reservedColdStock || 0);
+                    payload.reservedColdStock = Math.max(0, current - acc.cold);
+                }
+                if (acc.warm > 0) {
+                    const current = Number(product.reservedStock || 0);
+                    payload.reservedStock = Math.max(0, current - acc.warm);
+                }
+                if (Object.keys(payload).length > 0) {
+                    await productService.update(pid, payload);
+                    releasedProducts++;
+                }
+            } catch {}
+        }
+        try {
+            await Promise.all(
+                pendingReserved.map(p =>
+                    firestoreService.update(COLLECTIONS.PRESALES, p.id, { status: 'cancelled', reserved: false })
+                )
+            );
+        } catch {}
+        return { cancelled: pendingReserved.length, releasedProducts };
+    },
+
     subscribeAll(callback) {
         return firestoreService.subscribe(COLLECTIONS.PRESALES, callback, []);
     }
@@ -756,6 +846,226 @@ export const categoryService = {
 
     async delete(id) {
         return firestoreService.delete(COLLECTIONS.CATEGORIES, id);
+    }
+};
+
+// Inventory (CMV) operations
+export const inventoryService = {
+    async addEntry(entry) {
+        const payload = {
+            productId: entry.productId,
+            isCold: !!entry.isCold,
+            quantity: Number(entry.quantity || 0),
+            unitCost: Number(entry.unitCost || 0),
+            remaining: Number(entry.quantity || 0),
+            date: isDemoMode ? (entry.date || new Date()) : (entry.date ? Timestamp.fromDate(entry.date) : Timestamp.now())
+        };
+        return firestoreService.create(COLLECTIONS.INVENTORY_ENTRIES, payload);
+    },
+    async getAvailable(productId, isCold = false) {
+        if (isDemoMode) {
+            await delay();
+            const list = (mockStore.inventoryEntries || []).filter(e =>
+                String(e.productId || '') === String(productId || '') &&
+                !!e.remaining &&
+                (!!e.isCold) === (!!isCold)
+            );
+            return list.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+        }
+        const results = await firestoreService.query(
+            COLLECTIONS.INVENTORY_ENTRIES,
+            [
+                { field: 'productId', operator: '==', value: productId },
+                { field: 'isCold', operator: '==', value: !!isCold },
+                { field: 'remaining', operator: '>', value: 0 }
+            ],
+            null
+        );
+        results.sort((a, b) => {
+            const ad = a.date && a.date.toMillis ? a.date.toMillis() : new Date(a.date || 0).getTime();
+            const bd = b.date && b.date.toMillis ? b.date.toMillis() : new Date(b.date || 0).getTime();
+            return ad - bd;
+        });
+        return results;
+    },
+    async consume(productId, isCold, quantity) {
+        let need = Number(quantity || 0);
+        if (!Number.isFinite(need) || need <= 0) return { cmv: 0, consumed: [] };
+        const entries = await this.getAvailable(productId, !!isCold);
+        const consumed = [];
+        let cmv = 0;
+        for (const e of entries) {
+            if (need <= 0) break;
+            const available = Number(e.remaining || 0);
+            if (available <= 0) continue;
+            const take = Math.min(available, need);
+            cmv += take * Number(e.unitCost || 0);
+            consumed.push({
+                entryId: e.id,
+                productId,
+                isCold: !!isCold,
+                quantity: take,
+                unitCost: Number(e.unitCost || 0),
+                date: e.date
+            });
+            need -= take;
+            const nextRemaining = available - take;
+            if (isDemoMode) {
+                const idx = (mockStore.inventoryEntries || []).findIndex(x => x.id === e.id);
+                if (idx >= 0) mockStore.inventoryEntries[idx].remaining = nextRemaining;
+            } else {
+                await firestoreService.update(COLLECTIONS.INVENTORY_ENTRIES, e.id, { remaining: nextRemaining });
+            }
+        }
+        return { cmv, consumed, shortage: Math.max(0, need) };
+    },
+    async consumeForItems(items) {
+        const results = [];
+        let cmvTotal = 0;
+        for (const it of items) {
+            const pid = it.productId || it.id;
+            if (!pid) continue;
+            const qty = (it.stockDeductionPerUnit
+                ? (it.stockDeductionPerUnit * Number(it.quantity || 0))
+                : (it.unit && it.unit.multiplier
+                    ? (Number(it.quantity || 0) * it.unit.multiplier)
+                    : Number(it.quantity || 0)));
+            const isCold = !!(it.isCold || it.priceType === 'retail' && it.isCold);
+            const { cmv, consumed, shortage } = await this.consume(pid, isCold, qty);
+            cmvTotal += cmv;
+            results.push({
+                productId: pid,
+                isCold,
+                requested: qty,
+                cmv,
+                consumed,
+                shortage
+            });
+        }
+        return { cmvTotal, details: results };
+    }
+};
+
+export const stockService = {
+    async get(productId, type) {
+        if (isDemoMode) {
+            await delay();
+            const keyType = String(type || '').toUpperCase();
+            return (mockStore.stocks || []).find(s => String(s.productId || '') === String(productId || '') && String(s.type || '').toUpperCase() === keyType) || null;
+        }
+        const results = await firestoreService.query(
+            COLLECTIONS.STOCKS,
+            [
+                { field: 'productId', operator: '==', value: productId },
+                { field: 'type', operator: '==', value: String(type || '').toUpperCase() }
+            ],
+            null
+        );
+        return results[0] || null;
+    },
+    async ensure(productId, type) {
+        const keyType = String(type || '').toUpperCase();
+        let s = await this.get(productId, keyType);
+        if (s) return s;
+        let seedQty = 0;
+        let seedCost = 0;
+        try {
+            const p = await productService.getById(productId);
+            if (keyType === 'MERCEARIA') {
+                seedQty = Number(p?.coldStock || 0);
+                seedCost = Number(p?.coldCost || 0);
+            } else {
+                seedQty = Number(p?.stock || 0);
+                seedCost = Number(p?.cost || 0);
+            }
+        } catch {}
+        const payload = {
+            productId,
+            type: keyType,
+            totalQuantity: seedQty,
+            averageCost: seedQty > 0 ? Number(seedCost || 0) : 0,
+            createdAt: isDemoMode ? new Date() : Timestamp.now()
+        };
+        if (isDemoMode) {
+            const created = await firestoreService.create(COLLECTIONS.STOCKS, payload);
+            return created;
+        }
+        const created = await firestoreService.create(COLLECTIONS.STOCKS, payload);
+        return created;
+    },
+    async addEntry(productId, type, quantity, unitCost) {
+        const keyType = String(type || '').toUpperCase();
+        let s = await this.ensure(productId, keyType);
+        const currQty = Number(s.totalQuantity || 0);
+        const currAvg = Number(s.averageCost || 0);
+        const entryQty = Number(quantity || 0);
+        const entryCost = Number(unitCost || 0);
+        const totalValue = (currQty * currAvg) + (entryQty * entryCost);
+        const newQty = currQty + entryQty;
+        const newAvg = newQty > 0 ? (totalValue / newQty) : 0;
+        const updateData = {
+            totalQuantity: newQty,
+            averageCost: newAvg,
+            updatedAt: isDemoMode ? new Date() : Timestamp.now()
+        };
+        if (isDemoMode) {
+            const idx = (mockStore.stocks || []).findIndex(x => x.id === s.id);
+            if (idx >= 0) {
+                mockStore.stocks[idx] = { ...mockStore.stocks[idx], ...updateData };
+                return mockStore.stocks[idx];
+            }
+            const created = await firestoreService.create(COLLECTIONS.STOCKS, { productId, type: keyType, ...updateData });
+            return created;
+        }
+        await firestoreService.update(COLLECTIONS.STOCKS, s.id, updateData);
+        return { id: s.id, ...s, ...updateData };
+    },
+    async consume(productId, type, quantity) {
+        const keyType = String(type || '').toUpperCase();
+        let s = await this.ensure(productId, keyType);
+        const currQty = Number(s.totalQuantity || 0);
+        const avg = Number(s.averageCost || 0);
+        const req = Number(quantity || 0);
+        const take = Math.min(currQty, req);
+        const cmv = avg * take;
+        const shortage = Math.max(0, req - take);
+        const updateData = {
+            totalQuantity: Math.max(0, currQty - take),
+            updatedAt: isDemoMode ? new Date() : Timestamp.now()
+        };
+        if (isDemoMode) {
+            const idx = (mockStore.stocks || []).findIndex(x => x.id === s.id);
+            if (idx >= 0) mockStore.stocks[idx] = { ...mockStore.stocks[idx], ...updateData };
+        } else {
+            await firestoreService.update(COLLECTIONS.STOCKS, s.id, updateData);
+        }
+        return { cmv, consumed: take, shortage, averageCost: avg };
+    },
+    async consumeForItems(items) {
+        const details = [];
+        let cmvTotal = 0;
+        for (const it of items) {
+            const pid = it.productId || it.id;
+            if (!pid) continue;
+            const qty = (it.stockDeductionPerUnit
+                ? (it.stockDeductionPerUnit * Number(it.quantity || 0))
+                : (it.unit && it.unit.multiplier
+                    ? (Number(it.quantity || 0) * it.unit.multiplier)
+                    : Number(it.quantity || 0)));
+            const type = (it.isCold ? 'MERCEARIA' : 'ATACADO');
+            const { cmv, consumed, shortage, averageCost } = await this.consume(pid, type, qty);
+            cmvTotal += cmv;
+            details.push({
+                productId: pid,
+                type,
+                requested: qty,
+                consumed,
+                shortage,
+                averageCost,
+                cmv
+            });
+        }
+        return { cmvTotal, details };
     }
 };
 

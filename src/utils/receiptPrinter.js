@@ -274,14 +274,10 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const dateStr = formatDateTime(data.closedAt || new Date());
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
 
-    const lucroTotal = (data.totalProfit != null
-        ? Number(data.totalProfit || 0)
-        : (Number(data.profitWholesale || 0) + Number(data.profitMercearia || 0)));
-
-    const revW = Number(data.revenueWholesale || 0);
-    const revM = Number(data.revenueMercearia || 0);
-    const marginW = revW > 0 ? (Number(data.profitWholesale || 0) / revW) * 100 : 0;
-    const marginM = revM > 0 ? (Number(data.profitMercearia || 0) / revM) * 100 : 0;
+    const profitAtacado = Number(data.profitAtacado || 0);
+    const profitMercearia = Number(data.profitMercearia || 0);
+    const profitTotal = Number(data.profitTotal || 0);
+    const totalProfitFallback = Number(data.totalProfit || 0);
 
     const paymentSummaryHtml = Array.isArray(data.paymentSummary) && data.paymentSummary.length > 0
         ? data.paymentSummary.map(p => `
@@ -300,6 +296,33 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const openedAtStr = data.openedAt ? formatDateTime(data.openedAt) : '-';
     const closedAtStr = data.closedAt ? formatDateTime(data.closedAt) : dateStr;
     const operatorStr = data.closedBy || '-';
+
+    const profitSectionHtml = (profitAtacado > 0 || profitMercearia > 0 || profitTotal > 0 || totalProfitFallback > 0)
+        ? `
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1">LUCRO</div>
+            ${profitTotal > 0 || profitAtacado > 0 || profitMercearia > 0 ? `
+                <div class="flex text-sm">
+                    <span>Atacado:</span>
+                    <span>${formatCurrency(profitAtacado)}</span>
+                </div>
+                <div class="flex text-sm">
+                    <span>Mercearia:</span>
+                    <span>${formatCurrency(profitMercearia)}</span>
+                </div>
+                <div class="flex font-bold text-sm">
+                    <span>Total:</span>
+                    <span>${formatCurrency(profitTotal)}</span>
+                </div>
+            ` : `
+                <div class="flex font-bold text-sm">
+                    <span>Total:</span>
+                    <span>${formatCurrency(totalProfitFallback)}</span>
+                </div>
+            `}
+        </div>
+        `
+        : '';
 
     const html = `
         <div class="text-center mb-2">
@@ -328,30 +351,6 @@ export const printCashRegisterReport = (data, settings = {}) => {
             <div class="flex">
                 <span>Total Vendas (+):</span>
                 <span>${formatCurrency(data.totalSales)}</span>
-            </div>
-            <div class="flex">
-                <span>Custo (-):</span>
-                <span>${formatCurrency(data.totalCost || 0)}</span>
-            </div>
-            <div class="flex font-bold">
-                <span>Lucro:</span>
-                <span>${formatCurrency(lucroTotal)}</span>
-            </div>
-            <div class="flex">
-                <span>Lucro Atacado:</span>
-                <span>${formatCurrency(Number(data.profitWholesale || 0))}</span>
-            </div>
-            <div class="flex">
-                <span>Lucro Mercearia:</span>
-                <span>${formatCurrency(Number(data.profitMercearia || 0))}</span>
-            </div>
-            <div class="flex">
-                <span>Margem Atacado:</span>
-                <span>${formatPercentage(marginW)}</span>
-            </div>
-            <div class="flex">
-                <span>Margem Mercearia:</span>
-                <span>${formatPercentage(marginM)}</span>
             </div>
             <div class="flex">
                 <span>Suprimentos (+):</span>
@@ -384,6 +383,8 @@ export const printCashRegisterReport = (data, settings = {}) => {
             <div class="font-bold text-sm mb-1">VENDAS POR FORMA DE PAGAMENTO</div>
             ${paymentSummaryHtml}
         </div>
+
+        ${profitSectionHtml}
 
         ${data.notes ? `
             <div class="mb-2 text-sm">

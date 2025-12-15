@@ -8,12 +8,14 @@ import Modal from '../../common/Modal';
 import { useCart } from '../../../contexts/CartContext';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { productService, salesService, presalesService, customerService } from '../../../services/firestore';
+import { productService, salesService, presalesService, customerService, stockService } from '../../../services/firestore';
 import { formatCurrency, generateSaleNumber } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
-import { cashRegisterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
+import { cashRegisterService, firestoreService, COLLECTIONS, PRESALE_STATUS } from '../../../services/firestore';
+import { useNavigate } from 'react-router-dom';
 
 const SalesPage = () => {
+    const navigate = useNavigate();
     const {
         items,
         addItem,
@@ -152,7 +154,8 @@ const SalesPage = () => {
                 if (e.key === 'F6') {
                     e.preventDefault();
                     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-                    if (!processing && payments.length > 0 && totalPaid >= totals.total) {
+                    const targetTotal = isEditingSale ? Math.max(0, totals.total - (editingSale?.originalTotal || 0)) : totals.total;
+                    if (!processing && payments.length > 0 && totalPaid >= targetTotal) {
                         handleFinalizeSale();
                     }
                 }
@@ -190,6 +193,33 @@ const SalesPage = () => {
         }
     };
 
+    const handleIncrementItem = (item) => {
+        try {
+            const product = products.find(p => p.id === item.id);
+            const isCold = !!item.isCold;
+            const deduction = item.unit && item.unit.multiplier ? item.unit.multiplier : 1;
+            if (!product) {
+                updateQuantity(item.id, item.quantity + 1);
+                return;
+            }
+            const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
+            const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
+            const available = Math.max(0, baseStock - reserved);
+            const allItems = items.filter(it => it.id === item.id && ((it.isCold || false) === isCold));
+            const totalUsed = allItems.reduce((acc, it) => {
+                const mult = it.unit && it.unit.multiplier ? it.unit.multiplier : 1;
+                return acc + (Number(it.quantity || 0) * mult);
+            }, 0);
+            if (totalUsed + deduction > available) {
+                const stockType = isCold ? 'mercearia' : 'atacado';
+                showNotification(`Estoque ${stockType} insuficiente. Disponível: ${available} (Reservado: ${reserved})`, 'warning');
+                return;
+            }
+            updateQuantity(item.id, item.quantity + 1);
+        } catch {
+            updateQuantity(item.id, item.quantity + 1);
+        }
+    };
     const handleSearchKeyDown = async (e) => {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -433,21 +463,22 @@ const SalesPage = () => {
             const totals = calculateTotals();
 
             const presaleType = priceType === 'cold' ? 'cold' : (customer?.priceType === 'wholesale' ? 'wholesale' : null);
-            const presaleItems = items.map(item => {
-                const pid = item.id || item.productId;
-                const cached = products.find(p => p.id === pid);
-                const pname = item.name || item.productName || (cached ? cached.name : null) || 'Item';
-                return {
-                    productId: pid,
-                    productName: pname,
-                    quantity: Number(item.quantity) || 0,
-                    unitPrice: Number(item.unitPrice) || 0,
-                    discount: Number(item.discount) || 0,
-                    total: Number(item.total) || 0,
-                    unit: item.unit || null,
-                    isCold: !!item.isCold
-                };
-            });
+                const presaleItems = items.map(item => {
+                    const pid = item.id || item.productId;
+                    const cached = products.find(p => p.id === pid);
+                    const pname = item.name || item.productName || (cached ? cached.name : null) || 'Item';
+                    return {
+                        productId: pid,
+                        productName: pname,
+                        quantity: Number(item.quantity) || 0,
+                        unitPrice: Number(item.unitPrice) || 0,
+                        discount: Number(item.discount) || 0,
+                        total: Number(item.total) || 0,
+                        unit: item.unit || null,
+                        isCold: !!item.isCold,
+                        isWholesale: !!item.isWholesale
+                    };
+                });
             const presaleData = {
                 customerId: customer?.id || null,
                 customerName: presaleCustomerName || 'Cliente Balcão',
@@ -457,7 +488,7 @@ const SalesPage = () => {
                 total: totals.total,
                 priceType: presaleType,
                 customerPriceType: customer?.priceType || null,
-                status: 'pending',
+                status: PRESALE_STATUS.PENDING,
                 createdBy: user?.name || 'Operador'
             };
 
@@ -505,7 +536,12 @@ const SalesPage = () => {
             }
 
             clearCart();
+            setSearchTerm('');
+            setFilteredProducts([]);
+            setSelectedIndex(-1);
+            setSelectedProduct(null);
             setPresaleModalOpen(false);
+            navigate('/presales');
         } catch (error) {
             console.error('Error saving presale:', error);
             showNotification('Erro ao salvar pré-venda', 'error');
@@ -525,9 +561,15 @@ const SalesPage = () => {
             }
 
             const totals = calculateTotals();
-            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+            const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const targetTotal = isEditingSale ? Math.max(0, totals.total - (editingSale?.originalTotal || 0)) : totals.total;
+            if (payments.length > 0 && totalPaid < targetTotal) {
+                showNotification('Pagamentos não batem com o total da venda.', 'error');
+                setProcessing(false);
+                return;
+            }
 
-            if (totalPaid < totals.total) {
+            if (totalPaid < targetTotal) {
                 showNotification('Valor pago insuficiente', 'error');
                 setProcessing(false);
                 return;
@@ -575,18 +617,19 @@ const SalesPage = () => {
                         discount: Number(item.discount) || 0,
                         total: Number(item.total) || 0,
                         unit: item.unit || null,
-                        isCold: !!item.isCold
+                        isCold: !!item.isCold,
+                        isWholesale: !!item.isWholesale
                     };
                 }),
                 subtotal: Number(totals.subtotal) || 0,
                 discount: Number(totals.discount + totals.itemsDiscount) || 0,
                 total: Number(totals.total) || 0,
                 totalSavings: Number(totalSavings) || 0,
-                payments: payments.map(p => ({
+                payments: payments.length > 0 ? payments.map(p => ({
                     method: p.method || 'Dinheiro',
                     amount: Number(p.amount) || 0
-                })),
-                paymentMethod: payments[0]?.method || 'Dinheiro',
+                })) : [],
+                paymentMethod: payments.length === 0 ? (paymentMethod || 'Dinheiro') : null,
                 priceType: priceType || 'retail',
                 totalPaid: computedTotalPaid,
                 change,
@@ -603,16 +646,19 @@ const SalesPage = () => {
             printReceipt(sale, settings);
             showNotification('Venda realizada com sucesso!', 'success');
             clearCart();
+            setFilteredProducts([]);
+            setSelectedIndex(-1);
+            setSelectedProduct(null);
             setPaymentModalOpen(false);
             setPayments([]);
             setSearchTerm('');
             setProcessing(false);
+            navigate('/presales');
 
             Promise.resolve().then(async () => {
+                const localById = new Map();
                 try {
-                    let ids = [];
-                    const localById = new Map();
-                    ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
+                    const ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
                     for (const id of ids) {
                         const cached = products.find(p => p.id === id);
                         if (cached) localById.set(id, cached);
@@ -629,10 +675,12 @@ const SalesPage = () => {
                 } catch (error) {}
 
                 try {
+                    const cmv = await stockService.consumeForItems(items);
+                    const saleWithCmv = { ...cleanSaleData, saleNumber, cmvTotal: Number(cmv.cmvTotal || 0), cmvDetails: cmv.details || [] };
                     if (isEditingSale) {
-                        await salesService.update(editingSale.id, { ...cleanSaleData, saleNumber, status: 'modified' });
+                        await salesService.update(editingSale.id, { ...saleWithCmv, status: 'modified' });
                     } else {
-                        await firestoreService.create(COLLECTIONS.SALES, sale);
+                        await firestoreService.create(COLLECTIONS.SALES, saleWithCmv);
                     }
                 } catch {}
 
@@ -712,7 +760,7 @@ const SalesPage = () => {
                             }
                         });
                         try { await Promise.all(reservedUpdates); } catch {}
-                        await presalesService.update(cartData.presaleId, { status: 'completed', reserved: false });
+                        await presalesService.update(cartData.presaleId, { status: PRESALE_STATUS.COMPLETED, reserved: false, closedAt: new Date() });
                     } catch {}
                 }
             });
@@ -866,7 +914,7 @@ const SalesPage = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        onClick={() => handleIncrementItem(item)}
                                                         icon={<Plus size={14} />}
                                                     />
                                                     <Button

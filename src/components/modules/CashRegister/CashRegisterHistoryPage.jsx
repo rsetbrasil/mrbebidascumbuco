@@ -36,12 +36,42 @@ const CashRegisterHistoryPage = () => {
             const sales = await salesService.getByCashRegister(register.id);
             const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+            const movements = await cashRegisterService.getMovements(register.id);
+            const totalSupplies = (movements || [])
+                .filter(m => m.type === 'supply')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalBleeds = (movements || [])
+                .filter(m => m.type === 'bleed')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalChange = (movements || [])
+                .filter(m => m.type === 'change')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
             const totalCost = validSales.reduce((sum, s) => {
                 const items = Array.isArray(s.items) ? s.items : [];
                 const cost = items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
                 return sum + cost;
             }, 0);
             const totalProfit = Math.max(0, totalSales - totalCost);
+            const profitCalc = (() => {
+                let atacado = 0;
+                let mercearia = 0;
+                for (const sale of validSales) {
+                    const items = Array.isArray(sale.items) ? sale.items : [];
+                    for (const item of items) {
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const unitCost = Number(item.unitCost || 0);
+                        const qty = Number(item.quantity || 1);
+                        const lucroItem = (unitPrice - unitCost) * qty;
+                        if (item.isWholesale === true) {
+                            atacado += lucroItem;
+                        } else {
+                            mercearia += lucroItem;
+                        }
+                    }
+                }
+                return { atacado, mercearia, total: atacado + mercearia };
+            })();
 
             printCashRegisterReport({
                 openedAt: register.openedAt,
@@ -51,12 +81,15 @@ const CashRegisterHistoryPage = () => {
                 totalSales,
                 totalCost,
                 totalProfit,
-                totalSupplies: register.totalSupplies || 0,
-                totalBleeds: register.totalBleeds || 0,
-                totalChange: register.totalChange || 0,
-                finalBalance: register.closingBalance, // Note: closingBalance é o que foi salvo
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                finalBalance,
                 difference: register.difference,
-                notes: register.notes
+                notes: register.notes,
+                profitAtacado: profitCalc.atacado,
+                profitMercearia: profitCalc.mercearia,
+                profitTotal: profitCalc.total
             });
         } catch (error) {
             console.error('Error printing report:', error);

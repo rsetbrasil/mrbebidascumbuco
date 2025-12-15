@@ -6,7 +6,6 @@ import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
-import ImportProductsModal from './ImportProductsModal';
 import { productService, categoryService } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
 
@@ -16,7 +15,6 @@ const ProductsPage = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [notification, setNotification] = useState(null);
 
@@ -236,13 +234,6 @@ const ProductsPage = () => {
                         Apagar Todos os Produtos
                     </Button>
                     <Button
-                        variant="secondary"
-                        onClick={() => setIsImportModalOpen(true)}
-                        icon={<Upload size={20} />}
-                    >
-                        Importar CSV
-                    </Button>
-                    <Button
                         onClick={() => {
                             setEditingProduct(null);
                             setIsModalOpen(true);
@@ -412,12 +403,6 @@ const ProductsPage = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSave}
                 product={editingProduct}
-            />
-
-            <ImportProductsModal
-                isOpen={isImportModalOpen}
-                onClose={() => setIsImportModalOpen(false)}
-                onImportSuccess={handleImportSuccess}
             />
         </div>
     );

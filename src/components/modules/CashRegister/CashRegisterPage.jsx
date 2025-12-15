@@ -53,21 +53,10 @@ const CashRegisterPage = () => {
     const [managerError, setManagerError] = useState('');
     const [viewOpen, setViewOpen] = useState(false);
     const [viewPaymentSummary, setViewPaymentSummary] = useState([]);
-    const [viewProfit, setViewProfit] = useState({
-        wholesale: 0,
-        mercearia: 0,
-        total: 0,
-        margin: 0,
-        revenueWholesale: 0,
-        revenueMercearia: 0,
-        costWholesale: 0,
-        costMercearia: 0,
-        marginWholesale: 0,
-        marginMercearia: 0
-    });
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyItems, setHistoryItems] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [salesFilter, setSalesFilter] = useState('today'); // 'all' | 'today'
 
     const isRegisterOpen = !!currentCashRegister;
 
@@ -77,6 +66,19 @@ const CashRegisterPage = () => {
             loadSales();
         }
     }, [isRegisterOpen, currentCashRegister]);
+
+    const normalizePayments = (sale) => {
+        if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+            return sale.payments.map(p => ({
+                method: p.method,
+                amount: Number(p.amount || 0)
+            }));
+        }
+        return [{
+            method: sale.paymentMethod || 'Dinheiro',
+            amount: Number(sale.total || 0)
+        }];
+    };
 
     const loadMovements = async () => {
         try {
@@ -106,12 +108,36 @@ const CashRegisterPage = () => {
             const sales = await salesService.getByCashRegister(register.id);
             const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
-            const totalCost = validSales.reduce((sum, s) => {
-                const items = Array.isArray(s.items) ? s.items : [];
-                const cost = items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
-                return sum + cost;
-            }, 0);
-            const totalProfit = Math.max(0, totalSales - totalCost);
+            const profitCalc = (() => {
+                let atacado = 0;
+                let mercearia = 0;
+                for (const sale of validSales) {
+                    const items = Array.isArray(sale.items) ? sale.items : [];
+                    for (const item of items) {
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const unitCost = Number(item.unitCost || 0);
+                        const qty = Number(item.quantity || 1);
+                        const lucroItem = (unitPrice - unitCost) * qty;
+                        if (item.isWholesale === true) {
+                            atacado += lucroItem;
+                        } else {
+                            mercearia += lucroItem;
+                        }
+                    }
+                }
+                return { atacado, mercearia, total: atacado + mercearia };
+            })();
+            const movements = await cashRegisterService.getMovements(register.id);
+            const totalSupplies = (movements || [])
+                .filter(m => m.type === 'supply')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalBleeds = (movements || [])
+                .filter(m => m.type === 'bleed')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalChange = (movements || [])
+                .filter(m => m.type === 'change')
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
 
             printCashRegisterReport({
                 openedAt: register.openedAt,
@@ -119,14 +145,15 @@ const CashRegisterPage = () => {
                 closedBy: register.closedBy || 'Admin',
                 openingBalance: register.openingBalance,
                 totalSales,
-                totalCost,
-                totalProfit,
-                totalSupplies: register.totalSupplies || 0,
-                totalBleeds: register.totalBleeds || 0,
-                totalChange: register.totalChange || 0,
-                finalBalance: register.closingBalance,
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                finalBalance,
                 difference: register.difference,
-                notes: register.notes
+                notes: register.notes,
+                profitAtacado: profitCalc.atacado,
+                profitMercearia: profitCalc.mercearia,
+                profitTotal: profitCalc.total
             }, settings || {});
         } catch (error) {
             showNotification('error', 'Erro ao gerar relatório');
@@ -176,60 +203,36 @@ const CashRegisterPage = () => {
     const proceedClose = async (approvedByManagerName = null) => {
         setLoading(true);
         try {
-            const activeSales = sales.filter(s => s.status !== 'cancelled');
+            const start = new Date(); start.setHours(0, 0, 0, 0);
+            const end = new Date(); end.setHours(23, 59, 59, 999);
+            const activeSales = sales
+                .filter(s => s.status !== 'cancelled')
+                .filter(s => {
+                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
+                        ? s.createdAt.toDate()
+                        : new Date(s.createdAt || 0);
+                    return d >= start && d <= end;
+                });
             const totalSales = activeSales.reduce((acc, sale) => acc + sale.total, 0);
-            const totalSupplies = movements
+            const activeMovements = movements.filter(m => {
+                const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
+                    ? m.createdAt.toDate()
+                    : new Date(m.createdAt || 0);
+                return d >= start && d <= end;
+            });
+            const totalSupplies = activeMovements
                 .filter(m => m.type === 'supply')
                 .reduce((acc, m) => acc + m.amount, 0);
-            const totalBleeds = movements
+            const totalBleeds = activeMovements
                 .filter(m => m.type === 'bleed')
                 .reduce((acc, m) => acc + m.amount, 0);
-            const totalChange = movements
+            const totalChange = activeMovements
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + m.amount, 0);
 
-            // Compute profit breakdown: Atacado (wholesale) vs Mercearia (cold)
-            let profitWholesale = 0;
-            let profitMercearia = 0;
-            let revenueWholesale = 0;
-            let revenueMercearia = 0;
-            let costWholesale = 0;
-            let costMercearia = 0;
-            for (const sale of activeSales) {
-                const items = sale.items || [];
-                let revW = 0, revM = 0, revOther = 0;
-                let costW = 0, costM = 0;
-                for (const item of items) {
-                    const qty = Number(item.quantity || 0);
-                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
-                    const cost = Number(item.unitCost || 0) * qty;
-                    if (item.isCold) {
-                        revM += revenue; costM += cost;
-                    } else if (item.isWholesale) {
-                        revW += revenue; costW += cost;
-                    } else {
-                        revOther += revenue;
-                    }
-                }
-                const totalRev = revW + revM + revOther;
-                const saleDiscount = Number(sale.discount || 0);
-                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
-                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
-                const netW = revW - discW;
-                const netM = revM - discM;
-                profitWholesale += netW - costW;
-                profitMercearia += netM - costM;
-                revenueWholesale += netW;
-                revenueMercearia += netM;
-                costWholesale += costW;
-                costMercearia += costM;
-            }
-
             const paymentsMap = new Map();
             for (const sale of activeSales) {
-                const list = Array.isArray(sale.payments) && sale.payments.length > 0
-                    ? sale.payments
-                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                const list = normalizePayments(sale);
                 for (const p of list) {
                     const key = String(p.method || 'Dinheiro');
                     const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
@@ -244,19 +247,28 @@ const CashRegisterPage = () => {
                 ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
                 : (user?.name || 'Operador');
 
-            await closeCashRegister(finalBalance, closedByLabel, closingNote, {
-                totalSales,
-                totalSupplies,
-                totalBleeds,
-                totalChange,
-                profitWholesale,
-                profitMercearia,
-                revenueWholesale,
-                revenueMercearia,
-                paymentSummary
-            });
+            await closeCashRegister(finalBalance, closedByLabel, closingNote);
 
             // Print closing report
+            const profitCalc = (() => {
+                let atacado = 0;
+                let mercearia = 0;
+                for (const sale of activeSales) {
+                    const items = Array.isArray(sale.items) ? sale.items : [];
+                    for (const item of items) {
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const unitCost = Number(item.unitCost || 0);
+                        const qty = Number(item.quantity || 1);
+                        const lucroItem = (unitPrice - unitCost) * qty;
+                        if (item.isWholesale === true) {
+                            atacado += lucroItem;
+                        } else {
+                            mercearia += lucroItem;
+                        }
+                    }
+                }
+                return { atacado, mercearia, total: atacado + mercearia };
+            })();
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
                 closedAt: new Date(),
@@ -268,30 +280,11 @@ const CashRegisterPage = () => {
                 totalChange,
                 finalBalance,
                 notes: closingNote,
-                profitWholesale,
-                profitMercearia,
-                revenueWholesale,
-                revenueMercearia,
-                paymentSummary
+                paymentSummary,
+                profitAtacado: profitCalc.atacado,
+                profitMercearia: profitCalc.mercearia,
+                profitTotal: profitCalc.total
             }, {}); // Pass settings if available
-
-            printCashRegisterReport({
-                openedAt: currentCashRegister.openedAt,
-                closedAt: new Date(),
-                closedBy: closedByLabel,
-                openingBalance: currentCashRegister.openingBalance,
-                totalSales,
-                totalSupplies,
-                totalBleeds,
-                totalChange,
-                finalBalance,
-                notes: closingNote,
-                profitWholesale,
-                profitMercearia,
-                revenueWholesale,
-                revenueMercearia,
-                paymentSummary
-            }, { duplicate: true });
 
             showNotification('success', 'Caixa fechado com sucesso');
             setClosingNote('');
@@ -316,59 +309,36 @@ const CashRegisterPage = () => {
 
     const handlePrintOpenRegister = () => {
         try {
-            const activeSales = sales.filter(s => s.status !== 'cancelled');
+            const start = new Date(); start.setHours(0, 0, 0, 0);
+            const end = new Date(); end.setHours(23, 59, 59, 999);
+            const activeSales = sales
+                .filter(s => s.status !== 'cancelled')
+                .filter(s => {
+                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
+                        ? s.createdAt.toDate()
+                        : new Date(s.createdAt || 0);
+                    return d >= start && d <= end;
+                });
             const totalSales = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
-            const totalSupplies = movements
+            const activeMovements = movements.filter(m => {
+                const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
+                    ? m.createdAt.toDate()
+                    : new Date(m.createdAt || 0);
+                return d >= start && d <= end;
+            });
+            const totalSupplies = activeMovements
                 .filter(m => m.type === 'supply')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const totalBleeds = movements
+            const totalBleeds = activeMovements
                 .filter(m => m.type === 'bleed')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const totalChange = movements
+            const totalChange = activeMovements
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
 
-            let profitWholesale = 0;
-            let profitMercearia = 0;
-            let revenueWholesale = 0;
-            let revenueMercearia = 0;
-            let costWholesale = 0;
-            let costMercearia = 0;
-            for (const sale of activeSales) {
-                const items = sale.items || [];
-                let revW = 0, revM = 0, revOther = 0;
-                let costW = 0, costM = 0;
-                for (const item of items) {
-                    const qty = Number(item.quantity || 0);
-                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
-                    const cost = Number(item.unitCost || 0) * qty;
-                    if (item.isCold) {
-                        revM += revenue; costM += cost;
-                    } else if (item.isWholesale) {
-                        revW += revenue; costW += cost;
-                    } else {
-                        revOther += revenue;
-                    }
-                }
-                const totalRev = revW + revM + revOther;
-                const saleDiscount = Number(sale.discount || 0);
-                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
-                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
-                const netW = revW - discW;
-                const netM = revM - discM;
-                profitWholesale += netW - costW;
-                profitMercearia += netM - costM;
-                revenueWholesale += netW;
-                revenueMercearia += netM;
-                costWholesale += costW;
-                costMercearia += costM;
-            }
-
             const paymentsMap = new Map();
             for (const sale of activeSales) {
-                const list = Array.isArray(sale.payments) && sale.payments.length > 0
-                    ? sale.payments
-                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                const list = normalizePayments(sale);
                 for (const p of list) {
                     const key = String(p.method || 'Dinheiro');
                     const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
@@ -379,6 +349,25 @@ const CashRegisterPage = () => {
 
             const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
 
+            const profitCalc = (() => {
+                let atacado = 0;
+                let mercearia = 0;
+                for (const sale of activeSales) {
+                    const items = Array.isArray(sale.items) ? sale.items : [];
+                    for (const item of items) {
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const unitCost = Number(item.unitCost || 0);
+                        const qty = Number(item.quantity || 1);
+                        const lucroItem = (unitPrice - unitCost) * qty;
+                        if (item.isWholesale === true) {
+                            atacado += lucroItem;
+                        } else {
+                            mercearia += lucroItem;
+                        }
+                    }
+                }
+                return { atacado, mercearia, total: atacado + mercearia };
+            })();
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
                 closedAt: new Date(),
@@ -390,11 +379,10 @@ const CashRegisterPage = () => {
                 totalChange,
                 finalBalance,
                 notes: 'Relatório parcial (caixa aberto)',
-                profitWholesale,
-                profitMercearia,
-                revenueWholesale,
-                revenueMercearia,
-                paymentSummary
+                paymentSummary,
+                profitAtacado: profitCalc.atacado,
+                profitMercearia: profitCalc.mercearia,
+                profitTotal: profitCalc.total
             }, settings || {});
         } catch (error) {
             console.error('Error printing open register snapshot:', error);
@@ -443,64 +431,19 @@ const CashRegisterPage = () => {
 
     const handleViewOpen = () => {
         try {
-            const activeSales = sales.filter(s => s.status !== 'cancelled');
-            let profitWholesale = 0;
-            let profitMercearia = 0;
-            let revenueWholesale = 0;
-            let revenueMercearia = 0;
-            let costWholesale = 0;
-            let costMercearia = 0;
-            for (const sale of activeSales) {
-                const items = sale.items || [];
-                let revW = 0, revM = 0, revOther = 0;
-                let costW = 0, costM = 0;
-                for (const item of items) {
-                    const qty = Number(item.quantity || 0);
-                    const revenue = (Number(item.unitPrice || 0) * qty) - Number(item.discount || 0);
-                    const cost = Number(item.unitCost || 0) * qty;
-                    if (item.isCold) {
-                        revM += revenue; costM += cost;
-                    } else if (item.isWholesale) {
-                        revW += revenue; costW += cost;
-                    } else {
-                        revOther += revenue;
-                    }
-                }
-                const totalRev = revW + revM + revOther;
-                const saleDiscount = Number(sale.discount || 0);
-                const discW = totalRev > 0 ? saleDiscount * (revW / totalRev) : 0;
-                const discM = totalRev > 0 ? saleDiscount * (revM / totalRev) : 0;
-                const netW = revW - discW;
-                const netM = revM - discM;
-                profitWholesale += netW - costW;
-                profitMercearia += netM - costM;
-                revenueWholesale += netW;
-                revenueMercearia += netM;
-                costWholesale += costW;
-                costMercearia += costM;
-            }
-            const totalSalesAmount = activeSales.reduce((acc, s) => acc + Number(s.total || 0), 0);
-            const totalProfit = profitWholesale + profitMercearia;
-            const marginPct = totalSalesAmount > 0 ? (totalProfit / totalSalesAmount) * 100 : 0;
-            const marginW = revenueWholesale > 0 ? (profitWholesale / revenueWholesale) * 100 : 0;
-            const marginM = revenueMercearia > 0 ? (profitMercearia / revenueMercearia) * 100 : 0;
-            setViewProfit({
-                wholesale: profitWholesale,
-                mercearia: profitMercearia,
-                total: totalProfit,
-                margin: marginPct,
-                revenueWholesale,
-                revenueMercearia,
-                costWholesale,
-                costMercearia,
-                marginWholesale: marginW,
-                marginMercearia: marginM
-            });
+            const start = new Date(); start.setHours(0, 0, 0, 0);
+            const end = new Date(); end.setHours(23, 59, 59, 999);
+            const activeSales = sales
+                .filter(s => s.status !== 'cancelled')
+                .filter(s => {
+                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
+                        ? s.createdAt.toDate()
+                        : new Date(s.createdAt || 0);
+                    return d >= start && d <= end;
+                });
             const paymentsMap = new Map();
             for (const sale of activeSales) {
-                const list = Array.isArray(sale.payments) && sale.payments.length > 0
-                    ? sale.payments
-                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: Number(sale.total || 0) }];
+                const list = normalizePayments(sale);
                 for (const p of list) {
                     const key = String(p.method || 'Dinheiro');
                     const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
@@ -511,7 +454,6 @@ const CashRegisterPage = () => {
             setViewOpen(true);
         } catch (e) {
             setViewPaymentSummary([]);
-            setViewProfit({ wholesale: 0, mercearia: 0, total: 0, margin: 0 });
             setViewOpen(true);
         }
     };
@@ -582,21 +524,64 @@ const CashRegisterPage = () => {
         );
     }
 
-    const activeSalesView = sales.filter(s => s.status !== 'cancelled');
+    const activeSalesView = sales
+        .filter(s => s.status !== 'cancelled')
+        .filter(s => {
+            if (salesFilter !== 'today') return true;
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            const end = new Date();
+            end.setHours(23, 59, 59, 999);
+            const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
+                ? s.createdAt.toDate()
+                : new Date(s.createdAt || 0);
+            return d >= start && d <= end;
+        });
     const totalSales = activeSalesView.reduce((acc, sale) => acc + sale.total, 0);
-    const totalSupplies = movements
+    const activeMovementsView = movements
+        .filter(m => {
+            const start = new Date(); start.setHours(0, 0, 0, 0);
+            const end = new Date(); end.setHours(23, 59, 59, 999);
+            const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
+                ? m.createdAt.toDate()
+                : new Date(m.createdAt || 0);
+            return d >= start && d <= end;
+        });
+    const totalSupplies = activeMovementsView
         .filter(m => m.type === 'supply')
         .reduce((acc, m) => acc + m.amount, 0);
 
-    const totalBleeds = movements
+    const totalBleeds = activeMovementsView
         .filter(m => m.type === 'bleed')
         .reduce((acc, m) => acc + m.amount, 0);
 
-    const totalChange = movements
+    const totalChange = activeMovementsView
         .filter(m => m.type === 'change')
         .reduce((acc, m) => acc + m.amount, 0);
 
     const currentBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
+    const totalCMVDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.cmvTotal || 0), 0);
+    const profitDay = totalSales - totalCMVDay;
+    const marginDay = totalSales > 0 ? (profitDay / totalSales) : 0;
+    const profitByType = (() => {
+        let atacado = 0;
+        let mercearia = 0;
+        for (const sale of activeSalesView) {
+            const items = Array.isArray(sale.items) ? sale.items : [];
+            for (const item of items) {
+                const unitPrice = Number(item.unitPrice || 0);
+                const unitCost = Number(item.unitCost || 0);
+                const qty = Number(item.quantity || 1);
+                const lucroItem = (unitPrice - unitCost) * qty;
+                if (item.isWholesale === true) {
+                    atacado += lucroItem;
+                } else {
+                    mercearia += lucroItem;
+                }
+            }
+        }
+        return { atacado, mercearia, total: atacado + mercearia };
+    })();
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -626,6 +611,36 @@ const CashRegisterPage = () => {
                         overflowX: 'auto'
                     }}
                 >
+                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                            onClick={() => setSalesFilter('all')}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--color-border)',
+                                background: salesFilter === 'all' ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
+                                color: salesFilter === 'all' ? '#fff' : 'var(--color-text-secondary)',
+                                cursor: 'pointer',
+                                fontWeight: 500
+                            }}
+                        >
+                            Todas
+                        </button>
+                        <button
+                            onClick={() => setSalesFilter('today')}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--color-border)',
+                                background: salesFilter === 'today' ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
+                                color: salesFilter === 'today' ? '#fff' : 'var(--color-text-secondary)',
+                                cursor: 'pointer',
+                                fontWeight: 500
+                            }}
+                        >
+                            Vendas de Hoje
+                        </button>
+                    </div>
                     <Button
                         variant="secondary"
                         onClick={openHistoryModal}
@@ -888,22 +903,24 @@ const CashRegisterPage = () => {
                         </div>
                     </div>
                     <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Lucro</div>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Indicadores do Dia</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (receita)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.revenueMercearia)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (custo)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.costMercearia)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(viewProfit.mercearia)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.marginMercearia || 0).toFixed(1)}%`}</span>
-                            <span style={{ color: 'var(--color-text-secondary)', marginTop: '6px' }}>Atacado (receita)</span><span style={{ textAlign: 'right', fontWeight: 600, marginTop: '6px' }}>{formatCurrency(viewProfit.revenueWholesale)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (custo)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(viewProfit.costWholesale)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(viewProfit.wholesale)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.marginWholesale || 0).toFixed(1)}%`}</span>
-                            <span style={{ color: 'var(--color-text-secondary)', marginTop: '6px' }}>Total (lucro)</span><span style={{ textAlign: 'right', fontWeight: 700, marginTop: '6px' }}>{formatCurrency(viewProfit.total)}</span>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Total (margem)</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{`${(viewProfit.margin || 0).toFixed(1)}%`}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Receita</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSales)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>CMV</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalCMVDay)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Lucro</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(profitDay)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Margem</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{(marginDay * 100).toFixed(1)}%</span>
                         </div>
                     </div>
                     <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Formas de Pagamento</div>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Lucro por Tipo</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Atacado</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(profitByType.atacado)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-primary)' }}>{formatCurrency(profitByType.mercearia)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Total</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(profitByType.total)}</span>
+                        </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo de Pagamentos</div>
                         {viewPaymentSummary.length === 0 ? (
                             <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>-</div>
                         ) : (

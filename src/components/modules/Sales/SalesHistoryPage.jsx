@@ -116,6 +116,16 @@ const SalesHistoryPage = () => {
                         createdBy: 'Sistema'
                     });
                 } catch {}
+                try {
+                    const movements = await cashRegisterService.getMovements(sale.cashRegisterId);
+                    const relatedChange = (movements || []).filter(m =>
+                        m.type === 'change' &&
+                        String(m.description || '').includes(`#${sale.saleNumber}`)
+                    );
+                    await Promise.all(
+                        relatedChange.map(m => firestoreService.delete(COLLECTIONS.CASH_MOVEMENTS, m.id))
+                    );
+                } catch {}
             }
 
             await firestoreService.delete(COLLECTIONS.SALES, sale.id);
