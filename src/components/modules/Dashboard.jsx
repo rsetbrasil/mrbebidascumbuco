@@ -34,25 +34,24 @@ const Dashboard = () => {
             setLoading(true);
 
             // Load recent sales
-            const sales = await salesService.getAll(10);
-            const enriched = (sales || []).map((sale) => {
+            const recentSalesData = await salesService.getAll(10);
+            const enrichedRecent = (recentSalesData || []).map((sale) => {
                 const items = Array.isArray(sale.items) ? sale.items : [];
                 const hasCold = items.some(it => it && it.isCold);
                 const hasWholesale = items.some(it => it && !it.isCold);
                 const type = hasCold && hasWholesale ? 'Atacado + Mercearia' : (hasCold ? 'Mercearia' : 'Atacado');
                 return { ...sale, type };
             });
-            setRecentSales(enriched);
+            setRecentSales(enrichedRecent);
 
             // Calculate today's stats
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const todaySales = enriched.filter(sale => {
-                const saleDate = sale.createdAt.toDate();
-                return saleDate >= today;
-            });
+            const endToday = new Date();
+            endToday.setHours(23, 59, 59, 999);
 
-            const todayRevenue = todaySales.reduce((sum, sale) => sum + sale.total, 0);
+            const allTodaySales = await salesService.getByDateRange(today, endToday);
+            const todayRevenue = allTodaySales.reduce((sum, sale) => sum + sale.total, 0);
 
             const products = await productService.getAll();
             const lowStock = products.filter(p => {
@@ -108,7 +107,7 @@ const Dashboard = () => {
             setLowStockItems(enrichedLowStock);
 
             setStats({
-                todaySales: todaySales.length,
+                todaySales: allTodaySales.length,
                 todayRevenue,
                 lowStockProducts: enrichedLowStock.length,
                 openPresales: 0
