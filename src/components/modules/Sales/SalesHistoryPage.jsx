@@ -23,6 +23,22 @@ const SalesHistoryPage = () => {
     const [notification, setNotification] = useState(null);
     const [selectedSale, setSelectedSale] = useState(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    
+    // Date filter states - default to today
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        // Adjust for timezone offset to ensure correct YYYY-MM-DD
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    });
+
     const [editing, setEditing] = useState(false);
     const [addSearch, setAddSearch] = useState('');
     const [suggestions, setSuggestions] = useState([]);
@@ -31,12 +47,18 @@ const SalesHistoryPage = () => {
 
     useEffect(() => {
         setLoading(true);
-        const unsub = salesService.subscribeAll((data) => {
+        
+        // Construct date objects in local time
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+
+        const unsub = salesService.subscribeByDateRange((data) => {
             setSales(data);
             setLoading(false);
-        });
+        }, start, end);
+        
         return () => { try { unsub && unsub(); } catch {} };
-    }, []);
+    }, [startDate, endDate]);
 
     const loadSales = async () => {};
 
@@ -398,15 +420,68 @@ const SalesHistoryPage = () => {
                     borderBottom: '1px solid var(--color-border)',
                     display: 'flex',
                     gap: 'var(--spacing-md)',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    flexWrap: 'wrap'
                 }}>
-                    <div style={{ width: '100%', maxWidth: '400px' }}>
+                    <div style={{ flex: 1, minWidth: '300px' }}>
                         <Input
                             placeholder="Buscar por número, cliente ou valor (ex: 50, >=100, 50-100)"
                             icon={Search}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>De</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'var(--color-bg-primary)',
+                                    color: 'var(--color-text-primary)',
+                                    outline: 'none',
+                                    fontSize: 'var(--font-size-sm)'
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Até</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'var(--color-bg-primary)',
+                                    color: 'var(--color-text-primary)',
+                                    outline: 'none',
+                                    fontSize: 'var(--font-size-sm)'
+                                }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+                             <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    const d = new Date();
+                                    const offset = d.getTimezoneOffset() * 60000;
+                                    const todayStr = new Date(d.getTime() - offset).toISOString().split('T')[0];
+                                    setStartDate(todayStr);
+                                    setEndDate(todayStr);
+                                }}
+                                style={{ height: '38px' }}
+                             >
+                                 Hoje
+                             </Button>
+                        </div>
                     </div>
                 </div>
 

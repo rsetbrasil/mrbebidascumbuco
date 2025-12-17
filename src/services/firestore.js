@@ -630,6 +630,38 @@ export const salesService = {
 
     subscribeAll(callback) {
         return firestoreService.subscribe(COLLECTIONS.SALES, callback, []);
+    },
+
+    subscribeByDateRange(callback, startDate, endDate) {
+        // Ensure we have valid Date objects
+        const start = startDate instanceof Date ? startDate : new Date(startDate);
+        const end = endDate instanceof Date ? endDate : new Date(endDate);
+        
+        // Adjust end date to end of day if it's at 00:00:00
+        if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+            end.setHours(23, 59, 59, 999);
+        }
+
+        // For demo mode, we'll just subscribe all and filter client-side
+        // But for Firestore, we use conditions
+        if (isDemoMode) {
+            return this.subscribeAll((allSales) => {
+                const filtered = allSales.filter(sale => {
+                    const date = new Date(sale.createdAt);
+                    return date >= start && date <= end;
+                });
+                callback(filtered);
+            });
+        }
+
+        return firestoreService.subscribe(
+            COLLECTIONS.SALES,
+            callback,
+            [
+                { field: 'createdAt', operator: '>=', value: Timestamp.fromDate(start) },
+                { field: 'createdAt', operator: '<=', value: Timestamp.fromDate(end) }
+            ]
+        );
     }
 };
 

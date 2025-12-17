@@ -19,6 +19,7 @@ import SettingsPage from './components/modules/Settings/SettingsPage';
 import ResetDataPage from './components/modules/Settings/ResetDataPage';
 import SalesHistoryPage from './components/modules/Sales/SalesHistoryPage';
 import LoginPage from './components/modules/Auth/LoginPage';
+ 
 
 if (typeof window !== 'undefined') {
   const patterns = ['google.firestore.v1.Firestore/Listen', 'net::ERR_ABORTED', 'firestore.googleapis.com'];
@@ -58,7 +59,7 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Protected Route Component
+// Private Route Component
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
@@ -82,6 +83,7 @@ function App() {
           <CartProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              
 
               <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
               <Route path="/pdv" element={<Navigate to="/sales" replace />} />

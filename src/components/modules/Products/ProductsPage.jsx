@@ -156,7 +156,7 @@ const ProductsPage = () => {
                         color: 'var(--color-text-primary)',
                         marginBottom: 'var(--spacing-xs)'
                     }}>Produtos</h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seu catálogo de produtos</p>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seus produtos</p>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
                     <Button

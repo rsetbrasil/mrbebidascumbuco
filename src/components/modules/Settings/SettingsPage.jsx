@@ -25,6 +25,9 @@ const SettingsPage = () => {
         companyName: '',
         companyAddress: '',
         companyPhone: '',
+        brandLogoUrl: '',
+        socialInstagram: '',
+        whatsapp: '',
         menu: [
             { key: 'dashboard', visible: true, label: 'Painel' },
             { key: 'pdv', visible: true, label: 'PDV' },
@@ -123,7 +126,7 @@ const SettingsPage = () => {
             return;
         }
 
-        if (!window.confirm('Confirme novamente: Deseja realmente APAGAR TODO O CATÁLOGO DE PRODUTOS?')) {
+        if (!window.confirm('Confirme novamente: Deseja realmente APAGAR TODOS OS PRODUTOS?')) {
             return;
         }
 
@@ -223,6 +226,14 @@ const SettingsPage = () => {
                     {/* Company Info */}
                     <Card title="Dados da Empresa" icon={Building}>
                         <div className="space-y-4 p-4">
+                            <Input
+                                label="Logo (URL)"
+                                name="brandLogoUrl"
+                                value={settings.brandLogoUrl}
+                                onChange={handleChange}
+                                placeholder="https://.../logo.png"
+                            />
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
                                     label="Nome da Empresa"
@@ -248,6 +259,23 @@ const SettingsPage = () => {
                                 onChange={handleChange}
                                 placeholder="Rua, Número, Bairro, Cidade - UF"
                             />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Instagram"
+                                    name="socialInstagram"
+                                    value={settings.socialInstagram}
+                                    onChange={handleChange}
+                                    placeholder="@seuinstagram"
+                                />
+                                <Input
+                                    label="WhatsApp"
+                                    name="whatsapp"
+                                    value={settings.whatsapp}
+                                    onChange={handleChange}
+                                    placeholder="(00) 00000-0000"
+                                />
+                            </div>
                         </div>
                     </Card>
 
@@ -369,7 +397,7 @@ const SettingsPage = () => {
                     <Card title="Zona de Perigo" icon={AlertTriangle} className="border-red-900/50">
                         <div className="space-y-4 p-4">
                             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                                <h3 className="text-red-400 font-medium mb-2">Excluir Catálogo</h3>
+                                <h3 className="text-red-400 font-medium mb-2">Excluir Produtos</h3>
                                 <p className="text-red-300/70 text-sm mb-4">
                                     Esta ação irá apagar permanentemente todos os produtos cadastrados.
                                     Use com extrema cautela.
