@@ -49,6 +49,7 @@ const Modal = ({
         md: { maxWidth: '600px' },
         lg: { maxWidth: '800px' },
         xl: { maxWidth: '1000px' },
+        xxl: { maxWidth: '1200px' },
         full: { maxWidth: '95vw' }
     };
 

@@ -229,10 +229,18 @@ const SalesPage = () => {
                 showNotification(`Estoque ${stockType} insuficiente. Disponível: ${available} (Reservado: ${reserved})`, 'warning');
                 return;
             }
-            updateQuantity(item.id, item.quantity + 1);
+            updateQuantity(item.cartItemId, item.quantity + 1);
         } catch {
-            updateQuantity(item.id, item.quantity + 1);
+            updateQuantity(item.cartItemId, item.quantity + 1);
         }
+    };
+
+    const handleDecrementItem = (item) => {
+        if (item.quantity - 1 <= 0) {
+            removeItem(item.cartItemId);
+            return;
+        }
+        updateQuantity(item.cartItemId, item.quantity - 1);
     };
     const handleSearchKeyDown = async (e) => {
         if (e.key === 'ArrowDown') {
@@ -250,6 +258,10 @@ const SalesPage = () => {
 
             if (selectedIndex >= 0 && selectedIndex < filteredProducts.length) {
                 handleProductSelect(filteredProducts[selectedIndex]);
+            } else if (filteredProducts.length === 1 && selectedIndex === -1) {
+                handleProductSelect(filteredProducts[0]);
+                setSearchTerm('');
+                setFilteredProducts([]);
             } else if (searchTerm) {
                 // Check for exact barcode match (product or unit)
                 const exactProduct = products.find(p =>
@@ -929,7 +941,7 @@ const SalesPage = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
                                                         icon={<Minus size={14} />}
                                                     />
                                                     <Button
@@ -941,7 +953,7 @@ const SalesPage = () => {
                                                     <Button
                                                         variant="danger"
                                                         size="sm"
-                                                        onClick={() => removeItem(item.id)}
+                                                        onClick={() => removeItem(item.cartItemId)}
                                                         icon={<Trash2 size={14} />}
                                                     />
                                                 </div>
@@ -1224,7 +1236,7 @@ const SalesPage = () => {
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
                 title="Finalizar Venda"
-                size="md"
+                size="lg"
             >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
                     <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-md)' }}>
@@ -1240,7 +1252,7 @@ const SalesPage = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, marginBottom: 0, minWidth: '200px' }}>
+                        <div style={{ flex: '1 1 200px', marginBottom: 0 }}>
                             <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
                                 Forma de Pagamento
                             </label>
@@ -1266,7 +1278,7 @@ const SalesPage = () => {
                         </div>
 
                         {(paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Cartão de Débito') && (
-                            <div style={{ width: '120px', marginBottom: 0 }}>
+                            <div style={{ width: '100px', marginBottom: 0, flexShrink: 0 }}>
                                 <Input
                                     label="Taxa (%)"
                                     type="number"
@@ -1278,9 +1290,9 @@ const SalesPage = () => {
                             </div>
                         )}
 
-                        <div style={{ flex: 1, marginBottom: 0, minWidth: '150px' }}>
+                        <div style={{ width: '150px', marginBottom: 0, flexShrink: 0 }}>
                             <CurrencyInput
-                                label={cardFeePercentage ? `Valor (com taxa: ${formatCurrency(Number(paymentAmount || 0) * (1 + Number(cardFeePercentage)/100))})` : "Valor"}
+                                label={cardFeePercentage ? `Valor (+ Taxa)` : "Valor"}
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                                 onKeyDown={(e) => {
@@ -1291,7 +1303,28 @@ const SalesPage = () => {
                                 className="no-margin"
                             />
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        {(paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Cartão de Débito') && cardFeePercentage && paymentAmount && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '0 12px',
+                                height: '48px',
+                                border: '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'var(--color-bg-tertiary)',
+                                color: 'var(--color-text-primary)',
+                                fontWeight: 600,
+                                flexShrink: 0,
+                                minWidth: '120px',
+                                justifyContent: 'center'
+                            }}>
+                                <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginRight: '8px' }}>Cobrar</span>
+                                <span style={{ color: 'var(--color-primary)' }}>
+                                    {formatCurrency(Number(paymentAmount) * (1 + Number(cardFeePercentage) / 100))}
+                                </span>
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', flexShrink: 0 }}>
                             <Button
                                 onClick={handleAddPayment}
                                 icon={<Plus size={20} />}

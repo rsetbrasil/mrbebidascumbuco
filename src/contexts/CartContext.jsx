@@ -52,10 +52,15 @@ export const CartProvider = ({ children }) => {
             const isCold = type === 'cold';
             const isWholesale = type === 'wholesale';
 
+            // Generate a unique cart item ID based on product ID, unit, and cold status
+            const generateCartItemId = (prodId, prodUnit, prodIsCold) => {
+                return `${prodId}-${prodUnit ? prodUnit.name : 'base'}-${prodIsCold ? 'cold' : 'normal'}`;
+            };
+
+            const newCartItemId = generateCartItemId(product.id, unit, isCold);
+
             const existingIndex = prevItems.findIndex(item =>
-                item.id === product.id &&
-                ((!item.unit && !unit) || (item.unit && unit && item.unit.name === unit.name)) &&
-                ((item.isCold || false) === isCold)
+                item.cartItemId === newCartItemId
             );
 
             // Determine price based on current price type
@@ -106,6 +111,7 @@ export const CartProvider = ({ children }) => {
 
             // Add new item
             return [...prevItems, {
+                cartItemId: newCartItemId,
                 id: product.id,
                 name: unit ? `${product.name} (${unit.name})` : product.name,
                 barcode: unit ? (unit.barcode || product.barcode) : product.barcode,
@@ -147,20 +153,20 @@ export const CartProvider = ({ children }) => {
     }, [recalculatePrices]);
 
     // Remove item from cart
-    const removeItem = useCallback((productId) => {
-        setItems(prevItems => prevItems.filter(item => item.id !== productId));
+    const removeItem = useCallback((cartItemId) => {
+        setItems(prevItems => prevItems.filter(item => item.cartItemId !== cartItemId));
     }, []);
 
     // Update item quantity
-    const updateQuantity = useCallback((productId, quantity) => {
+    const updateQuantity = useCallback((cartItemId, quantity) => {
         if (quantity <= 0) {
-            removeItem(productId);
+            removeItem(cartItemId);
             return;
         }
 
         setItems(prevItems => {
             return prevItems.map(item => {
-                if (item.id === productId) {
+                if (item.cartItemId === cartItemId) {
                     const itemDiscount = item.discount || 0;
                     const subtotal = quantity * item.unitPrice;
                     return {
@@ -175,10 +181,10 @@ export const CartProvider = ({ children }) => {
     }, [removeItem]);
 
     // Update item discount
-    const updateItemDiscount = useCallback((productId, discountValue) => {
+    const updateItemDiscount = useCallback((cartItemId, discountValue) => {
         setItems(prevItems => {
             return prevItems.map(item => {
-                if (item.id === productId) {
+                if (item.cartItemId === cartItemId) {
                     const subtotal = item.quantity * item.unitPrice;
                     return {
                         ...item,
@@ -192,10 +198,10 @@ export const CartProvider = ({ children }) => {
     }, []);
 
     // Update item price
-    const updatePrice = useCallback((productId, newPrice) => {
+    const updatePrice = useCallback((cartItemId, newPrice) => {
         setItems(prevItems => {
             return prevItems.map(item => {
-                if (item.id === productId) {
+                if (item.cartItemId === cartItemId) {
                     const itemDiscount = item.discount || 0;
                     const subtotal = item.quantity * newPrice;
                     return {
