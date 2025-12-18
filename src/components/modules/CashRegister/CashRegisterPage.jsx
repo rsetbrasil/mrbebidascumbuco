@@ -691,7 +691,8 @@ const CashRegisterPage = () => {
                         width: '100%',
                         maxWidth: '100%',
                         flexWrap: 'nowrap',
-                        overflowX: 'auto'
+                        overflowX: 'auto',
+                        marginBottom: 'var(--spacing-sm)'
                     }}
                 >
                     <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
