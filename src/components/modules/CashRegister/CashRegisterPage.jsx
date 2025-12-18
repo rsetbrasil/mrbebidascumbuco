@@ -941,7 +941,7 @@ const CashRegisterPage = () => {
                 isOpen={historyOpen}
                 onClose={() => setHistoryOpen(false)}
                 title="Histórico de Caixas"
-                size="full"
+                size="xl"
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
                         <Button variant="secondary" onClick={() => setHistoryOpen(false)}>Fechar</Button>

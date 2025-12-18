@@ -47,6 +47,7 @@ const SalesPage = () => {
     const [paymentMethod, setPaymentMethod] = useState('Dinheiro');
     const [paymentAmount, setPaymentAmount] = useState('');
     const [payments, setPayments] = useState([]);
+    const [cardFeePercentage, setCardFeePercentage] = useState('');
 
 
 
@@ -94,6 +95,19 @@ const SalesPage = () => {
             }
         }
     }, [paymentModalOpen, payments, totals.total, isEditingSale, editingSale]);
+
+    // Auto-fill fee percentage based on payment method and settings
+    useEffect(() => {
+        if (paymentMethod === 'Cartão de Crédito') {
+            // Use setting or default to 3.5
+            setCardFeePercentage(settings.creditCardFee || '3.5');
+        } else if (paymentMethod === 'Cartão de Débito') {
+            // Use setting or default to 2.5
+            setCardFeePercentage(settings.debitCardFee || '2.5');
+        } else {
+            setCardFeePercentage('');
+        }
+    }, [paymentMethod, settings]);
 
     useEffect(() => {
         loadProducts();
@@ -403,8 +417,6 @@ const SalesPage = () => {
     };
 
     const handleCheckout = () => {
-
-
         if (!canFinalize) {
             showNotification('Apenas gerente pode finalizar vendas', 'warning');
             return;
@@ -423,6 +435,7 @@ const SalesPage = () => {
         setPayments([]);
         setPaymentAmount('');
         setPaymentMethod('Dinheiro');
+        setCardFeePercentage('');
         setPaymentModalOpen(true);
     };
 
@@ -434,14 +447,22 @@ const SalesPage = () => {
         }
 
         const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-
-        if (totalPaid + amount > totals.total + 1000) {
+        
+        // Se houver taxa, não limitamos o valor pago ao total original + 1000
+        // pois o valor com taxa será naturalmente maior que o total original
+        if (!cardFeePercentage && totalPaid + amount > totals.total + 1000) {
             showNotification('Valor muito alto', 'warning');
             return;
         }
 
-        setPayments([...payments, { method: paymentMethod, amount }]);
+        setPayments([...payments, { 
+            method: paymentMethod, 
+            amount,
+            feePercentage: cardFeePercentage ? parseFloat(cardFeePercentage) : 0
+        }]);
         setPaymentAmount('');
+        // Mantém a taxa para facilitar adicionar outro pagamento com mesma taxa, ou limpa?
+        // Melhor manter se for parcelado.
     };
 
     const handleRemovePayment = (index) => {
@@ -1218,8 +1239,8 @@ const SalesPage = () => {
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end' }}>
-                        <div style={{ flex: 1, marginBottom: 0 }}>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, marginBottom: 0, minWidth: '200px' }}>
                             <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
                                 Forma de Pagamento
                             </label>
@@ -1243,9 +1264,23 @@ const SalesPage = () => {
                                 <option value="PIX" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>PIX</option>
                             </select>
                         </div>
-                        <div style={{ flex: 1, marginBottom: 0 }}>
+
+                        {(paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Cartão de Débito') && (
+                            <div style={{ width: '120px', marginBottom: 0 }}>
+                                <Input
+                                    label="Taxa (%)"
+                                    type="number"
+                                    value={cardFeePercentage}
+                                    onChange={(e) => setCardFeePercentage(e.target.value)}
+                                    placeholder="0%"
+                                    className="no-margin"
+                                />
+                            </div>
+                        )}
+
+                        <div style={{ flex: 1, marginBottom: 0, minWidth: '150px' }}>
                             <CurrencyInput
-                                label="Valor"
+                                label={cardFeePercentage ? `Valor (com taxa: ${formatCurrency(Number(paymentAmount || 0) * (1 + Number(cardFeePercentage)/100))})` : "Valor"}
                                 value={paymentAmount}
                                 onChange={(e) => setPaymentAmount(e.target.value)}
                                 onKeyDown={(e) => {
@@ -1275,9 +1310,23 @@ const SalesPage = () => {
                                     padding: 'var(--spacing-sm) var(--spacing-md)',
                                     borderBottom: '1px solid var(--color-border)'
                                 }}>
-                                    <span>{payment.method}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span>{payment.method}</span>
+                                        {payment.feePercentage > 0 && (
+                                            <span style={{ fontSize: '0.8em', color: 'var(--color-text-muted)' }}>
+                                                (+ {payment.feePercentage}% taxa: {formatCurrency(payment.amount * (payment.feePercentage/100))})
+                                            </span>
+                                        )}
+                                    </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                        <span style={{ fontWeight: 600 }}>{formatCurrency(payment.amount)}</span>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <span style={{ fontWeight: 600, display: 'block' }}>{formatCurrency(payment.amount)}</span>
+                                            {payment.feePercentage > 0 && (
+                                                <span style={{ fontSize: '0.8em', color: 'var(--color-primary)', display: 'block' }}>
+                                                    Cobrar: {formatCurrency(payment.amount * (1 + payment.feePercentage/100))}
+                                                </span>
+                                            )}
+                                        </div>
                                         <button
                                             onClick={() => handleRemovePayment(index)}
                                             style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer' }}

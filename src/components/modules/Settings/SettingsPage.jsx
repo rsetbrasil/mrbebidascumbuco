@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Printer, Building, AlertTriangle, Trash2, Settings, Upload, Download } from 'lucide-react';
+import { Save, Printer, Building, AlertTriangle, Trash2, Settings, Upload, Download, CreditCard } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -28,6 +28,8 @@ const SettingsPage = () => {
         brandLogoUrl: '',
         socialInstagram: '',
         whatsapp: '',
+        creditCardFee: '3.5',
+        debitCardFee: '2.5',
         menu: [
             { key: 'dashboard', visible: true, label: 'Painel' },
             { key: 'pdv', visible: true, label: 'PDV' },
@@ -59,7 +61,9 @@ const SettingsPage = () => {
 
             setSettings(prev => ({
                 ...prev,
-                ...settingsMap
+                ...settingsMap,
+                creditCardFee: settingsMap.creditCardFee || '3.5',
+                debitCardFee: settingsMap.debitCardFee || '2.5'
             }));
         } catch (error) {
             console.error('Error loading settings:', error);
@@ -276,6 +280,35 @@ const SettingsPage = () => {
                                     placeholder="(00) 00000-0000"
                                 />
                             </div>
+                        </div>
+                    </Card>
+
+                    {/* Taxas de Cartão */}
+                    <Card title="Taxas de Pagamento" icon={CreditCard}>
+                        <div className="space-y-4 p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Taxa Cartão de Crédito (%)"
+                                    name="creditCardFee"
+                                    type="number"
+                                    value={settings.creditCardFee}
+                                    onChange={handleChange}
+                                    placeholder="0"
+                                    step="0.01"
+                                />
+                                <Input
+                                    label="Taxa Cartão de Débito (%)"
+                                    name="debitCardFee"
+                                    type="number"
+                                    value={settings.debitCardFee}
+                                    onChange={handleChange}
+                                    placeholder="0"
+                                    step="0.01"
+                                />
+                            </div>
+                            <p className="text-sm text-gray-400">
+                                Estas taxas serão sugeridas automaticamente ao finalizar uma venda com cartão.
+                            </p>
                         </div>
                     </Card>
 
