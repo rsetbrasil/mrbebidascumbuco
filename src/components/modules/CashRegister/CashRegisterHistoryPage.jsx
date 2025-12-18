@@ -97,6 +97,10 @@ const CashRegisterHistoryPage = () => {
         }
     };
 
+    const handleViewDetails = (registerId) => {
+        navigate(`/cash-register-details/${registerId}`);
+    };
+
     if (loading) return <Loading fullScreen />;
 
     return (
@@ -124,7 +128,7 @@ const CashRegisterHistoryPage = () => {
                                 <th className="p-4" style={{minWidth: 140}}>Saldo Inicial</th>
                                 <th className="p-4" style={{minWidth: 140}}>Saldo Final</th>
                                 <th className="p-4" style={{minWidth: 140}}>Diferença</th>
-                                <th className="p-4 text-right" style={{minWidth: 140}}>Ações</th>
+                                <th className="p-4 text-right" style={{minWidth: 220}}>Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
@@ -180,14 +184,23 @@ const CashRegisterHistoryPage = () => {
                                             })()}
                                         </td>
                                         <td className="p-4 text-right">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                icon={Printer}
-                                                onClick={() => handlePrintReport(register)}
-                                            >
-                                                Imprimir
-                                            </Button>
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => handleViewDetails(register.id)}
+                                                >
+                                                    Ver
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    icon={Printer}
+                                                    onClick={() => handlePrintReport(register)}
+                                                >
+                                                    Imprimir
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

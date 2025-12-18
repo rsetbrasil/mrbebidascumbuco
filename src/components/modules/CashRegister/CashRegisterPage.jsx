@@ -56,6 +56,10 @@ const CashRegisterPage = () => {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyItems, setHistoryItems] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyViewOpen, setHistoryViewOpen] = useState(false);
+    const [historyViewLoading, setHistoryViewLoading] = useState(false);
+    const [historyViewData, setHistoryViewData] = useState(null);
+    const [historyViewPaymentSummary, setHistoryViewPaymentSummary] = useState([]);
     const [salesFilter, setSalesFilter] = useState('today'); // 'all' | 'today'
 
     const isRegisterOpen = !!currentCashRegister;
@@ -157,6 +161,85 @@ const CashRegisterPage = () => {
             }, settings || {});
         } catch (error) {
             showNotification('error', 'Erro ao gerar relatório');
+        }
+    };
+
+    const handleViewHistory = async (register) => {
+        setHistoryViewOpen(true);
+        setHistoryViewLoading(true);
+        setHistoryViewData(null);
+        setHistoryViewPaymentSummary([]);
+        try {
+            const sales = await salesService.getByCashRegister(register.id);
+            const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
+            const movements = await cashRegisterService.getMovements(register.id);
+
+            const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+            const totalSupplies = (movements || []).filter(m => m.type === 'supply').reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalBleeds = (movements || []).filter(m => m.type === 'bleed').reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const totalChange = (movements || []).filter(m => m.type === 'change').reduce((acc, m) => acc + Number(m.amount || 0), 0);
+            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+
+            const totalCMV = validSales.reduce((sum, s) => {
+                const cmv = Number(s.cmvTotal || 0);
+                if (cmv > 0) return sum + cmv;
+                const items = Array.isArray(s.items) ? s.items : [];
+                return sum + items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
+            }, 0);
+            const profitTotal = totalSales - totalCMV;
+            const margin = totalSales > 0 ? (profitTotal / totalSales) : 0;
+
+            const profitByType = (() => {
+                let atacado = 0;
+                let mercearia = 0;
+                for (const sale of validSales) {
+                    const items = Array.isArray(sale.items) ? sale.items : [];
+                    for (const item of items) {
+                        const unitPrice = Number(item.unitPrice || 0);
+                        const unitCost = Number(item.unitCost || 0);
+                        const qty = Number(item.quantity || 1);
+                        const lucroItem = (unitPrice - unitCost) * qty;
+                        if (item.isWholesale === true) {
+                            atacado += lucroItem;
+                        } else {
+                            mercearia += lucroItem;
+                        }
+                    }
+                }
+                return { atacado, mercearia, total: atacado + mercearia };
+            })();
+
+            const paymentsMap = new Map();
+            for (const sale of validSales) {
+                const list = normalizePayments(sale);
+                for (const p of list) {
+                    const key = String(p.method || 'Dinheiro');
+                    const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
+                    paymentsMap.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+                }
+            }
+            setHistoryViewPaymentSummary(Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count })));
+
+            setHistoryViewData({
+                register,
+                totals: {
+                    totalSales,
+                    totalSupplies,
+                    totalBleeds,
+                    totalChange,
+                    finalBalance
+                },
+                metrics: {
+                    totalCMV,
+                    profitTotal,
+                    margin,
+                    profitByType
+                }
+            });
+        } catch (e) {
+            setHistoryViewData({ register, totals: null, metrics: null });
+        } finally {
+            setHistoryViewLoading(false);
         }
     };
 
@@ -962,7 +1045,7 @@ const CashRegisterPage = () => {
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO INICIAL</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO FINAL</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>DIFERENÇA</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right' }}>AÇÃO</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right', minWidth: 220, whiteSpace: 'nowrap' }}>AÇÃO</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1011,25 +1094,128 @@ const CashRegisterPage = () => {
                                                             {label}{diff !== 0 ? ` ${formatCurrency(diff)}` : ''}
                                                         </span>
                                                     );
-                                                })()}
-                                            </td>
-                                            <td style={{ padding: '12px', textAlign: 'right' }}>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    icon={Printer}
-                                                    onClick={() => handlePrintHistory(register)}
-                                                >
-                                                    Imprimir
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
+                                            })()}
+                                        </td>
+                                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                                                <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        icon={Eye}
+                                                        onClick={() => handleViewHistory(register)}
+                                                    >
+                                                        Ver
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        icon={Printer}
+                                                        onClick={() => handlePrintHistory(register)}
+                                                    >
+                                                        Imprimir
+                                                    </Button>
+                                                </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                             </tbody>
                         </table>
                     )}
                 </div>
+            </Modal>
+
+            <Modal
+                isOpen={historyViewOpen}
+                onClose={() => setHistoryViewOpen(false)}
+                title="Detalhes do Caixa"
+                size="md"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button variant="secondary" onClick={() => setHistoryViewOpen(false)}>Fechar</Button>
+                    </div>
+                }
+            >
+                {historyViewLoading || !historyViewData ? (
+                    <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                        Carregando...
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-sm)' }}>
+                            <div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Aberto em</div>
+                                <div style={{ fontWeight: 600 }}>{formatDateTime(historyViewData.register.openedAt)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Fechado em</div>
+                                <div style={{ fontWeight: 600 }}>{formatDateTime(historyViewData.register.closedAt)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Operador</div>
+                                <div style={{ fontWeight: 600 }}>{historyViewData.register.closedBy || '-'}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Inicial</div>
+                                <div style={{ fontWeight: 700 }}>{formatCurrency(historyViewData.register.openingBalance)}</div>
+                            </div>
+                            <div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Final</div>
+                                <div style={{ fontWeight: 700 }}>{formatCurrency(historyViewData.register.closingBalance)}</div>
+                            </div>
+                        </div>
+
+                        {historyViewData.totals && (
+                            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo Financeiro</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Vendas</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalSales)}</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Suprimentos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalSupplies)}</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Sangrias</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalBleeds)}</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Trocos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalChange)}</span>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Saldo Calculado</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(historyViewData.totals.finalBalance)}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {historyViewData.metrics && (
+                            <>
+                                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Indicadores</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>CMV</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.metrics.totalCMV)}</span>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Lucro</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.metrics.profitTotal)}</span>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Margem</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{(historyViewData.metrics.margin * 100).toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Lucro por Tipo</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Atacado</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(historyViewData.metrics.profitByType.atacado)}</span>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-primary)' }}>{formatCurrency(historyViewData.metrics.profitByType.mercearia)}</span>
+                                        <span style={{ color: 'var(--color-text-secondary)' }}>Total</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(historyViewData.metrics.profitByType.total)}</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
+                            <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo de Pagamentos</div>
+                            {historyViewPaymentSummary.length === 0 ? (
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>-</div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    {historyViewPaymentSummary.map((p, idx) => (
+                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>{p.method}{p.count > 0 ? ` (${p.count})` : ''}</span>
+                                            <span style={{ fontWeight: 600 }}>{formatCurrency(p.amount)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </Modal>
 
             {/* Manager Approval Modal for Cashier Closing */}
