@@ -695,37 +695,24 @@ const CashRegisterPage = () => {
                     }}
                 >
                     <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                        <button
+                        <Button
+                            size="sm"
+                            variant={salesFilter === 'all' ? 'primary' : 'secondary'}
                             onClick={() => setSalesFilter('all')}
-                            style={{
-                                padding: '8px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--color-border)',
-                                background: salesFilter === 'all' ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
-                                color: salesFilter === 'all' ? '#fff' : 'var(--color-text-secondary)',
-                                cursor: 'pointer',
-                                fontWeight: 500
-                            }}
                         >
                             Todas
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={salesFilter === 'today' ? 'primary' : 'secondary'}
                             onClick={() => setSalesFilter('today')}
-                            style={{
-                                padding: '8px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--color-border)',
-                                background: salesFilter === 'today' ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
-                                color: salesFilter === 'today' ? '#fff' : 'var(--color-text-secondary)',
-                                cursor: 'pointer',
-                                fontWeight: 500
-                            }}
                         >
                             Vendas de Hoje
-                        </button>
+                        </Button>
                     </div>
                     <Button
                         variant="secondary"
+                        size="sm"
                         onClick={openHistoryModal}
                         icon={History}
                     >
@@ -733,6 +720,7 @@ const CashRegisterPage = () => {
                     </Button>
                     <Button
                         variant="secondary"
+                        size="sm"
                         onClick={handleViewOpen}
                         icon={Eye}
                     >
@@ -740,13 +728,15 @@ const CashRegisterPage = () => {
                     </Button>
                     <Button
                         variant="primary"
+                        size="sm"
                         onClick={handlePrintOpenRegister}
                         icon={Printer}
                     >
-                        Imprimir Resumo
+                        Imprimir
                     </Button>
                     <Button
                         variant="success"
+                        size="sm"
                         onClick={() => setModalType('supply')}
                         icon={ArrowUpCircle}
                     >
@@ -754,6 +744,7 @@ const CashRegisterPage = () => {
                     </Button>
                     <Button
                         variant="danger"
+                        size="sm"
                         onClick={() => setModalType('bleed')}
                         icon={ArrowDownCircle}
                     >
@@ -761,6 +752,7 @@ const CashRegisterPage = () => {
                     </Button>
                     <Button
                         variant="danger"
+                        size="sm"
                         onClick={handleCloseRegister}
                         icon={Lock}
                     >
