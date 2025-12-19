@@ -4,20 +4,79 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Loading from '../../common/Loading';
-import { cashRegisterService, salesService } from '../../../services/firestore';
+import { cashRegisterService, salesService, productService } from '../../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
 
 const CashRegisterHistoryPage = () => {
     const navigate = useNavigate();
-    const { showNotification } = useApp();
+    const { showNotification, settings } = useApp();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadHistory();
     }, []);
+
+    const enrichSalesCosts = async (salesList) => {
+        const productCache = new Map();
+        const unitCostByKey = new Map();
+
+        const getProduct = async (productId) => {
+            const key = String(productId || '');
+            if (!key) return null;
+            if (productCache.has(key)) return productCache.get(key);
+            try {
+                const product = await productService.getById(key);
+                productCache.set(key, product || null);
+                return product || null;
+            } catch {
+                productCache.set(key, null);
+                return null;
+            }
+        };
+
+        const computeUnitCost = async (sale, item) => {
+            const productId = String(item?.productId || '');
+            if (!productId) return Number(item?.unitCost || 0);
+
+            const unitMultiplier = item?.unit && item.unit.multiplier ? Number(item.unit.multiplier) : 1;
+            const isCold = item?.isCold === true || (sale?.priceType === 'cold' && item?.isCold !== false);
+            const cacheKey = `${productId}|${isCold ? 'cold' : 'wholesale'}|${unitMultiplier}`;
+            if (unitCostByKey.has(cacheKey)) return unitCostByKey.get(cacheKey);
+
+            const product = await getProduct(productId);
+            if (!product) {
+                const fallback = Number(item?.unitCost || 0);
+                unitCostByKey.set(cacheKey, fallback);
+                return fallback;
+            }
+
+            const rawCost = Number(isCold ? (product?.coldCost || product?.cost || 0) : (product?.cost || 0));
+            const costUnitMultiplier = Number(isCold ? (product?.coldUnitMultiplier || 1) : (product?.wholesaleUnitMultiplier || 1));
+            const baseCost = costUnitMultiplier > 0 ? (rawCost / costUnitMultiplier) : rawCost;
+            const computed = baseCost * (Number.isFinite(unitMultiplier) && unitMultiplier > 0 ? unitMultiplier : 1);
+            unitCostByKey.set(cacheKey, computed);
+            return computed;
+        };
+
+        const list = Array.isArray(salesList) ? salesList : [];
+        return Promise.all(list.map(async (sale) => {
+            const items = Array.isArray(sale?.items) ? sale.items : [];
+            if (items.length === 0) return sale;
+            const enrichedItems = await Promise.all(items.map(async (item) => {
+                const unitCost = await computeUnitCost(sale, item);
+                return { ...item, unitCost };
+            }));
+            const cmvTotal = enrichedItems.reduce((acc, it) => {
+                const qty = Number(it?.quantity || 0);
+                const unitCost = Number(it?.unitCost || 0);
+                return acc + (unitCost * qty);
+            }, 0);
+            return { ...sale, items: enrichedItems, cmvTotal };
+        }));
+    };
 
     const loadHistory = async () => {
         try {
@@ -34,7 +93,7 @@ const CashRegisterHistoryPage = () => {
     const handlePrintReport = async (register) => {
         try {
             const sales = await salesService.getByCashRegister(register.id);
-            const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
+            const validSales = await enrichSalesCosts((sales || []).filter(s => s && s.status !== 'cancelled'));
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
             const movements = await cashRegisterService.getMovements(register.id);
             const totalSupplies = (movements || [])
@@ -90,7 +149,7 @@ const CashRegisterHistoryPage = () => {
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
                 profitTotal: profitCalc.total
-            });
+            }, settings || {});
         } catch (error) {
             console.error('Error printing report:', error);
             showNotification('Erro ao gerar relatório', 'error');

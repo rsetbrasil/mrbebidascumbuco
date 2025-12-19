@@ -213,7 +213,7 @@ const SalesPage = () => {
             const isCold = !!item.isCold;
             const deduction = item.unit && item.unit.multiplier ? item.unit.multiplier : 1;
             if (!product) {
-                updateQuantity(item.id, item.quantity + 1);
+                updateQuantity(item.cartItemId, item.quantity + 1);
                 return;
             }
             const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
@@ -917,9 +917,9 @@ const SalesPage = () => {
                                     <p style={{ fontSize: 'var(--font-size-sm)' }}>Use a busca acima para adicionar produtos</p>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
-                                    {items.map(item => (
-                                        <div key={item.id} style={{
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                                    {items.map((item, idx) => (
+                                        <div key={item.cartItemId || `${item.id || 'item'}-${idx}`} style={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'space-between',

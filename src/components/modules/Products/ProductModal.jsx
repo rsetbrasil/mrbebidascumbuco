@@ -20,6 +20,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         categoryId: '',
         wholesaleUnit: 'UN',
         coldUnit: 'UN',
+        wholesaleUnitMultiplier: 1,
+        coldUnitMultiplier: 1,
         active: true
     });
 
@@ -47,6 +49,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 categoryId: product.categoryId || '',
                 wholesaleUnit: product.wholesaleUnit || product.unitOfMeasure || 'UN',
                 coldUnit: product.coldUnit || product.unitOfMeasure || 'UN',
+                wholesaleUnitMultiplier: product.wholesaleUnitMultiplier || 1,
+                coldUnitMultiplier: product.coldUnitMultiplier || 1,
                 active: product.active !== undefined ? product.active : true
             });
         } else {
@@ -62,6 +66,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 categoryId: '',
                 wholesaleUnit: 'UN',
                 coldUnit: 'UN',
+                wholesaleUnitMultiplier: 1,
+                coldUnitMultiplier: 1,
                 active: true
             });
         }
@@ -128,6 +134,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 stock: parseInt(formData.stock) || 0,
                 coldStock: parseInt(formData.coldStock) || 0
             };
+            productData.wholesaleUnitMultiplier = Math.max(1, parseInt(formData.wholesaleUnitMultiplier) || 1);
+            productData.coldUnitMultiplier = Math.max(1, parseInt(formData.coldUnitMultiplier) || 1);
 
             await onSave(productData);
             onClose();
@@ -212,6 +220,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     ))}
                                 </select>
                             </div>
+                            <div style={{ width: '110px' }}>
+                                <Input
+                                    label="Qtd/Un."
+                                    name="wholesaleUnitMultiplier"
+                                    type="number"
+                                    value={formData.wholesaleUnitMultiplier}
+                                    onChange={handleChange}
+                                    placeholder="1"
+                                    className="no-margin"
+                                />
+                            </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                             <CurrencyInput
@@ -259,6 +278,17 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                         <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
                                     ))}
                                 </select>
+                            </div>
+                            <div style={{ width: '110px' }}>
+                                <Input
+                                    label="Qtd/Un."
+                                    name="coldUnitMultiplier"
+                                    type="number"
+                                    value={formData.coldUnitMultiplier}
+                                    onChange={handleChange}
+                                    placeholder="1"
+                                    className="no-margin"
+                                />
                             </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end' }}>

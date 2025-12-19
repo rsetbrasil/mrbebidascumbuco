@@ -99,14 +99,18 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
     const trigger = () => {
         try {
             w.focus();
-            w.print();
-            setTimeout(() => { w.close(); }, 300);
+            setTimeout(() => {
+                try {
+                    w.print();
+                    setTimeout(() => { try { w.close(); } catch {} }, 700);
+                } catch {}
+            }, 450);
         } catch {}
     };
     if (w.document.readyState === 'complete') {
-        setTimeout(trigger, 50);
+        setTimeout(trigger, 250);
     } else {
-        w.addEventListener('load', () => setTimeout(trigger, 50));
+        w.addEventListener('load', () => setTimeout(trigger, 250));
     }
 };
 
@@ -397,6 +401,314 @@ export const printCashRegisterReport = (data, settings = {}) => {
         <div class="text-center text-xs mt-4">
             ____________________________<br/>
             Conferido por
+        </div>
+    `;
+
+    printHtml(html, paperWidthMm);
+};
+
+export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) => {
+    const sanitize = (s) => String(s || '').trim().replace(/\n+/g, '\n');
+    const companyName = sanitize(settings.companyName) || 'MR BEBIDAS DISTRIBUIDORA';
+    const paperWidthMm = Number(settings.paperWidthMm) || 80;
+
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+    const periodLabel = startDate && endDate
+        ? `${formatDateTime(startDate)} até ${formatDateTime(endDate)}`
+        : formatDateTime(new Date());
+
+    const normalizePayments = (sale) => {
+        if (Array.isArray(sale.payments) && sale.payments.length > 0) {
+            return sale.payments
+                .map(p => ({ method: String(p.method || 'Dinheiro'), amount: Number(p.amount || 0) }))
+                .filter(p => p.amount > 0);
+        }
+        const method = String(sale.paymentMethod || 'Dinheiro');
+        const paid = Number(sale.totalPaid || sale.total || 0);
+        return paid > 0 ? [{ method, amount: paid }] : [{ method, amount: Number(sale.total || 0) }];
+    };
+
+    const toDate = (v) => (v && typeof v.toDate === 'function') ? v.toDate() : new Date(v || 0);
+    const daySales = (Array.isArray(sales) ? sales : []).filter(s => s && s.status !== 'cancelled');
+    const sorted = [...daySales].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
+
+    let totalNet = 0;
+    let totalPaid = 0;
+    let totalChange = 0;
+    let totalDiscount = 0;
+    let totalItems = 0;
+
+    let revenueAtacado = 0;
+    let costAtacado = 0;
+    let revenueMercearia = 0;
+    let costMercearia = 0;
+
+    const byMethodReceived = new Map();
+    const byMethodNet = new Map();
+    const byMethodCount = new Map();
+
+    for (const sale of sorted) {
+        const net = Number(sale.total || 0);
+        const paid = Number(sale.totalPaid || sale.total || 0);
+        const change = Math.max(0, Number(sale.change || 0));
+        const discount = Number(sale.discount || 0);
+        const itemsCount = Array.isArray(sale.items) ? sale.items.length : 0;
+
+        totalNet += net;
+        totalPaid += paid;
+        totalChange += change;
+        totalDiscount += discount;
+        totalItems += itemsCount;
+
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        for (const item of items) {
+            const qty = Number(item?.quantity || 0);
+            const revenue = Number(item?.total ?? (Number(item?.unitPrice || 0) * qty)) || 0;
+            const cost = (Number(item?.unitCost || 0) * qty) || 0;
+            const isAtacado = item?.isWholesale === true;
+            if (isAtacado) {
+                revenueAtacado += revenue;
+                costAtacado += cost;
+            } else {
+                revenueMercearia += revenue;
+                costMercearia += cost;
+            }
+        }
+
+        const payments = normalizePayments(sale);
+        let changeLeft = change;
+        for (const p of payments) {
+            const method = String(p.method || 'Dinheiro');
+            const amount = Number(p.amount || 0);
+            byMethodReceived.set(method, (byMethodReceived.get(method) || 0) + amount);
+            byMethodCount.set(method, (byMethodCount.get(method) || 0) + 1);
+        }
+        for (const p of payments) {
+            const method = String(p.method || 'Dinheiro');
+            const amount = Number(p.amount || 0);
+            const isCash = method.toLowerCase().includes('dinheiro') || method.toLowerCase().includes('cash');
+            const changeDeduct = isCash ? Math.min(changeLeft, amount) : 0;
+            if (isCash) changeLeft -= changeDeduct;
+            byMethodNet.set(method, (byMethodNet.get(method) || 0) + (amount - changeDeduct));
+        }
+        if (changeLeft > 0 && payments.length > 0) {
+            const first = String(payments[0].method || 'Dinheiro');
+            byMethodNet.set(first, (byMethodNet.get(first) || 0) - changeLeft);
+        }
+    }
+
+    const totalNetReceived = totalPaid - totalChange;
+    const avgTicket = sorted.length > 0 ? (totalNet / sorted.length) : 0;
+
+    const profitAtacado = revenueAtacado - costAtacado;
+    const profitMercearia = revenueMercearia - costMercearia;
+    const profitTotal = profitAtacado + profitMercearia;
+    const marginAtacado = revenueAtacado > 0 ? (profitAtacado / revenueAtacado) : 0;
+    const marginMercearia = revenueMercearia > 0 ? (profitMercearia / revenueMercearia) : 0;
+    const revenueTotalType = revenueAtacado + revenueMercearia;
+    const costTotalType = costAtacado + costMercearia;
+    const marginTotal = revenueTotalType > 0 ? (profitTotal / revenueTotalType) : 0;
+
+    const paymentsLines = Array.from(byMethodReceived.entries())
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+        .map(([method, received]) => {
+            const net = byMethodNet.get(method) || 0;
+            const cnt = byMethodCount.get(method) || 0;
+            return `
+                <div class="text-sm mb-1">
+                    <div class="flex"><span>${sanitize(method)}${cnt ? ` (${cnt})` : ''}</span><span>${formatCurrency(received)}</span></div>
+                    <div class="flex text-xs"><span>Líquido</span><span>${formatCurrency(net)}</span></div>
+                </div>
+            `;
+        }).join('');
+
+    const salesLines = sorted.map((sale) => {
+        const createdAt = toDate(sale.createdAt);
+        const time = createdAt instanceof Date && !isNaN(createdAt) ? createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+        const number = sanitize(sale.saleNumber || '');
+        const customer = sanitize(sale.customerName || 'Cliente Balcão');
+        const net = Number(sale.total || 0);
+        const paid = Number(sale.totalPaid || sale.total || 0);
+        const change = Math.max(0, Number(sale.change || 0));
+        const payments = normalizePayments(sale);
+        const paymentsLabel = payments.map(p => `${sanitize(p.method)} ${formatCurrency(p.amount)}`).join(' | ') || '-';
+
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        const saleCost = items.reduce((acc, it) => {
+            const qty = Number(it?.quantity || 0);
+            const unitCost = Number(it?.unitCost || 0);
+            return acc + (unitCost * qty);
+        }, 0);
+        const saleProfit = net - saleCost;
+
+        const itemsLines = items.length === 0 ? '' : items.map((it) => {
+            const name = sanitize(it?.productName || it?.name || 'Item');
+            const qty = Number(it?.quantity || 0);
+            const unitCost = Number(it?.unitCost || 0);
+            const costTotal = unitCost * qty;
+            const unitPrice = Number(it?.unitPrice || 0);
+            const revenueTotal = Number(it?.total ?? (unitPrice * qty)) || 0;
+            return `
+                <div class="mb-1 text-xs">
+                    <div class="text">${truncate(name, 34)}</div>
+                    <div class="flex"><span>Qtd:</span><span>${formatNumber(qty, 0)}</span></div>
+                    <div class="flex"><span>Venda un.:</span><span>${formatCurrency(unitPrice)}</span></div>
+                    <div class="flex"><span>Venda total:</span><span>${formatCurrency(revenueTotal)}</span></div>
+                    <div class="flex"><span>Custo un.:</span><span>${formatCurrency(unitCost)}</span></div>
+                    <div class="flex"><span>Custo total:</span><span>${formatCurrency(costTotal)}</span></div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="mb-2">
+                <div class="flex font-bold"><span>${time} #${number}</span><span>${formatCurrency(net)}</span></div>
+                <div class="text-xs">
+                    <div class="details-row"><span>Cliente:</span><span class="text">${customer}</span></div>
+                    <div class="details-row"><span>Pago:</span><span>${formatCurrency(paid)}</span></div>
+                    <div class="details-row"><span>Troco:</span><span>${formatCurrency(change)}</span></div>
+                    <div class="details-row"><span>Pag.:</span><span class="text">${paymentsLabel}</span></div>
+                </div>
+                ${items.length > 0 ? `
+                    <div class="border-t py-1 mb-1"></div>
+                    <div class="font-bold text-xs mb-1">ITENS (VENDA + CUSTO)</div>
+                    ${itemsLines}
+                    <div class="border-t py-1 mb-1"></div>
+                    <div class="text-xs">
+                        <div class="flex"><span>CMV:</span><span>${formatCurrency(saleCost)}</span></div>
+                        <div class="flex font-bold"><span>Lucro:</span><span>${formatCurrency(saleProfit)}</span></div>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="border-b mb-2"></div>
+        `;
+    }).join('');
+
+    const html = `
+        <div class="text-center mb-2">
+            <div class="font-bold">${companyName}</div>
+            <div class="font-bold mt-1">RELATÓRIO DE VENDAS</div>
+        </div>
+
+        <div class="mb-2 text-sm">
+            <div class="details-row"><span>Período:</span><span class="text">${sanitize(periodLabel)}</span></div>
+        </div>
+
+        <div class="border-b mb-2"></div>
+
+        <div class="font-bold text-center mb-1">RESUMO</div>
+        <div class="mb-2 text-sm">
+            <div class="flex"><span>Vendas:</span><span>${sorted.length}</span></div>
+            <div class="flex"><span>Itens:</span><span>${totalItems}</span></div>
+            <div class="flex"><span>Descontos:</span><span>${formatCurrency(totalDiscount)}</span></div>
+            <div class="flex font-bold"><span>Total (líquido):</span><span>${formatCurrency(totalNet)}</span></div>
+            <div class="flex"><span>Total recebido:</span><span>${formatCurrency(totalPaid)}</span></div>
+            <div class="flex"><span>Troco (-):</span><span>${formatCurrency(totalChange)}</span></div>
+            <div class="flex font-bold"><span>Recebido líquido:</span><span>${formatCurrency(totalNetReceived)}</span></div>
+            <div class="flex"><span>Ticket médio:</span><span>${formatCurrency(avgTicket)}</span></div>
+        </div>
+
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1">LUCRO (POR TIPO)</div>
+            <div class="text-sm mb-1">
+                <div class="flex"><span>Atacado (Vendas):</span><span>${formatCurrency(revenueAtacado)}</span></div>
+                <div class="flex"><span>Atacado (CMV):</span><span>${formatCurrency(costAtacado)}</span></div>
+                <div class="flex font-bold"><span>Atacado (Lucro):</span><span>${formatCurrency(profitAtacado)}</span></div>
+                <div class="flex text-xs"><span>Atacado (Margem):</span><span>${formatPercentage(marginAtacado)}</span></div>
+            </div>
+            <div class="text-sm mb-1">
+                <div class="flex"><span>Mercearia (Vendas):</span><span>${formatCurrency(revenueMercearia)}</span></div>
+                <div class="flex"><span>Mercearia (CMV):</span><span>${formatCurrency(costMercearia)}</span></div>
+                <div class="flex font-bold"><span>Mercearia (Lucro):</span><span>${formatCurrency(profitMercearia)}</span></div>
+                <div class="flex text-xs"><span>Mercearia (Margem):</span><span>${formatPercentage(marginMercearia)}</span></div>
+            </div>
+            <div class="border-t py-1 mb-1"></div>
+            <div class="text-sm">
+                <div class="flex"><span>Total (Vendas):</span><span>${formatCurrency(revenueTotalType)}</span></div>
+                <div class="flex"><span>Total (CMV):</span><span>${formatCurrency(costTotalType)}</span></div>
+                <div class="flex font-bold"><span>Total (Lucro):</span><span>${formatCurrency(profitTotal)}</span></div>
+                <div class="flex text-xs"><span>Total (Margem):</span><span>${formatPercentage(marginTotal)}</span></div>
+            </div>
+        </div>
+
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1">POR FORMA DE PAGAMENTO</div>
+            ${paymentsLines || `<div class="text-sm"><div class="flex"><span>-</span><span>${formatCurrency(0)}</span></div></div>`}
+        </div>
+
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1">VENDAS (DETALHES)</div>
+            ${salesLines || `<div class="text-sm text-center">Nenhuma venda no período</div>`}
+        </div>
+
+        <div class="text-center text-xs mt-4">
+            ____________________________<br/>
+            Conferido por
+        </div>
+    `;
+
+    printHtml(html, paperWidthMm);
+};
+
+export const printProductsPriceList = ({ products = [], search = '' }, settings = {}) => {
+    const sanitize = (s) => String(s || '').trim().replace(/\n+/g, '\n');
+    const escapeHtml = (s) => String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    const companyName = escapeHtml(sanitize(settings.companyName) || 'MR BEBIDAS DISTRIBUIDORA');
+    const paperWidthMm = Number(settings.paperWidthMm) || 80;
+    const dateStr = formatDateTime(new Date());
+    const term = sanitize(search);
+
+    const sorted = (Array.isArray(products) ? products : [])
+        .filter(p => p && p.active !== false)
+        .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'pt-BR'));
+
+    const lines = sorted.length === 0
+        ? `<div class="text-center text-sm">Nenhum produto</div>`
+        : sorted.map((p, idx) => {
+            const name = escapeHtml(truncate(sanitize(p?.name || 'Produto'), 40));
+            const barcode = escapeHtml(truncate(sanitize(p?.barcode || ''), 32));
+            const sale = Number(p?.wholesalePrice ?? p?.price ?? 0);
+            const cost = Number(p?.cost ?? 0);
+            return `
+                <div class="mb-1">
+                    <div class="font-bold">${idx + 1}. ${name}</div>
+                    ${barcode ? `<div class="text-xs">${barcode}</div>` : ''}
+                    <div class="flex text-sm"><span>Venda:</span><span>${formatCurrency(sale)}</span></div>
+                    <div class="flex text-sm"><span>Custo:</span><span>${formatCurrency(cost)}</span></div>
+                </div>
+                <div class="border-b mb-2"></div>
+            `;
+        }).join('');
+
+    const html = `
+        <div class="text-center mb-2">
+            <div class="font-bold">${companyName}</div>
+            <div class="font-bold mt-1">LISTA DE PRODUTOS</div>
+            <div class="text-xs">${dateStr}</div>
+        </div>
+
+        ${term ? `
+            <div class="mb-2 text-sm">
+                <div class="details-row"><span>Busca:</span><span class="text">${escapeHtml(truncate(term, 24))}</span></div>
+            </div>
+        ` : ''}
+
+        <div class="border-b mb-2"></div>
+
+        <div class="mb-2 text-sm">
+            <div class="flex"><span>Total:</span><span>${sorted.length}</span></div>
+        </div>
+
+        <div class="border-b mb-2"></div>
+
+        <div>
+            ${lines}
         </div>
     `;
 

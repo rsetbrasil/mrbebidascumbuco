@@ -144,8 +144,10 @@ export const formatPercentage = (value, decimals = 2) => {
     if (value === null || value === undefined) return '0%';
 
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    const safeValue = Number.isFinite(numValue) ? numValue : 0;
+    const asPercent = Math.abs(safeValue) <= 1 ? (safeValue * 100) : safeValue;
 
-    return `${formatNumber(numValue, decimals)}%`;
+    return `${formatNumber(asPercent, decimals)}%`;
 };
 
 // Calculate percentage

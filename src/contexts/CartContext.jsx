@@ -20,6 +20,11 @@ export const CartProvider = ({ children }) => {
     const [priceType, setPriceType] = useState('wholesale'); // 'retail', 'wholesale', or 'cold'
     const [cartVersion, setCartVersion] = useState(0);
 
+    const buildCartItemId = useCallback((productId, unit, isCold) => {
+        const unitName = unit ? unit.name : 'base';
+        return `${String(productId || '')}-${String(unitName || 'base')}-${isCold ? 'cold' : 'normal'}`;
+    }, []);
+
     // Helper to recalculate prices
     const recalculatePrices = useCallback((type, currentItems) => {
         const isWholesale = type === 'wholesale';
@@ -29,10 +34,14 @@ export const CartProvider = ({ children }) => {
             if (isWholesale) newPrice = item.wholesalePrice || item.unitPrice;
             if (isCold) newPrice = item.coldPrice || item.retailPrice || item.unitPrice;
             const baseCost = isCold
-                ? ((item.coldCost !== undefined ? item.coldCost : item.unitCost) || 0)
-                : ((item.wholesaleCost !== undefined ? item.wholesaleCost : item.unitCost) || 0);
+                ? ((item.coldCost !== undefined ? item.coldCost : 0) || 0)
+                : ((item.wholesaleCost !== undefined ? item.wholesaleCost : 0) || 0);
+            const costUnitMultiplier = isCold
+                ? Number(item.coldUnitMultiplier || 1)
+                : Number(item.wholesaleUnitMultiplier || 1);
+            const normalized = costUnitMultiplier > 0 ? (baseCost / costUnitMultiplier) : baseCost;
             const multiplier = item.unit?.multiplier ? item.unit.multiplier : 1;
-            const newCost = baseCost * multiplier;
+            const newCost = normalized * multiplier;
             return {
                 ...item,
                 unitPrice: item.unit ? item.unitPrice : newPrice,
@@ -52,12 +61,7 @@ export const CartProvider = ({ children }) => {
             const isCold = type === 'cold';
             const isWholesale = type === 'wholesale';
 
-            // Generate a unique cart item ID based on product ID, unit, and cold status
-            const generateCartItemId = (prodId, prodUnit, prodIsCold) => {
-                return `${prodId}-${prodUnit ? prodUnit.name : 'base'}-${prodIsCold ? 'cold' : 'normal'}`;
-            };
-
-            const newCartItemId = generateCartItemId(product.id, unit, isCold);
+            const newCartItemId = buildCartItemId(product.id, unit, isCold);
 
             const existingIndex = prevItems.findIndex(item =>
                 item.cartItemId === newCartItemId
@@ -66,7 +70,11 @@ export const CartProvider = ({ children }) => {
             // Determine price based on current price type
 
             let priceToUse = product.wholesalePrice || product.price;
-            const baseCost = isCold ? (product.coldCost || product.cost || 0) : (product.cost || 0);
+            const costUnitMultiplier = isCold
+                ? Number(product.coldUnitMultiplier || 1)
+                : Number(product.wholesaleUnitMultiplier || 1);
+            const rawCost = isCold ? (product.coldCost || product.cost || 0) : (product.cost || 0);
+            const baseCost = costUnitMultiplier > 0 ? (rawCost / costUnitMultiplier) : rawCost;
             let costToUse = baseCost;
             let stockDeduction = 1;
 
@@ -123,6 +131,8 @@ export const CartProvider = ({ children }) => {
                 unitCost: costToUse,
                 wholesaleCost: product.cost || 0,
                 coldCost: product.coldCost || product.cost || 0,
+                wholesaleUnitMultiplier: Number(product.wholesaleUnitMultiplier || 1),
+                coldUnitMultiplier: Number(product.coldUnitMultiplier || 1),
                 stock: product.stock, // Store stock limit
                 coldStock: product.coldStock || 0, // Store cold stock limit
                 stockDeductionPerUnit: stockDeduction, // How much to deduct from stock per 1 quantity
@@ -133,7 +143,7 @@ export const CartProvider = ({ children }) => {
                 total: (quantity * priceToUse)
             }];
         });
-    }, [priceType]);
+    }, [priceType, buildCartItemId]);
 
     // Update customer and auto-set price type
     const updateCustomer = useCallback((newCustomer) => {
@@ -275,15 +285,28 @@ export const CartProvider = ({ children }) => {
 
     // Load presale into cart
     const loadPresale = useCallback((presale) => {
-        setItems(presale.items.map(item => ({
-            id: item.productId,
-            name: item.productName || item.name,
-            ...item,
-            retailPrice: item.retailPrice || item.unitPrice,
-            wholesalePrice: item.wholesalePrice || item.unitPrice,
-            coldPrice: item.coldPrice || item.unitPrice,
-            isCold: item.isCold || presale.priceType === 'cold'
-        })));
+        const list = Array.isArray(presale?.items) ? presale.items : [];
+        const used = new Map();
+        const mapped = list.map((item) => {
+            const isCold = (item?.isCold !== undefined) ? !!item.isCold : (presale?.priceType === 'cold');
+            const unit = item?.unit || null;
+            const baseId = buildCartItemId(item?.productId, unit, isCold);
+            const next = (used.get(baseId) || 0) + 1;
+            used.set(baseId, next);
+            const cartItemId = next === 1 ? baseId : `${baseId}-${next}`;
+            return {
+                cartItemId,
+                id: item.productId,
+                name: item.productName || item.name,
+                ...item,
+                retailPrice: item.retailPrice || item.unitPrice,
+                wholesalePrice: item.wholesalePrice || item.unitPrice,
+                coldPrice: item.coldPrice || item.unitPrice,
+                stockDeductionPerUnit: unit?.multiplier ? unit.multiplier : 1,
+                isCold
+            };
+        });
+        setItems(mapped);
 
         if (presale.customer) {
             setCustomer(presale.customer);
@@ -300,28 +323,40 @@ export const CartProvider = ({ children }) => {
         setNotes(presale.notes || '');
         setPresaleId(presale.id);
         setPriceType(presale.priceType || 'wholesale');
-    }, []);
+    }, [buildCartItemId]);
 
     const loadSale = useCallback((sale) => {
-        setItems((sale.items || []).map(item => ({
-            id: item.productId,
-            name: item.productName,
-            barcode: item.barcode || '',
-            quantity: Number(item.quantity) || 1,
-            retailPrice: item.retailPrice || item.unitPrice,
-            wholesalePrice: item.wholesalePrice || item.unitPrice,
-            coldPrice: item.coldPrice || item.unitPrice,
-            unitPrice: Number(item.unitPrice) || 0,
-            unitCost: Number(item.unitCost) || 0,
-            stock: undefined,
-            coldStock: undefined,
-            stockDeductionPerUnit: item.unit?.multiplier ? item.unit.multiplier : 1,
-            unit: item.unit || null,
-            isCold: (item.isCold !== undefined) ? !!item.isCold : (sale.priceType === 'cold'),
-            isWholesale: (item.isWholesale !== undefined) ? !!item.isWholesale : (sale.priceType === 'wholesale'),
-            discount: Number(item.discount) || 0,
-            total: Number(item.total) || (Number(item.quantity) * Number(item.unitPrice))
-        })));
+        const list = Array.isArray(sale?.items) ? sale.items : [];
+        const used = new Map();
+        const mapped = list.map((item) => {
+            const isCold = (item?.isCold !== undefined) ? !!item.isCold : (sale?.priceType === 'cold');
+            const unit = item?.unit || null;
+            const baseId = buildCartItemId(item?.productId, unit, isCold);
+            const next = (used.get(baseId) || 0) + 1;
+            used.set(baseId, next);
+            const cartItemId = next === 1 ? baseId : `${baseId}-${next}`;
+            return {
+                cartItemId,
+                id: item.productId,
+                name: item.productName,
+                barcode: item.barcode || '',
+                quantity: Number(item.quantity) || 1,
+                retailPrice: item.retailPrice || item.unitPrice,
+                wholesalePrice: item.wholesalePrice || item.unitPrice,
+                coldPrice: item.coldPrice || item.unitPrice,
+                unitPrice: Number(item.unitPrice) || 0,
+                unitCost: Number(item.unitCost) || 0,
+                stock: undefined,
+                coldStock: undefined,
+                stockDeductionPerUnit: unit?.multiplier ? unit.multiplier : 1,
+                unit,
+                isCold,
+                isWholesale: (item.isWholesale !== undefined) ? !!item.isWholesale : (sale?.priceType === 'wholesale'),
+                discount: Number(item.discount) || 0,
+                total: Number(item.total) || (Number(item.quantity) * Number(item.unitPrice))
+            };
+        });
+        setItems(mapped);
 
         if (sale.customerId || sale.customerName) {
             setCustomer({ id: sale.customerId || null, name: sale.customerName || 'Cliente Padrão' });
@@ -334,7 +369,7 @@ export const CartProvider = ({ children }) => {
         setPresaleId(null);
         setPriceType(sale.priceType || 'wholesale');
         setEditingSale({ id: sale.id, originalTotal: Number(sale.total) || 0, originalItems: sale.items || [], priceType: sale.priceType || 'wholesale' });
-    }, []);
+    }, [buildCartItemId]);
 
     const value = {
         items,

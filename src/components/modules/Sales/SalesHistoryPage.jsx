@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, XCircle, Eye, Calendar, Filter, Printer } from 'lucide-react';
+import { Search, XCircle, Eye, Printer } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import { salesService, productService, cashRegisterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
-import { formatCurrency, formatDateTime } from '../../../utils/formatters';
-import { printReceipt } from '../../../utils/receiptPrinter';
+import { formatCurrency, formatDate, formatDateTime } from '../../../utils/formatters';
+import { printReceipt, printSalesDayReport } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
 import { useCart } from '../../../contexts/CartContext';
 import { useNavigate } from 'react-router-dom';
@@ -44,6 +44,27 @@ const SalesHistoryPage = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
+
+    const toLocalIsoDate = (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().split('T')[0];
+    };
+
+    const handleToday = () => {
+        const todayStr = toLocalIsoDate(new Date());
+        setStartDate(todayStr);
+        setEndDate(todayStr);
+    };
+
+    const handleYesterday = () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        const yesterdayStr = toLocalIsoDate(d);
+        setStartDate(yesterdayStr);
+        setEndDate(yesterdayStr);
+    };
 
     useEffect(() => {
         setLoading(true);
@@ -98,6 +119,47 @@ const SalesHistoryPage = () => {
         } catch (e) {
             printReceipt(sale, settings);
         }
+    };
+
+    const handlePrintSalesReport = async () => {
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        if (!Array.isArray(sales) || sales.length === 0) {
+            showNotification('warning', 'Nenhuma venda no período selecionado');
+            return;
+        }
+        const costByKey = new Map();
+        const enrichItem = async (item) => {
+            if (!item || !item.productId) return item;
+            const isCold = !!item.isCold;
+            const unitMultiplier = item.unit && item.unit.multiplier ? Number(item.unit.multiplier) : 1;
+            const cacheKey = `${String(item.productId)}|${isCold ? 'cold' : 'wholesale'}|${unitMultiplier}`;
+            if (costByKey.has(cacheKey)) return { ...item, unitCost: costByKey.get(cacheKey) };
+
+            try {
+                const product = await productService.getById(String(item.productId));
+                const rawCost = Number(isCold ? (product?.coldCost || product?.cost || 0) : (product?.cost || 0));
+                const costUnitMultiplier = Number(isCold ? (product?.coldUnitMultiplier || 1) : (product?.wholesaleUnitMultiplier || 1));
+                const baseCost = costUnitMultiplier > 0 ? (rawCost / costUnitMultiplier) : rawCost;
+                const computedUnitCost = baseCost * unitMultiplier;
+                costByKey.set(cacheKey, computedUnitCost);
+                return { ...item, unitCost: computedUnitCost };
+            } catch {
+                costByKey.set(cacheKey, Number(item.unitCost || 0));
+                return item;
+            }
+        };
+
+        const enrichedSales = await Promise.all(
+            sales.map(async (sale) => {
+                const items = Array.isArray(sale?.items) ? sale.items : [];
+                if (items.length === 0) return sale;
+                const enrichedItems = await Promise.all(items.map(enrichItem));
+                return { ...sale, items: enrichedItems };
+            })
+        );
+
+        printSalesDayReport({ sales: enrichedSales, start, end }, settings);
     };
 
     const handleViewSale = (sale) => {
@@ -432,13 +494,16 @@ const SalesHistoryPage = () => {
                         />
                     </div>
                     
-                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>De</label>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                De {startDate ? `(${formatDate(startDate)})` : ''}
+                            </label>
                             <input
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
+                                lang="pt-BR"
                                 style={{
                                     padding: '8px 12px',
                                     borderRadius: 'var(--radius-md)',
@@ -451,11 +516,14 @@ const SalesHistoryPage = () => {
                             />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Até</label>
+                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                Até {endDate ? `(${formatDate(endDate)})` : ''}
+                            </label>
                             <input
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
+                                lang="pt-BR"
                                 style={{
                                     padding: '8px 12px',
                                     borderRadius: 'var(--radius-md)',
@@ -470,17 +538,30 @@ const SalesHistoryPage = () => {
                         <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
                              <Button
                                 variant="secondary"
-                                onClick={() => {
-                                    const d = new Date();
-                                    const offset = d.getTimezoneOffset() * 60000;
-                                    const todayStr = new Date(d.getTime() - offset).toISOString().split('T')[0];
-                                    setStartDate(todayStr);
-                                    setEndDate(todayStr);
-                                }}
+                                onClick={handleYesterday}
+                                style={{ height: '38px' }}
+                             >
+                                 Ontem
+                             </Button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+                             <Button
+                                variant="secondary"
+                                onClick={handleToday}
                                 style={{ height: '38px' }}
                              >
                                  Hoje
                              </Button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+                            <Button
+                                variant="secondary"
+                                onClick={handlePrintSalesReport}
+                                icon={Printer}
+                                style={{ height: '38px' }}
+                            >
+                                Relatório
+                            </Button>
                         </div>
                     </div>
                 </div>

@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Package, AlertCircle, Upload } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, AlertCircle, List, Printer } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import ProductModal from './ProductModal';
+import Modal from '../../common/Modal';
 import { productService, categoryService } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
+import { printProductsPriceList } from '../../../utils/receiptPrinter';
+import { useApp } from '../../../contexts/AppContext';
 
 const ProductsPage = () => {
+    const { settings } = useApp();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState({});
     const [loading, setLoading] = useState(true);
@@ -17,6 +21,8 @@ const ProductsPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [notification, setNotification] = useState(null);
+    const [isPriceListOpen, setIsPriceListOpen] = useState(false);
+    const [priceListSearch, setPriceListSearch] = useState('');
 
     useEffect(() => {
         try {
@@ -130,6 +136,16 @@ const ProductsPage = () => {
         )
         .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
 
+    const priceListFilteredProducts = products
+        .filter(p => {
+            const term = String(priceListSearch || '').trim().toLowerCase();
+            if (!term) return true;
+            const name = String(p?.name || '').toLowerCase();
+            const barcode = String(p?.barcode || '');
+            return name.includes(term) || barcode.includes(priceListSearch);
+        })
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+
     if (loading && !products.length) return <Loading fullScreen />;
 
     return (
@@ -159,6 +175,13 @@ const ProductsPage = () => {
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie seus produtos</p>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                    <Button
+                        variant="secondary"
+                        onClick={() => setIsPriceListOpen(true)}
+                        icon={<List size={20} />}
+                    >
+                        Lista (Venda/Custo)
+                    </Button>
                     <Button
                         variant="secondary"
                         onClick={async () => {
@@ -404,6 +427,76 @@ const ProductsPage = () => {
                 onSave={handleSave}
                 product={editingProduct}
             />
+
+            <Modal
+                isOpen={isPriceListOpen}
+                onClose={() => setIsPriceListOpen(false)}
+                title="Lista de Produtos (Venda e Custo)"
+                size="lg"
+            >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                        {priceListFilteredProducts.length} produto(s)
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <Button
+                            variant="secondary"
+                            icon={<Printer size={18} />}
+                            onClick={() => printProductsPriceList({ products: priceListFilteredProducts, search: priceListSearch }, settings)}
+                        >
+                            Imprimir
+                        </Button>
+                        <Button variant="ghost" onClick={() => setIsPriceListOpen(false)}>
+                            Fechar
+                        </Button>
+                    </div>
+                </div>
+
+                <div style={{ maxWidth: '420px', marginBottom: 'var(--spacing-md)' }}>
+                    <Input
+                        placeholder="Buscar na lista por nome ou código..."
+                        icon={Search}
+                        value={priceListSearch}
+                        onChange={(e) => setPriceListSearch(e.target.value)}
+                    />
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Produto</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço de Venda</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço de Custo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {priceListFilteredProducts.length === 0 ? (
+                                <tr>
+                                    <td colSpan="3" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        Nenhum produto encontrado
+                                    </td>
+                                </tr>
+                            ) : (
+                                priceListFilteredProducts.map((product) => (
+                                    <tr key={`price-list-${product.id}`} style={{ borderBottom: '1px solid var(--color-divider)' }}>
+                                        <td style={{ padding: 'var(--spacing-md)' }}>
+                                            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{product.name}</div>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{product.barcode || 'Sem código'}</div>
+                                        </td>
+                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-success)' }}>
+                                            {formatCurrency(product.wholesalePrice || product.price || 0)}
+                                        </td>
+                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
+                                            {formatCurrency(product.cost || 0)}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Modal>
         </div>
     );
 };

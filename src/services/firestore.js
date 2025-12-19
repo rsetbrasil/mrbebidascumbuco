@@ -487,6 +487,8 @@ export const productService = {
             let coldCost = Number(primary.coldCost || 0);
             let wholesaleUnit = primary.wholesaleUnit || primary.unitOfMeasure || 'UN';
             let coldUnit = primary.coldUnit || primary.unitOfMeasure || 'UN';
+            let wholesaleUnitMultiplier = Number(primary.wholesaleUnitMultiplier || 1);
+            let coldUnitMultiplier = Number(primary.coldUnitMultiplier || 1);
             for (const p of pool) {
                 stockSum += Number(p.stock || 0);
                 coldSum += Number(p.coldStock || 0);
@@ -496,6 +498,8 @@ export const productService = {
                 if (!coldCost || coldCost <= 0) coldCost = Number(p.coldCost || coldCost);
                 if (!wholesaleUnit && p.wholesaleUnit) wholesaleUnit = p.wholesaleUnit;
                 if (!coldUnit && p.coldUnit) coldUnit = p.coldUnit;
+                if ((!wholesaleUnitMultiplier || wholesaleUnitMultiplier <= 1) && p.wholesaleUnitMultiplier) wholesaleUnitMultiplier = Number(p.wholesaleUnitMultiplier || wholesaleUnitMultiplier);
+                if ((!coldUnitMultiplier || coldUnitMultiplier <= 1) && p.coldUnitMultiplier) coldUnitMultiplier = Number(p.coldUnitMultiplier || coldUnitMultiplier);
             }
             const updateData = {
                 name: primary.name,
@@ -509,6 +513,8 @@ export const productService = {
                 coldCost: coldCost || 0,
                 wholesaleUnit,
                 coldUnit,
+                wholesaleUnitMultiplier: Math.max(1, Number(wholesaleUnitMultiplier || 1)),
+                coldUnitMultiplier: Math.max(1, Number(coldUnitMultiplier || 1)),
                 categoryId: primary.categoryId || null,
                 active: primary.active !== false
             };
