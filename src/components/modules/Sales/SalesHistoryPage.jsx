@@ -6,7 +6,7 @@ import Input from '../../common/Input';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import { salesService, productService, cashRegisterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
-import { formatCurrency, formatDate, formatDateTime } from '../../../utils/formatters';
+import { formatCurrency, formatDate, formatDateTime, formatPercentage } from '../../../utils/formatters';
 import { printReceipt, printSalesDayReport } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
 import { useCart } from '../../../contexts/CartContext';
@@ -23,21 +23,19 @@ const SalesHistoryPage = () => {
     const [notification, setNotification] = useState(null);
     const [selectedSale, setSelectedSale] = useState(null);
     const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+    const [reportModalOpen, setReportModalOpen] = useState(false);
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportData, setReportData] = useState(null);
     
     // Date filter states - default to today
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        // Adjust for timezone offset to ensure correct YYYY-MM-DD
-        const offset = d.getTimezoneOffset() * 60000;
-        return new Date(d.getTime() - offset).toISOString().split('T')[0];
-    });
-    const [endDate, setEndDate] = useState(() => {
+    const getDefaultDateStr = () => {
         const d = new Date();
         d.setHours(0, 0, 0, 0);
         const offset = d.getTimezoneOffset() * 60000;
         return new Date(d.getTime() - offset).toISOString().split('T')[0];
-    });
+    };
+    const [startDate, setStartDate] = useState(getDefaultDateStr);
+    const [endDate, setEndDate] = useState(getDefaultDateStr);
 
     const [editing, setEditing] = useState(false);
     const [addSearch, setAddSearch] = useState('');
@@ -86,6 +84,19 @@ const SalesHistoryPage = () => {
     const showNotification = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification(null), 3000);
+    };
+
+    const normalizePayments = (sale) => {
+        if (Array.isArray(sale?.payments) && sale.payments.length > 0) {
+            return sale.payments.map(p => ({
+                method: p.method || 'Dinheiro',
+                amount: Number(p.amount || 0)
+            }));
+        }
+        return [{
+            method: sale?.paymentMethod || 'Dinheiro',
+            amount: Number(sale?.total || 0)
+        }];
     };
 
     const getSaleTypeLabel = (sale) => {
@@ -160,6 +171,141 @@ const SalesHistoryPage = () => {
         );
 
         printSalesDayReport({ sales: enrichedSales, start, end }, settings);
+    };
+
+    const handleViewSalesReport = async () => {
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59.999');
+        setReportModalOpen(true);
+        setReportLoading(true);
+        setReportData(null);
+        try {
+            if (!Array.isArray(sales) || sales.length === 0) {
+                setReportData({
+                    start,
+                    end,
+                    totals: {
+                        salesCount: 0,
+                        itemsCount: 0,
+                        totalSales: 0,
+                        totalCMV: 0,
+                        profit: 0,
+                        margin: 0
+                    },
+                    byPayment: [],
+                    byType: {
+                        atacado: { revenue: 0, cost: 0, profit: 0 },
+                        mercearia: { revenue: 0, cost: 0, profit: 0 },
+                        total: { revenue: 0, cost: 0, profit: 0 }
+                    }
+                });
+                return;
+            }
+
+            const costByKey = new Map();
+            const enrichItem = async (sale, item) => {
+                if (!item || !item.productId) return item;
+                const computedIsCold = (item.isCold !== undefined) ? !!item.isCold : (sale?.priceType === 'cold');
+                const unitMultiplier = item.unit && item.unit.multiplier ? Number(item.unit.multiplier) : 1;
+                const cacheKey = `${String(item.productId)}|${computedIsCold ? 'cold' : 'wholesale'}|${unitMultiplier}`;
+                if (costByKey.has(cacheKey)) return { ...item, unitCost: costByKey.get(cacheKey) };
+                try {
+                    const product = await productService.getById(String(item.productId));
+                    const rawCost = Number(computedIsCold ? (product?.coldCost || product?.cost || 0) : (product?.cost || 0));
+                    const costUnitMultiplier = Number(computedIsCold ? (product?.coldUnitMultiplier || 1) : (product?.wholesaleUnitMultiplier || 1));
+                    const baseCost = costUnitMultiplier > 0 ? (rawCost / costUnitMultiplier) : rawCost;
+                    const computedUnitCost = baseCost * unitMultiplier;
+                    costByKey.set(cacheKey, computedUnitCost);
+                    return { ...item, unitCost: computedUnitCost, isCold: computedIsCold };
+                } catch {
+                    const fallback = Number(item.unitCost || 0);
+                    costByKey.set(cacheKey, fallback);
+                    return { ...item, isCold: computedIsCold };
+                }
+            };
+
+            const enrichedSales = await Promise.all(
+                sales.map(async (sale) => {
+                    const items = Array.isArray(sale?.items) ? sale.items : [];
+                    if (items.length === 0) return sale;
+                    const enrichedItems = await Promise.all(items.map(it => enrichItem(sale, it)));
+                    return { ...sale, items: enrichedItems };
+                })
+            );
+
+            const paymentsMap = new Map();
+            for (const sale of enrichedSales) {
+                const list = normalizePayments(sale);
+                for (const p of list) {
+                    const key = String(p.method || 'Dinheiro');
+                    const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
+                    paymentsMap.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+                }
+            }
+            const byPayment = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
+
+            let itemsCount = 0;
+            let totalSales = 0;
+            let totalCMV = 0;
+            const byType = {
+                atacado: { revenue: 0, cost: 0, profit: 0 },
+                mercearia: { revenue: 0, cost: 0, profit: 0 },
+                total: { revenue: 0, cost: 0, profit: 0 }
+            };
+
+            for (const sale of enrichedSales) {
+                const items = Array.isArray(sale?.items) ? sale.items : [];
+                for (const item of items) {
+                    itemsCount += 1;
+                    const qty = Number(item?.quantity || 0);
+                    const unitPrice = Number(item?.unitPrice || 0);
+                    const unitCost = Number(item?.unitCost || 0);
+                    const discount = Number(item?.discount || 0);
+                    const revenue = Number(item?.total);
+                    const lineRevenue = Number.isFinite(revenue) ? revenue : (qty * unitPrice) - discount;
+                    const lineCost = qty * unitCost;
+                    const isCold = !!item?.isCold;
+                    if (isCold) {
+                        byType.mercearia.revenue += lineRevenue;
+                        byType.mercearia.cost += lineCost;
+                    } else {
+                        byType.atacado.revenue += lineRevenue;
+                        byType.atacado.cost += lineCost;
+                    }
+                }
+            }
+
+            totalSales = enrichedSales.reduce((sum, s) => sum + Number(s?.total || 0), 0);
+            totalCMV = byType.atacado.cost + byType.mercearia.cost;
+            byType.atacado.profit = byType.atacado.revenue - byType.atacado.cost;
+            byType.mercearia.profit = byType.mercearia.revenue - byType.mercearia.cost;
+            byType.total.revenue = byType.atacado.revenue + byType.mercearia.revenue;
+            byType.total.cost = byType.atacado.cost + byType.mercearia.cost;
+            byType.total.profit = byType.total.revenue - byType.total.cost;
+
+            const profit = totalSales - totalCMV;
+            const margin = totalSales > 0 ? (profit / totalSales) : 0;
+
+            setReportData({
+                start,
+                end,
+                totals: {
+                    salesCount: enrichedSales.length,
+                    itemsCount,
+                    totalSales,
+                    totalCMV,
+                    profit,
+                    margin
+                },
+                byPayment,
+                byType
+            });
+        } catch (e) {
+            setReportData(null);
+            showNotification('error', 'Erro ao gerar relatório');
+        } finally {
+            setReportLoading(false);
+        }
     };
 
     const handleViewSale = (sale) => {
@@ -536,6 +682,16 @@ const SalesHistoryPage = () => {
                             />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
+                            <Button
+                                variant="secondary"
+                                onClick={handleViewSalesReport}
+                                icon={Eye}
+                                style={{ height: '38px' }}
+                            >
+                                Ver
+                            </Button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
                              <Button
                                 variant="secondary"
                                 onClick={handleYesterday}
@@ -560,7 +716,7 @@ const SalesHistoryPage = () => {
                                 icon={Printer}
                                 style={{ height: '38px' }}
                             >
-                                Relatório
+                                Imprimir
                             </Button>
                         </div>
                     </div>
@@ -682,6 +838,118 @@ const SalesHistoryPage = () => {
                     </table>
                 </div>
             </Card>
+
+            <Modal
+                isOpen={reportModalOpen}
+                onClose={() => setReportModalOpen(false)}
+                title={`Relatório de Vendas (${formatDate(startDate)} - ${formatDate(endDate)})`}
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setReportModalOpen(false)}
+                        >
+                            Fechar
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handlePrintSalesReport}
+                            icon={Printer}
+                            disabled={reportLoading}
+                        >
+                            Imprimir
+                        </Button>
+                    </div>
+                }
+            >
+                {reportLoading ? (
+                    <div style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        Gerando relatório...
+                    </div>
+                ) : !reportData ? (
+                    <div style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        Não foi possível gerar o relatório.
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                            gap: 'var(--spacing-md)',
+                            padding: 'var(--spacing-md)',
+                            background: 'var(--color-bg-secondary)',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Vendas</div>
+                                <div style={{ fontWeight: 700 }}>{reportData.totals.salesCount}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Itens</div>
+                                <div style={{ fontWeight: 700 }}>{reportData.totals.itemsCount}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Faturamento</div>
+                                <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>{formatCurrency(reportData.totals.totalSales)}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>CMV</div>
+                                <div style={{ fontWeight: 700 }}>{formatCurrency(reportData.totals.totalCMV)}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Lucro</div>
+                                <div style={{ fontWeight: 700 }}>{formatCurrency(reportData.totals.profit)}</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Margem</div>
+                                <div style={{ fontWeight: 700 }}>{formatPercentage(reportData.totals.margin)}</div>
+                            </div>
+                        </div>
+
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
+                            <div style={{ fontWeight: 700, marginBottom: 'var(--spacing-sm)' }}>Por tipo</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Atacado (Lucro)</span>
+                                    <span style={{ fontWeight: 700 }}>{formatCurrency(reportData.byType.atacado.profit)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Mercearia (Lucro)</span>
+                                    <span style={{ fontWeight: 700 }}>{formatCurrency(reportData.byType.mercearia.profit)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Total (Lucro)</span>
+                                    <span style={{ fontWeight: 700 }}>{formatCurrency(reportData.byType.total.profit)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
+                            <div style={{ fontWeight: 700, marginBottom: 'var(--spacing-sm)' }}>Por forma de pagamento</div>
+                            {reportData.byPayment.length === 0 ? (
+                                <div style={{ color: 'var(--color-text-secondary)' }}>-</div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {reportData.byPayment.map((p) => (
+                                        <div key={p.method} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>{p.method}</span>
+                                            <span style={{ fontWeight: 700 }}>{formatCurrency(p.amount)}{p.count ? ` (${p.count})` : ''}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             {/* Sale Details Modal */}
             <Modal
