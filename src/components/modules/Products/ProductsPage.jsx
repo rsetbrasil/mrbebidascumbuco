@@ -431,8 +431,8 @@ const ProductsPage = () => {
             <Modal
                 isOpen={isPriceListOpen}
                 onClose={() => setIsPriceListOpen(false)}
-                title="Lista de Produtos (Venda e Custo)"
-                size="lg"
+                title="Lista de Produtos (Atacado/Mercearia)"
+                size="xl"
             >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)', flexWrap: 'wrap' }}>
                     <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
@@ -466,14 +466,16 @@ const ProductsPage = () => {
                         <thead>
                             <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
                                 <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Produto</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço de Venda</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço de Custo</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Atacado (Venda)</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Atacado (Custo)</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Mercearia (Venda)</th>
+                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Mercearia (Custo)</th>
                             </tr>
                         </thead>
                         <tbody>
                             {priceListFilteredProducts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="3" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                    <td colSpan="5" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                         Nenhum produto encontrado
                                     </td>
                                 </tr>
@@ -489,6 +491,12 @@ const ProductsPage = () => {
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
                                             {formatCurrency(product.cost || 0)}
+                                        </td>
+                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-primary)' }}>
+                                            {formatCurrency(product.coldPrice || product.price || 0)}
+                                        </td>
+                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
+                                            {formatCurrency(product.coldCost || product.cost || 0)}
                                         </td>
                                     </tr>
                                 ))
