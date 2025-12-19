@@ -383,10 +383,10 @@ const Navbar = ({ onMenuClick }) => {
                                     </div>
                                     <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <div style={{ fontWeight: 600, color: 'var(--color-success)' }}>
-                                            Atacado: {formatCurrency(product.wholesalePrice || product.price)}
+                                            Atacado: {product.wholesalePrice === null ? '-' : formatCurrency((product.wholesalePrice ?? product.price) || 0)}
                                         </div>
                                         <div style={{ fontWeight: 600, color: '#3b82f6' }}>
-                                            Mercearia: {formatCurrency(product.coldPrice || product.price)}
+                                            Mercearia: {product.coldPrice === null ? '-' : formatCurrency((product.coldPrice ?? product.price) || 0)}
                                         </div>
                                     </div>
                                 </div>

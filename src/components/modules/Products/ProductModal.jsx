@@ -40,8 +40,8 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
             setFormData({
                 name: product.name || '',
                 barcode: product.barcode || '',
-                wholesalePrice: product.wholesalePrice || product.price || '',
-                coldPrice: product.coldPrice || '',
+                wholesalePrice: product.wholesalePrice === null ? '' : (product.wholesalePrice ?? product.price ?? ''),
+                coldPrice: product.coldPrice === null ? '' : (product.coldPrice ?? ''),
                 cost: product.cost || '',
                 coldCost: product.coldCost || '',
                 stock: product.stock || '',
@@ -110,7 +110,13 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const validate = () => {
         const newErrors = {};
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
-        if (!formData.wholesalePrice) newErrors.wholesalePrice = 'Preço é obrigatório';
+        const wholesaleOk = formData.wholesalePrice !== '' && Number(formData.wholesalePrice) > 0;
+        const coldOk = formData.coldPrice !== '' && Number(formData.coldPrice) > 0;
+        if (!wholesaleOk && !coldOk) {
+            const msg = 'Informe o preço do Atacado ou da Mercearia';
+            newErrors.wholesalePrice = msg;
+            newErrors.coldPrice = msg;
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -124,13 +130,24 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
 
         setLoading(true);
         try {
+            const normalizeMoney = (v) => {
+                if (v === '' || v === null || v === undefined) return null;
+                const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+                return Number.isFinite(n) ? n : null;
+            };
+            const wholesalePrice = normalizeMoney(formData.wholesalePrice);
+            const coldPrice = normalizeMoney(formData.coldPrice);
+            const cost = normalizeMoney(formData.cost);
+            const coldCost = normalizeMoney(formData.coldCost);
+            const basePrice = wholesalePrice ?? coldPrice ?? 0;
+
             const productData = {
                 ...formData,
-                price: parseFloat(formData.wholesalePrice) || 0,
-                wholesalePrice: parseFloat(formData.wholesalePrice) || 0,
-                coldPrice: parseFloat(formData.coldPrice) || 0,
-                cost: parseFloat(formData.cost) || 0,
-                coldCost: parseFloat(formData.coldCost) || 0,
+                price: basePrice,
+                wholesalePrice,
+                coldPrice,
+                cost: cost ?? 0,
+                coldCost: coldCost ?? 0,
                 stock: parseInt(formData.stock) || 0,
                 coldStock: parseInt(formData.coldStock) || 0
             };
@@ -202,6 +219,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     name="wholesalePrice"
                                     value={formData.wholesalePrice}
                                     onChange={handleChange}
+                                    error={errors.wholesalePrice}
                                     placeholder="0,00"
                                     className="no-margin"
                                 />
@@ -261,6 +279,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     name="coldPrice"
                                     value={formData.coldPrice}
                                     onChange={handleChange}
+                                    error={errors.coldPrice}
                                     placeholder="0,00"
                                     className="no-margin"
                                 />

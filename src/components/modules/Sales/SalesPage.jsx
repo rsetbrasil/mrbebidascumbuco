@@ -57,6 +57,38 @@ const SalesPage = () => {
     const [quantityInput, setQuantityInput] = useState('1');
     const [itemPriceType, setItemPriceType] = useState('wholesale');
     const [priceInput, setPriceInput] = useState('');
+
+    const getWholesalePrice = (p) => {
+        if (!p) return null;
+        if (p.wholesalePrice === null) return null;
+        const v = p.wholesalePrice ?? p.price;
+        return v === undefined ? null : v;
+    };
+
+    const getColdPrice = (p) => {
+        if (!p) return null;
+        if (p.coldPrice === null) return null;
+        const v = p.coldPrice ?? p.price;
+        return v === undefined ? null : v;
+    };
+
+    const isWholesaleEnabled = (p) => {
+        const v = getWholesalePrice(p);
+        return v !== null && Number(v) > 0;
+    };
+
+    const isColdEnabled = (p) => {
+        const v = getColdPrice(p);
+        return v !== null && Number(v) > 0;
+    };
+
+    const focusDefaultPriceTypeButton = () => {
+        if (selectedProduct && !isWholesaleEnabled(selectedProduct) && isColdEnabled(selectedProduct)) {
+            coldBtnRef.current?.focus();
+            return;
+        }
+        wholesaleBtnRef.current?.focus();
+    };
     const [quantityStep, setQuantityStep] = useState('quantity');
 
     // Customer Selection Modal
@@ -302,18 +334,19 @@ const SalesPage = () => {
     const handleProductSelect = (product) => {
         const wholesaleAvailable = Math.max(0, Number(product.stock || 0) - Number(product.reservedStock || 0));
         const coldAvailable = Math.max(0, Number(product.coldStock || 0) - Number(product.reservedColdStock || 0));
-        if (wholesaleAvailable <= 0 && coldAvailable <= 0) {
+        const wholesaleEnabled = isWholesaleEnabled(product);
+        const coldEnabled = isColdEnabled(product);
+        if ((!wholesaleEnabled && !coldEnabled) || (wholesaleAvailable <= 0 && coldAvailable <= 0)) {
             showNotification('Produto sem estoque disponível', 'warning');
             return;
         }
 
         setSelectedProduct(product);
         setQuantityInput('1');
-        setItemPriceType(priceType === 'cold' ? 'cold' : 'wholesale');
+        const defaultType = (priceType === 'cold' && coldEnabled) ? 'cold' : (wholesaleEnabled ? 'wholesale' : 'cold');
+        setItemPriceType(defaultType);
         setQuantityStep('quantity');
-        const defaultPrice = (priceType === 'cold')
-            ? (product.coldPrice || product.price)
-            : (product.wholesalePrice || product.price);
+        const defaultPrice = defaultType === 'cold' ? getColdPrice(product) : getWholesalePrice(product);
         setPriceInput(defaultPrice);
         setQuantityModalOpen(true);
         setSearchTerm('');
@@ -333,7 +366,7 @@ const SalesPage = () => {
         if (quantityModalOpen) {
             if (quantityStep === 'priceType') {
                 setTimeout(() => {
-                    wholesaleBtnRef.current?.focus();
+                    focusDefaultPriceTypeButton();
                 }, 0);
             } else if (quantityStep === 'price') {
                 setTimeout(() => {
@@ -346,13 +379,23 @@ const SalesPage = () => {
     useEffect(() => {
         if (selectedProduct && quantityModalOpen) {
             const defaultPrice = itemPriceType === 'cold'
-                ? (selectedProduct.coldPrice || selectedProduct.price)
-                : (selectedProduct.wholesalePrice || selectedProduct.price);
+                ? getColdPrice(selectedProduct)
+                : getWholesalePrice(selectedProduct);
             setPriceInput(defaultPrice);
         }
     }, [itemPriceType, selectedProduct, quantityModalOpen]);
 
     const addToCart = (product, unit = null) => {
+        const isCold = priceType === 'cold';
+        if (isCold && !isColdEnabled(product)) {
+            showNotification('Produto não cadastrado na Mercearia', 'warning');
+            return;
+        }
+        if (!isCold && !isWholesaleEnabled(product)) {
+            showNotification('Produto não cadastrado no Atacado', 'warning');
+            return;
+        }
+
         // Check stock
         const currentItem = items.find(item => item.id === product.id && ((!item.unit && !unit) || (item.unit && unit && item.unit.name === unit.name)));
         const currentQty = currentItem ? currentItem.quantity : 0;
@@ -366,7 +409,6 @@ const SalesPage = () => {
         }, 0);
 
         // Determine which stock to check based on priceType
-        const isCold = priceType === 'cold';
         const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
         const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
         const availableStock = Math.max(0, baseStock - reserved);
@@ -892,19 +934,19 @@ const SalesPage = () => {
                                                 </span>
                                             </div>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Atacado</div>
-                                            <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                                                {formatCurrency(product.wholesalePrice || product.price)}
-                                            </div>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Mercearia</div>
-                                            <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                                                {formatCurrency(product.coldPrice || product.price)}
-                                            </div>
-                                        </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Atacado</div>
+                                    <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>
+                                        {getWholesalePrice(product) === null ? '-' : formatCurrency(getWholesalePrice(product))}
                                     </div>
-                                ))}
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Mercearia</div>
+                                    <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                                        {getColdPrice(product) === null ? '-' : formatCurrency(getColdPrice(product))}
+                                    </div>
+                                </div>
                             </div>
+                        ))}
+                    </div>
                         )}
                     </Card>
 
@@ -1087,7 +1129,7 @@ const SalesPage = () => {
                                 e.stopPropagation();
                                 setQuantityStep('priceType');
                                 setTimeout(() => {
-                                    wholesaleBtnRef.current?.focus();
+                                    focusDefaultPriceTypeButton();
                                 }, 0);
                             }
                         }}
@@ -1107,10 +1149,12 @@ const SalesPage = () => {
                             <Button
                                 ref={wholesaleBtnRef}
                                 variant={itemPriceType === 'wholesale' ? 'primary' : 'secondary'}
+                                disabled={selectedProduct ? !isWholesaleEnabled(selectedProduct) : false}
                                 onClick={() => {
+                                    if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
                                     setItemPriceType('wholesale');
                                     setQuantityStep('price');
-                                    if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                    if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
                                     setTimeout(() => {
                                         priceInputRef.current?.focus();
                                     }, 0);
@@ -1118,19 +1162,22 @@ const SalesPage = () => {
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
                                         setItemPriceType('wholesale');
                                         setQuantityStep('price');
-                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                        if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
                                         setTimeout(() => {
                                             priceInputRef.current?.focus();
                                         }, 0);
                                     } else if (e.key === 'ArrowRight') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
                                         setItemPriceType('cold');
-                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                        if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
                                         coldBtnRef.current?.focus();
                                     } else if (e.key === 'Tab') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
                                         setItemPriceType('wholesale');
                                         setQuantityStep('price');
                                         setTimeout(() => {
@@ -1144,10 +1191,12 @@ const SalesPage = () => {
                             <Button
                                 ref={coldBtnRef}
                                 variant={itemPriceType === 'cold' ? 'primary' : 'secondary'}
+                                disabled={selectedProduct ? !isColdEnabled(selectedProduct) : false}
                                 onClick={() => {
+                                    if (selectedProduct && !isColdEnabled(selectedProduct)) return;
                                     setItemPriceType('cold');
                                     setQuantityStep('price');
-                                    if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                    if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
                                     setTimeout(() => {
                                         priceInputRef.current?.focus();
                                     }, 0);
@@ -1155,19 +1204,22 @@ const SalesPage = () => {
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
                                         setItemPriceType('cold');
                                         setQuantityStep('price');
-                                        if (selectedProduct) setPriceInput(selectedProduct.coldPrice || selectedProduct.price);
+                                        if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
                                         setTimeout(() => {
                                             priceInputRef.current?.focus();
                                         }, 0);
                                     } else if (e.key === 'ArrowLeft') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
                                         setItemPriceType('wholesale');
-                                        if (selectedProduct) setPriceInput(selectedProduct.wholesalePrice || selectedProduct.price);
+                                        if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
                                         wholesaleBtnRef.current?.focus();
                                     } else if (e.key === 'Tab') {
                                         e.preventDefault();
+                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
                                         setItemPriceType('cold');
                                         setQuantityStep('price');
                                         setTimeout(() => {
@@ -1181,18 +1233,19 @@ const SalesPage = () => {
                         </div>
                         <div style={{ marginTop: '6px', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
                             Preço Selecionado: <span style={{ color: 'var(--color-primary)' }}>
-                                {formatCurrency(itemPriceType === 'cold'
-                                    ? (selectedProduct ? (selectedProduct.coldPrice || selectedProduct.price || 0) : 0)
-                                    : (selectedProduct ? (selectedProduct.wholesalePrice || selectedProduct.price || 0) : 0)
-                                )}
+                                {(() => {
+                                    const v = itemPriceType === 'cold' ? getColdPrice(selectedProduct) : getWholesalePrice(selectedProduct);
+                                    if (v === null) return '-';
+                                    return formatCurrency(v || 0);
+                                })()}
                             </span>
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)' }}>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Atacado: <strong>{selectedProduct ? formatCurrency((selectedProduct.wholesalePrice ?? selectedProduct.price) || 0) : '-'}</strong>
+                                Atacado: <strong>{selectedProduct ? (getWholesalePrice(selectedProduct) === null ? '-' : formatCurrency(getWholesalePrice(selectedProduct) || 0)) : '-'}</strong>
                             </span>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Mercearia: <strong>{selectedProduct ? formatCurrency((selectedProduct.coldPrice ?? selectedProduct.price) || 0) : '-'}</strong>
+                                Mercearia: <strong>{selectedProduct ? (getColdPrice(selectedProduct) === null ? '-' : formatCurrency(getColdPrice(selectedProduct) || 0)) : '-'}</strong>
                             </span>
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>

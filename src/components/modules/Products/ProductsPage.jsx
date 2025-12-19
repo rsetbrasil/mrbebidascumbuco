@@ -330,10 +330,10 @@ const ProductsPage = () => {
                                             {categories[product.categoryId] || '-'}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-success)' }}>
-                                            {formatCurrency(product.wholesalePrice || product.price)}
+                                            {product.wholesalePrice === null ? '-' : formatCurrency((product.wholesalePrice ?? product.price) || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-info)' }}>
-                                            {formatCurrency(product.coldPrice || 0)}
+                                            {product.coldPrice === null ? '-' : formatCurrency((product.coldPrice ?? product.price) || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)' }}>
                                             <span style={{
@@ -487,13 +487,13 @@ const ProductsPage = () => {
                                             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{product.barcode || 'Sem código'}</div>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-success)' }}>
-                                            {formatCurrency(product.wholesalePrice || product.price || 0)}
+                                            {product.wholesalePrice === null ? '-' : formatCurrency((product.wholesalePrice ?? product.price) || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
                                             {formatCurrency(product.cost || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-primary)' }}>
-                                            {formatCurrency(product.coldPrice || product.price || 0)}
+                                            {product.coldPrice === null ? '-' : formatCurrency((product.coldPrice ?? product.price) || 0)}
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
                                             {formatCurrency(product.coldCost || product.cost || 0)}

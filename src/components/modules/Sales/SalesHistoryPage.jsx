@@ -435,11 +435,17 @@ const SalesHistoryPage = () => {
             }
 
             const quantity = 1;
+            const wholesaleCandidate = product.wholesalePrice === null ? null : (product.wholesalePrice ?? product.price);
+            const coldCandidate = product.coldPrice === null ? null : (product.coldPrice ?? product.price);
             const unitPrice = selectedSale.priceType === 'wholesale'
-                ? (product.wholesalePrice || product.price)
+                ? wholesaleCandidate
                 : (selectedSale.priceType === 'cold'
-                    ? (product.coldPrice || product.price)
-                    : product.price);
+                    ? coldCandidate
+                    : (product.price ?? null));
+            if (unitPrice === null || unitPrice === undefined) {
+                showNotification('warning', 'Produto sem preço para este tipo de venda');
+                return;
+            }
             const deduction = 1; // base unit
             const ok = await deductStockForProduct(selectedSale, product.id, deduction);
             if (!ok) {
@@ -477,11 +483,17 @@ const SalesHistoryPage = () => {
         if (!selectedSale || !product) return;
         try {
             const quantity = 1;
+            const wholesaleCandidate = product.wholesalePrice === null ? null : (product.wholesalePrice ?? product.price);
+            const coldCandidate = product.coldPrice === null ? null : (product.coldPrice ?? product.price);
             const unitPrice = selectedSale.priceType === 'wholesale'
-                ? (product.wholesalePrice || product.price)
+                ? wholesaleCandidate
                 : (selectedSale.priceType === 'cold'
-                    ? (product.coldPrice || product.price)
-                    : product.price);
+                    ? coldCandidate
+                    : (product.price ?? null));
+            if (unitPrice === null || unitPrice === undefined) {
+                showNotification('warning', 'Produto sem preço para este tipo de venda');
+                return;
+            }
             const deduction = 1;
             const ok = await deductStockForProduct(selectedSale, product.id, deduction);
             if (!ok) {

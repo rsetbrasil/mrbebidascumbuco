@@ -673,23 +673,25 @@ export const printProductsPriceList = ({ products = [], search = '' }, settings 
         : sorted.map((p, idx) => {
             const name = escapeHtml(truncate(sanitize(p?.name || 'Produto'), 40));
             const barcode = escapeHtml(truncate(sanitize(p?.barcode || ''), 32));
-            const saleWholesale = Number(p?.wholesalePrice ?? p?.price ?? 0);
-            const costWholesale = Number(p?.cost ?? 0);
-            const saleCold = Number(p?.coldPrice ?? p?.price ?? 0);
-            const costCold = Number(p?.coldCost ?? p?.cost ?? 0);
+            const wholesaleDisabled = p?.wholesalePrice === null;
+            const coldDisabled = p?.coldPrice === null;
+            const saleWholesale = wholesaleDisabled ? null : Number(p?.wholesalePrice ?? p?.price ?? 0);
+            const costWholesale = wholesaleDisabled ? null : Number(p?.cost ?? 0);
+            const saleCold = coldDisabled ? null : Number(p?.coldPrice ?? p?.price ?? 0);
+            const costCold = coldDisabled ? null : Number(p?.coldCost ?? p?.cost ?? 0);
             return `
                 <div class="mb-1">
                     <div class="font-bold">${idx + 1}. ${name}</div>
                     ${barcode ? `<div class="text-xs">${barcode}</div>` : ''}
                     <div class="text-sm mb-1">
                         <div class="font-bold">Atacado</div>
-                        <div class="flex"><span>Venda:</span><span>${formatCurrency(saleWholesale)}</span></div>
-                        <div class="flex"><span>Custo:</span><span>${formatCurrency(costWholesale)}</span></div>
+                        <div class="flex"><span>Venda:</span><span>${saleWholesale === null ? '-' : formatCurrency(saleWholesale)}</span></div>
+                        <div class="flex"><span>Custo:</span><span>${costWholesale === null ? '-' : formatCurrency(costWholesale)}</span></div>
                     </div>
                     <div class="text-sm">
                         <div class="font-bold">Mercearia</div>
-                        <div class="flex"><span>Venda:</span><span>${formatCurrency(saleCold)}</span></div>
-                        <div class="flex"><span>Custo:</span><span>${formatCurrency(costCold)}</span></div>
+                        <div class="flex"><span>Venda:</span><span>${saleCold === null ? '-' : formatCurrency(saleCold)}</span></div>
+                        <div class="flex"><span>Custo:</span><span>${costCold === null ? '-' : formatCurrency(costCold)}</span></div>
                     </div>
                 </div>
                 <div class="border-b mb-2"></div>
