@@ -23,7 +23,7 @@ import Notification from '../../common/Notification';
 import Modal from '../../common/Modal';
 import MovementModal from './MovementModal';
 import { useApp } from '../../../contexts/AppContext';
-import { cashRegisterService, salesService, userService, firestoreService, COLLECTIONS, productService } from '../../../services/firestore';
+import { cashRegisterService, salesService, userService, firestoreService, COLLECTIONS, productService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatCurrency, formatDateTime, parseCurrency } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
@@ -387,6 +387,9 @@ const CashRegisterPage = () => {
                 ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
                 : (user?.name || 'Operador');
 
+            const presalesCancelResult = await presalesService.cancelAll();
+            const cancelledPresales = Number(presalesCancelResult?.cancelled || 0);
+
             await closeCashRegister(finalBalance, closedByLabel, closingNote);
 
             // Print closing report
@@ -426,7 +429,7 @@ const CashRegisterPage = () => {
                 profitTotal: profitCalc.total
             }, settings || {});
 
-            showNotification('success', 'Caixa fechado com sucesso');
+            showNotification('success', `Caixa fechado com sucesso. Pré-vendas reservadas zeradas: ${cancelledPresales}.`);
             setClosingNote('');
             setMovements([]);
             setSales([]);

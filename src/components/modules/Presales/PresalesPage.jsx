@@ -177,7 +177,12 @@ const PresalesPage = () => {
             (p.customerName && p.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             p.id.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+        const pStatus = p.status || 'pending';
+        const matchesStatus =
+            statusFilter === 'all' ||
+            (statusFilter === 'reserved'
+                ? (pStatus === 'pending' && p.reserved === true)
+                : pStatus === statusFilter);
 
         return matchesSearch && matchesStatus;
     }).sort((a, b) => {
@@ -274,7 +279,7 @@ const PresalesPage = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-sm)', overflowX: 'auto', paddingBottom: '4px' }}>
-                        {['pending', 'completed', 'cancelled', 'all'].map(status => (
+                        {['pending', 'reserved', 'completed', 'cancelled', 'all'].map(status => (
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
@@ -291,7 +296,7 @@ const PresalesPage = () => {
                                     color: statusFilter === status ? '#fff' : 'var(--color-text-secondary)'
                                 }}
                             >
-                                {status === 'all' ? 'Todos' : getStatusLabel(status)}
+                                {status === 'all' ? 'Todos' : (status === 'reserved' ? 'Reservados' : getStatusLabel(status))}
                             </button>
                         ))}
                     </div>
@@ -322,7 +327,9 @@ const PresalesPage = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredPresales.map((presale) => (
+                                filteredPresales.map((presale) => {
+                                    const presaleStatus = presale.status || 'pending';
+                                    return (
                                     <tr key={presale.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
                                         <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
                                             {formatDateTime(presale.createdAt)}
@@ -396,16 +403,16 @@ const PresalesPage = () => {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: '4px',
-                                                ...getStatusColor(presale.status)
+                                                ...getStatusColor(presaleStatus)
                                             }}>
-                                                {presale.status === 'completed' && <CheckCircle size={12} />}
-                                                {presale.status === 'cancelled' && <XCircle size={12} />}
-                                                {presale.status === 'pending' && <Clock size={12} />}
-                                                {getStatusLabel(presale.status)}
+                                                {presaleStatus === 'completed' && <CheckCircle size={12} />}
+                                                {presaleStatus === 'cancelled' && <XCircle size={12} />}
+                                                {presaleStatus === 'pending' && <Clock size={12} />}
+                                                {getStatusLabel(presaleStatus)}
                                             </span>
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            {presale.status === 'pending' && (
+                                            {presaleStatus === 'pending' && (
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
                                                     <button
                                                         onClick={() => handleEditPresale(presale)}
@@ -478,7 +485,8 @@ const PresalesPage = () => {
                                             )}
                                         </td>
                                     </tr>
-                                ))
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
