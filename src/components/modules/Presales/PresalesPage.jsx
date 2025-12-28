@@ -22,11 +22,13 @@ import { useCart } from '../../../contexts/CartContext';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const PresalesPage = () => {
     const navigate = useNavigate();
     const { loadPresale } = useCart();
     const { settings } = useApp();
+    const { canWrite } = useAuth();
     const searchInputRef = useRef(null);
 
     const [presales, setPresales] = useState([]);

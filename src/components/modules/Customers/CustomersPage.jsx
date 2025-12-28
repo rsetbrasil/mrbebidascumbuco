@@ -7,8 +7,10 @@ import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import CustomerModal from './CustomerModal';
 import { customerService } from '../../../services/firestore';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const CustomersPage = () => {
+    const { canWrite } = useAuth();
     const [customers, setCustomers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
