@@ -814,6 +814,66 @@ export const cashRegisterService = {
         return results[0] || null;
     },
 
+    async getByDateRange(startDate, endDate) {
+        if (isDemoMode) {
+            const all = await firestoreService.getAll(COLLECTIONS.CASH_REGISTER, null, null);
+            const closed = all.filter(r => {
+                const d = r.closedAt ? new Date(r.closedAt) : null;
+                return d && d >= startDate && d <= endDate;
+            });
+            closed.sort((a, b) => {
+                const av = (a.closedAt && a.closedAt.toMillis) ? a.closedAt.toMillis() : new Date(a.closedAt || 0).getTime();
+                const bv = (b.closedAt && b.closedAt.toMillis) ? b.closedAt.toMillis() : new Date(b.closedAt || 0).getTime();
+                return bv - av;
+            });
+            return closed;
+        }
+        const startTs = Timestamp.fromDate(startDate);
+        const endTs = Timestamp.fromDate(endDate);
+
+        const resultsByClosedAt = await firestoreService.query(
+            COLLECTIONS.CASH_REGISTER,
+            [
+                { field: 'status', operator: '==', value: 'closed' },
+                { field: 'closedAt', operator: '>=', value: startTs },
+                { field: 'closedAt', operator: '<=', value: endTs }
+            ],
+            null
+        );
+
+        const resultsByOpenedAt = await firestoreService.query(
+            COLLECTIONS.CASH_REGISTER,
+            [
+                { field: 'status', operator: '==', value: 'closed' },
+                { field: 'openedAt', operator: '>=', value: startTs },
+                { field: 'openedAt', operator: '<=', value: endTs }
+            ],
+            null
+        );
+
+        const map = new Map();
+        for (const r of [...resultsByClosedAt, ...resultsByOpenedAt]) {
+            if (!r || !r.id) continue;
+            map.set(r.id, r);
+        }
+        const closed = [...map.values()].filter(r => !!r.closedAt);
+        closed.sort((a, b) => {
+            const av = (a.closedAt && a.closedAt.toMillis) ? a.closedAt.toMillis() : new Date(a.closedAt || 0).getTime();
+            const bv = (b.closedAt && b.closedAt.toMillis) ? b.closedAt.toMillis() : new Date(b.closedAt || 0).getTime();
+            return bv - av;
+        });
+        return closed;
+    },
+
+    async getByDate(date) {
+        const base = date instanceof Date ? date : new Date(date);
+        const start = new Date(base);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(base);
+        end.setHours(23, 59, 59, 999);
+        return this.getByDateRange(start, end);
+    },
+
     async getHistory() {
         const all = await firestoreService.getAll(COLLECTIONS.CASH_REGISTER, null, null);
         const closed = all.filter(r => !!r.closedAt);

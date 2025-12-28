@@ -34,42 +34,31 @@ const Sidebar = ({ onClose }) => {
 
     const pref = Array.isArray(settings?.menu) ? settings.menu : null;
     let menuItems = Object.entries(baseMenu).map(([key, def]) => ({ key, visible: true, ...def }));
-    if (pref) {
-        const visibility = new Map(pref.map(item => [item.key, item.visible !== false]));
-        const order = pref.map(item => item.key);
-        menuItems = menuItems
-            .map(it => ({ ...it, visible: visibility.has(it.key) ? visibility.get(it.key) : true }))
-            .sort((a, b) => {
-                const ia = order.indexOf(a.key);
-                const ib = order.indexOf(b.key);
-                if (ia === -1 && ib === -1) return 0;
-                if (ia === -1) return 1;
-                if (ib === -1) return -1;
-                return ia - ib;
-            });
-    } else {
-        const defaultOrder = [
-            'pdv',
-            'products',
-            'categories',
-            'customers',
-            'sales',
-            'presales',
-            'financial',
-            'cashRegister',
-            'settings',
-            'resetData',
-            'dashboard'
-        ];
-        menuItems = menuItems.sort((a, b) => {
-            const ia = defaultOrder.indexOf(a.key);
-            const ib = defaultOrder.indexOf(b.key);
-            if (ia === -1 && ib === -1) return 0;
-            if (ia === -1) return 1;
-            if (ib === -1) return -1;
-            return ia - ib;
-        });
+    const visibility = pref ? new Map(pref.map(item => [item.key, item.visible !== false])) : null;
+    if (visibility) {
+        menuItems = menuItems.map(it => ({ ...it, visible: visibility.has(it.key) ? visibility.get(it.key) : true }));
     }
+    const defaultOrder = [
+        'pdv',
+        'products',
+        'categories',
+        'customers',
+        'sales',
+        'presales',
+        'financial',
+        'cashRegister',
+        'settings',
+        'resetData',
+        'dashboard'
+    ];
+    menuItems = menuItems.sort((a, b) => {
+        const ia = defaultOrder.indexOf(a.key);
+        const ib = defaultOrder.indexOf(b.key);
+        if (ia === -1 && ib === -1) return 0;
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+    });
 
     const cashierAllowed = ['cashRegister'];
     const filteredItems = menuItems.filter(item => {

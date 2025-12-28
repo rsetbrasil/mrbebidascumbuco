@@ -570,37 +570,71 @@ const SalesPage = () => {
             // Remove undefined values to prevent Firestore errors
             const cleanPresaleData = JSON.parse(JSON.stringify(presaleData));
 
-            for (const item of items) {
-                const pid = item.id || item.productId;
-                if (!pid) continue;
-                const product = await productService.getById(pid);
-                if (!product) {
-                    showNotification('Produto não encontrado para reserva', 'error');
-                    setProcessing(false);
-                    return;
+            const getDeduction = (it) => {
+                if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * Number(it.quantity || 0);
+                if (it.unit && it.unit.multiplier) return Number(it.quantity || 0) * Number(it.unit.multiplier || 1);
+                return Number(it.quantity || 0);
+            };
+
+            const aggregateByProduct = (list) => {
+                const map = new Map();
+                for (const it of (list || [])) {
+                    const pid = it.id || it.productId;
+                    if (!pid) continue;
+                    const key = `${pid}|${it.isCold ? 'cold' : 'warm'}`;
+                    const curr = map.get(key) || 0;
+                    map.set(key, curr + getDeduction(it));
                 }
-                const deduction = item.stockDeductionPerUnit ? (item.stockDeductionPerUnit * Number(item.quantity || 0)) : (item.unit && item.unit.multiplier ? (Number(item.quantity || 0) * item.unit.multiplier) : Number(item.quantity || 0));
-                const isColdItem = !!item.isCold;
-                const baseStock = isColdItem ? Number(product.coldStock || 0) : Number(product.stock || 0);
-                const reservedKey = isColdItem ? 'reservedColdStock' : 'reservedStock';
-                const alreadyReserved = Number(product[reservedKey] || 0);
-                const available = baseStock - alreadyReserved;
-                if (deduction > available) {
-                    showNotification('Estoque insuficiente para reservar este pedido', 'warning');
-                    setProcessing(false);
-                    return;
+                return map;
+            };
+
+            let deltas = new Map();
+            if (presaleId) {
+                const existing = await presalesService.getById(presaleId).catch(() => null);
+                const oldAgg = aggregateByProduct(existing?.items || []);
+                const newAgg = aggregateByProduct(items || []);
+                const keys = new Set([...oldAgg.keys(), ...newAgg.keys()]);
+                for (const key of keys) {
+                    const prev = oldAgg.get(key) || 0;
+                    const next = newAgg.get(key) || 0;
+                    const delta = next - prev;
+                    if (delta !== 0) deltas.set(key, delta);
                 }
-                const updated = {};
-                updated[reservedKey] = alreadyReserved + deduction;
-                await productService.update(product.id, updated);
-                setProducts(prev => prev.map(p => {
-                    if (p.id !== product.id) return p;
-                    return { ...p, ...updated };
-                }));
-                if (selectedProduct && selectedProduct.id === product.id) {
-                    setSelectedProduct(prev => ({ ...prev, ...updated }));
-                }
+            } else {
+                deltas = aggregateByProduct(items || []);
             }
+
+            const ops = [];
+            for (const [key, delta] of deltas.entries()) {
+                const [pid, type] = key.split('|');
+                ops.push((async () => {
+                    const product = await productService.getById(pid);
+                    if (!product) {
+                        showNotification('Produto não encontrado para reserva', 'error');
+                        throw new Error('Produto não encontrado');
+                    }
+                    const isColdItem = (type === 'cold');
+                    const baseStock = isColdItem ? Number(product.coldStock || 0) : Number(product.stock || 0);
+                    const reservedKey = isColdItem ? 'reservedColdStock' : 'reservedStock';
+                    const alreadyReserved = Number(product[reservedKey] || 0);
+                    const available = baseStock - alreadyReserved;
+                    if (delta > 0 && delta > available) {
+                        showNotification('Estoque insuficiente para reservar este pedido', 'warning');
+                        throw new Error('Estoque insuficiente para reservar');
+                    }
+                    const nextReserved = Math.max(0, alreadyReserved + delta);
+                    const updated = { [reservedKey]: nextReserved };
+                    await productService.update(product.id, updated);
+                    setProducts(prev => prev.map(p => {
+                        if (p.id !== product.id) return p;
+                        return { ...p, ...updated };
+                    }));
+                    if (selectedProduct && selectedProduct.id === product.id) {
+                        setSelectedProduct(prev => ({ ...prev, ...updated }));
+                    }
+                })());
+            }
+            await Promise.all(ops);
 
             if (presaleId) {
                 await presalesService.update(presaleId, { ...cleanPresaleData, reserved: true });

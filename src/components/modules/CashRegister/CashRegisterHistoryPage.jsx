@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Loading from '../../common/Loading';
+import Input from '../../common/Input';
 import { cashRegisterService, salesService, productService } from '../../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
@@ -14,6 +15,7 @@ const CashRegisterHistoryPage = () => {
     const { showNotification, settings } = useApp();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filterDate, setFilterDate] = useState('');
 
     useEffect(() => {
         loadHistory();
@@ -80,7 +82,17 @@ const CashRegisterHistoryPage = () => {
 
     const loadHistory = async () => {
         try {
-            const data = await cashRegisterService.getHistory();
+            let data;
+            if (filterDate) {
+                const base = new Date(`${filterDate}T00:00:00`);
+                const start = new Date(base);
+                const end = new Date(base);
+                start.setHours(0, 0, 0, 0);
+                end.setHours(23, 59, 59, 999);
+                data = await cashRegisterService.getByDateRange(start, end);
+            } else {
+                data = await cashRegisterService.getHistory();
+            }
             setHistory(data);
         } catch (error) {
             console.error('Error loading history:', error);
@@ -88,6 +100,11 @@ const CashRegisterHistoryPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+    
+    const handleApplyFilter = async () => {
+        setLoading(true);
+        await loadHistory();
     };
 
     const handlePrintReport = async (register) => {
@@ -174,6 +191,21 @@ const CashRegisterHistoryPage = () => {
                         Voltar
                     </Button>
                     <h1 className="text-2xl font-bold text-white">Histórico de Caixas</h1>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Input
+                        label="Filtrar por data de fechamento"
+                        type="date"
+                        value={filterDate}
+                        onChange={(e) => setFilterDate(e.target.value)}
+                        className="min-w-[240px]"
+                    />
+                    <Button variant="secondary" onClick={handleApplyFilter}>
+                        Aplicar
+                    </Button>
+                    <Button variant="ghost" onClick={() => { setFilterDate(''); setLoading(true); loadHistory(); }}>
+                        Limpar
+                    </Button>
                 </div>
             </div>
 
