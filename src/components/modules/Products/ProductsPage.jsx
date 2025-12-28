@@ -11,9 +11,11 @@ import { productService, categoryService } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
 import { printProductsPriceList } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const ProductsPage = () => {
     const { settings } = useApp();
+    const { canWrite } = useAuth();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState({});
     const [loading, setLoading] = useState(true);
@@ -182,7 +184,7 @@ const ProductsPage = () => {
                     >
                         Lista (Venda/Custo)
                     </Button>
-                    {true && (
+                    {canWrite && (
                         <>
                             <Button
                                 variant="secondary"
