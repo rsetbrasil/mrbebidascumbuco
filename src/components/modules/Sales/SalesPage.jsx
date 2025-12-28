@@ -34,7 +34,7 @@ const SalesPage = () => {
     } = useCart();
 
     const { showNotification, currentCashRegister, settings } = useApp();
-    const { user } = useAuth();
+    const { user, canWrite } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
@@ -185,10 +185,10 @@ const SalesPage = () => {
             if (!paymentModalOpen && !presaleModalOpen && !quantityModalOpen && !customerSelectionOpen && !newCustomerModalOpen) {
                 if (e.key === 'F2') {
                     e.preventDefault();
-                    handleCheckout();
+                    if (canFinalize) handleCheckout();
                 } else if (e.key === 'F3') {
                     e.preventDefault();
-                    handleSavePresale();
+                    if (canWrite) handleSavePresale();
                 } else if (e.key === 'F4') {
                     e.preventDefault();
                     clearCart();
@@ -1084,14 +1084,16 @@ const SalesPage = () => {
                             </Button>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                                <Button
-                                    variant="secondary"
-                                    icon={<Save size={18} />}
-                                    onClick={handleSavePresale}
-                                    disabled={items.length === 0}
-                                >
-                                    Salvar (F3)
-                                </Button>
+                                {canWrite && (
+                                    <Button
+                                        variant="secondary"
+                                        icon={<Save size={18} />}
+                                        onClick={handleSavePresale}
+                                        disabled={items.length === 0}
+                                    >
+                                        Salvar (F3)
+                                    </Button>
+                                )}
                                 <Button
                                     variant="danger"
                                     icon={<Trash2 size={18} />}

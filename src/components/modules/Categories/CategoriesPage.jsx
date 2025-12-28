@@ -6,9 +6,11 @@ import Input from '../../common/Input';
 import Modal from '../../common/Modal';
 import { categoryService } from '../../../services/firestore';
 import { useApp } from '../../../contexts/AppContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const CategoriesPage = () => {
     const { showNotification } = useApp();
+    const { canWrite } = useAuth();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -108,13 +110,15 @@ const CategoriesPage = () => {
         <div className="fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
                 <h1>Categorias</h1>
-                <Button
-                    variant="primary"
-                    icon={<Plus size={20} />}
-                    onClick={() => handleOpenModal()}
-                >
-                    Nova Categoria
-                </Button>
+                {canWrite && (
+                    <Button
+                        variant="primary"
+                        icon={<Plus size={20} />}
+                        onClick={() => handleOpenModal()}
+                    >
+                        Nova Categoria
+                    </Button>
+                )}
             </div>
 
             <Card>
@@ -173,23 +177,25 @@ const CategoriesPage = () => {
                                             {category.description || '-'}
                                         </td>
                                         <td>
-                                            <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--spacing-sm)' }}>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    icon={<Edit size={16} />}
-                                                    onClick={() => handleOpenModal(category)}
-                                                    title="Editar"
-                                                />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    icon={<Trash2 size={16} />}
-                                                    onClick={() => handleDelete(category.id)}
-                                                    style={{ color: 'var(--color-danger)' }}
-                                                    title="Excluir"
-                                                />
-                                            </div>
+                                            {canWrite && (
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--spacing-sm)' }}>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        icon={<Edit size={16} />}
+                                                        onClick={() => handleOpenModal(category)}
+                                                        title="Editar"
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        icon={<Trash2 size={16} />}
+                                                        onClick={() => handleDelete(category.id)}
+                                                        style={{ color: 'var(--color-danger)' }}
+                                                        title="Excluir"
+                                                    />
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))

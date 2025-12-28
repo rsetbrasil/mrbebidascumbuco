@@ -164,11 +164,13 @@ const UsersManagement = () => {
                                                         ? 'var(--color-primary)'
                                                         : user.role === 'cashier'
                                                             ? 'var(--color-accent)'
-                                                            : 'var(--color-secondary)',
+                                                            : user.role === 'viewer'
+                                                                ? 'var(--color-info)'
+                                                                : 'var(--color-secondary)',
                                                     color: 'white',
                                                     fontSize: '12px'
                                                 }}>
-                                                    {user.role === 'manager' ? 'Gerente' : user.role === 'cashier' ? 'Caixa' : 'Vendedor'}
+                                                    {user.role === 'manager' ? 'Gerente' : user.role === 'cashier' ? 'Caixa' : user.role === 'viewer' ? 'Visualizador' : 'Vendedor'}
                                                 </span>
                                             </td>
                                             <td style={{ padding: 'var(--spacing-sm)' }}>
@@ -261,6 +263,7 @@ const UsersManagement = () => {
                                     <option value="seller">Vendedor</option>
                                     <option value="cashier">Caixa</option>
                                     <option value="manager">Gerente</option>
+                                    <option value="viewer">Visualizador</option>
                                 </select>
                             </div>
                         </div>

@@ -5,8 +5,10 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Notification from '../../common/Notification';
 import { unitsService } from '../../../services/firestore';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const UnitsManagement = () => {
+    const { canWrite } = useAuth();
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingUnit, setEditingUnit] = useState(null);
@@ -119,19 +121,21 @@ const UnitsManagement = () => {
             <div style={{ padding: 'var(--spacing-md)' }}>
                 {!isFormOpen ? (
                     <>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-md)' }}>
-                            <Button
-                                onClick={() => {
-                                    resetForm();
-                                    setEditingUnit(null);
-                                    setIsFormOpen(true);
-                                }}
-                                icon={<Plus size={18} />}
-                                variant="primary"
-                            >
-                                Nova Unidade
-                            </Button>
-                        </div>
+                        {canWrite && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--spacing-md)' }}>
+                                <Button
+                                    onClick={() => {
+                                        resetForm();
+                                        setEditingUnit(null);
+                                        setIsFormOpen(true);
+                                    }}
+                                    icon={<Plus size={18} />}
+                                    variant="primary"
+                                >
+                                    Nova Unidade
+                                </Button>
+                            </div>
+                        )}
 
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -158,20 +162,22 @@ const UnitsManagement = () => {
                                                 </span>
                                             </td>
                                             <td style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                                                    <button
-                                                        onClick={() => handleEdit(unit)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)' }}
-                                                    >
-                                                        <Edit size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(unit.id)}
-                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
-                                                    >
-                                                        <Trash2 size={18} />
-                                                    </button>
-                                                </div>
+                                                {canWrite && (
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                                        <button
+                                                            onClick={() => handleEdit(unit)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)' }}
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(unit.id)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger)' }}
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

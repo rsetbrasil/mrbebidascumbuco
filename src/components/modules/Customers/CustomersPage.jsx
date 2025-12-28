@@ -102,15 +102,17 @@ const CustomersPage = () => {
                     }}>Clientes</h1>
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie sua base de clientes</p>
                 </div>
-                <Button
-                    onClick={() => {
-                        setEditingCustomer(null);
-                        setIsModalOpen(true);
-                    }}
-                    icon={<Plus size={20} />}
-                >
-                    Novo Cliente
-                </Button>
+                {canWrite && (
+                    <Button
+                        onClick={() => {
+                            setEditingCustomer(null);
+                            setIsModalOpen(true);
+                        }}
+                        icon={<Plus size={20} />}
+                    >
+                        Novo Cliente
+                    </Button>
+                )}
             </div>
 
             <Card>

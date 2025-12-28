@@ -38,7 +38,7 @@ const CashRegisterPage = () => {
         loading: contextLoading,
         settings
     } = useApp();
-    const { user, isManager, isCashier } = useAuth();
+    const { user, isManager, isCashier, canWrite } = useAuth();
 
     const [loading, setLoading] = useState(false);
     const [movements, setMovements] = useState([]);
@@ -827,31 +827,35 @@ const CashRegisterPage = () => {
                         </p>
 
                         <form onSubmit={handleOpenRegister} className="space-y-6">
-                            <CurrencyInput
-                                label="Valor Inicial (R$)"
-                                value={openingBalance}
-                                onChange={(e) => setOpeningBalance(e.target.value)}
-                                placeholder="0,00"
-                                className="text-center text-lg"
-                                autoFocus
-                            />
+                            {canWrite && (
+                                <CurrencyInput
+                                    label="Valor Inicial (R$)"
+                                    value={openingBalance}
+                                    onChange={(e) => setOpeningBalance(e.target.value)}
+                                    placeholder="0,00"
+                                    className="text-center text-lg"
+                                    autoFocus
+                                />
+                            )}
 
                             <div
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: 'repeat(2, minmax(160px, 1fr))',
+                                    gridTemplateColumns: canWrite ? 'repeat(2, minmax(160px, 1fr))' : '1fr',
                                     gap: 'var(--spacing-sm)'
                                 }}
                             >
-                                <Button
-                                    type="submit"
-                                    variant="primary"
-                                    size="lg"
-                                    loading={loading}
-                                    icon={Unlock}
-                                >
-                                    Abrir Caixa
-                                </Button>
+                                {canWrite && (
+                                    <Button
+                                        type="submit"
+                                        variant="primary"
+                                        size="lg"
+                                        loading={loading}
+                                        icon={Unlock}
+                                    >
+                                        Abrir Caixa
+                                    </Button>
+                                )}
                                 <Button
                                     type="button"
                                     variant="secondary"
@@ -998,30 +1002,34 @@ const CashRegisterPage = () => {
                     >
                         Imprimir
                     </Button>
-                    <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => setModalType('supply')}
-                        icon={ArrowUpCircle}
-                    >
-                        Suprimento
-                    </Button>
-                    <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setModalType('bleed')}
-                        icon={ArrowDownCircle}
-                    >
-                        Sangria
-                    </Button>
-                    <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={handleCloseRegister}
-                        icon={Lock}
-                    >
-                        Fechar Caixa
-                    </Button>
+                    {canWrite && (
+                        <>
+                            <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => setModalType('supply')}
+                                icon={ArrowUpCircle}
+                            >
+                                Suprimento
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => setModalType('bleed')}
+                                icon={ArrowDownCircle}
+                            >
+                                Sangria
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={handleCloseRegister}
+                                icon={Lock}
+                            >
+                                Fechar Caixa
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -1126,7 +1134,7 @@ const CashRegisterPage = () => {
                                                         {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
                                                     </td>
                                                     <td style={{ textAlign: 'right' }}>
-                                                        {(mov.type === 'supply' || mov.type === 'bleed') ? (
+                                                        {(mov.type === 'supply' || mov.type === 'bleed') && canWrite ? (
                                                             <div style={{ display: 'inline-flex', gap: '8px' }}>
                                                                 <Button
                                                                     variant="secondary"
@@ -1158,41 +1166,43 @@ const CashRegisterPage = () => {
                     </Card>
                 </div>
 
-                <div>
-                    <Card title="Fechar Caixa" className="border-red-500/20">
-                        <div className="p-4 space-y-4">
-                            <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
-                                    <div>
-                                        <h4 className="font-medium text-red-400 mb-1">Atenção</h4>
-                                        <p className="text-sm text-red-300/80">
-                                            Ao fechar o caixa, você não poderá mais registrar vendas ou movimentações nesta sessão.
-                                        </p>
+                {canWrite && (
+                    <div>
+                        <Card title="Fechar Caixa" className="border-red-500/20">
+                            <div className="p-4 space-y-4">
+                                <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
+                                    <div className="flex items-start gap-3">
+                                        <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
+                                        <div>
+                                            <h4 className="font-medium text-red-400 mb-1">Atenção</h4>
+                                            <p className="text-sm text-red-300/80">
+                                                Ao fechar o caixa, você não poderá mais registrar vendas ou movimentações nesta sessão.
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
+
+                                <Input
+                                    label="Observações de Fechamento"
+                                    value={closingNote}
+                                    onChange={(e) => setClosingNote(e.target.value)}
+                                    placeholder="Ex: Diferença de R$ 2,00 no caixa..."
+                                    textarea
+                                />
+
+                                <Button
+                                    variant="danger"
+                                    fullWidth
+                                    onClick={handleCloseRegister}
+                                    loading={loading}
+                                    icon={Lock}
+                                >
+                                    Fechar Caixa Agora
+                                </Button>
                             </div>
-
-                            <Input
-                                label="Observações de Fechamento"
-                                value={closingNote}
-                                onChange={(e) => setClosingNote(e.target.value)}
-                                placeholder="Ex: Diferença de R$ 2,00 no caixa..."
-                                textarea
-                            />
-
-                            <Button
-                                variant="danger"
-                                fullWidth
-                                onClick={handleCloseRegister}
-                                loading={loading}
-                                icon={Lock}
-                            >
-                                Fechar Caixa Agora
-                            </Button>
-                        </div>
-                    </Card>
-                </div>
+                        </Card>
+                    </div>
+                )}
             </div>
 
             <MovementModal

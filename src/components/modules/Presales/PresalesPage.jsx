@@ -236,24 +236,27 @@ const PresalesPage = () => {
                     <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie os pedidos em aberto</p>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-sm)',
-                        padding: '0 var(--spacing-md)',
-                        color: 'var(--color-text-secondary)',
-                        fontSize: 'var(--font-size-sm)'
-                    }}>
-                        <span><kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>F2</kbd> Novo</span>
-                        <span><kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>F3</kbd> Buscar</span>
-                    </div>
-                    <Button
-                        onClick={() => navigate('/sales')}
-                        icon={<ShoppingCart size={20} />}
-                    >
-                        Novo Pedido (PDV)
-                    </Button>
-                    
+                    {canWrite && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-sm)',
+                            padding: '0 var(--spacing-md)',
+                            color: 'var(--color-text-secondary)',
+                            fontSize: 'var(--font-size-sm)'
+                        }}>
+                            <span><kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>F2</kbd> Novo</span>
+                            <span><kbd style={{ background: 'var(--color-bg-secondary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>F3</kbd> Buscar</span>
+                        </div>
+                    )}
+                    {canWrite && (
+                        <Button
+                            onClick={() => navigate('/sales')}
+                            icon={<ShoppingCart size={20} />}
+                        >
+                            Novo Pedido (PDV)
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -414,23 +417,25 @@ const PresalesPage = () => {
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
                                             {presaleStatus === 'pending' && (
                                                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                                                    <button
-                                                        onClick={() => handleEditPresale(presale)}
-                                                        style={{
-                                                            padding: '8px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-primary)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            transition: 'background var(--transition-fast)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Editar"
-                                                    >
-                                                        <Edit size={18} />
-                                                    </button>
+                                                    {canWrite && (
+                                                        <button
+                                                            onClick={() => handleEditPresale(presale)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-primary)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Editar"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleViewPresale(presale)}
                                                         style={{
@@ -448,14 +453,16 @@ const PresalesPage = () => {
                                                     >
                                                         <Eye size={18} />
                                                     </button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="primary"
-                                                        onClick={() => handleConvertToSale(presale)}
-                                                        icon={<ShoppingCart size={16} />}
-                                                    >
-                                                        Finalizar
-                                                    </Button>
+                                                    {canWrite && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={() => handleConvertToSale(presale)}
+                                                            icon={<ShoppingCart size={16} />}
+                                                        >
+                                                            Finalizar
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         size="sm"
                                                         variant="secondary"
@@ -464,23 +471,25 @@ const PresalesPage = () => {
                                                     >
                                                         Imprimir
                                                     </Button>
-                                                    <button
-                                                        onClick={() => handleCancel(presale)}
-                                                        style={{
-                                                            padding: '8px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-danger)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)',
-                                                            transition: 'background var(--transition-fast)'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Cancelar"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
+                                                    {canWrite && (
+                                                        <button
+                                                            onClick={() => handleCancel(presale)}
+                                                            style={{
+                                                                padding: '8px',
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: 'var(--color-danger)',
+                                                                cursor: 'pointer',
+                                                                borderRadius: 'var(--radius-md)',
+                                                                transition: 'background var(--transition-fast)'
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Cancelar"
+                                                        >
+                                                            <XCircle size={18} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </td>

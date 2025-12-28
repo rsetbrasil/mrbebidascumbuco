@@ -10,10 +10,12 @@ import { formatCurrency, formatDate, formatDateTime, formatPercentage } from '..
 import { printReceipt, printSalesDayReport } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
 import { useCart } from '../../../contexts/CartContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../../common/Modal';
 
 const SalesHistoryPage = () => {
+    const { canWrite } = useAuth();
     const { settings } = useApp();
     const { loadSale } = useCart();
     const navigate = useNavigate();
@@ -827,20 +829,22 @@ const SalesHistoryPage = () => {
                                                 >
                                                     <Printer size={18} />
                                                 </button>
-                                                <button
-                                                    onClick={() => handleCancelSale(sale)}
-                                                    style={{
-                                                        padding: '6px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-danger)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)'
-                                                    }}
-                                                    title="Cancelar Venda"
-                                                >
-                                                    <XCircle size={18} />
-                                                </button>
+                                                {canWrite && (
+                                                    <button
+                                                        onClick={() => handleCancelSale(sale)}
+                                                        style={{
+                                                            padding: '6px',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            color: 'var(--color-danger)',
+                                                            cursor: 'pointer',
+                                                            borderRadius: 'var(--radius-md)'
+                                                        }}
+                                                        title="Cancelar Venda"
+                                                    >
+                                                        <XCircle size={18} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -970,9 +974,11 @@ const SalesHistoryPage = () => {
                 title={`Detalhes da Venda #${selectedSale?.saleNumber || ''}`}
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                        <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
-                            Editar no PDV
-                        </Button>
+                        {canWrite && (
+                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
+                                Editar no PDV
+                            </Button>
+                        )}
                         <Button variant="secondary" onClick={() => setDetailsModalOpen(false)}>
                             Fechar
                         </Button>
@@ -1137,9 +1143,11 @@ const SalesHistoryPage = () => {
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--spacing-md)' }}>
-                            <Button variant={editing ? 'secondary' : 'primary'} onClick={() => setEditing(!editing)}>
-                                {editing ? 'Concluir Edição' : 'Editar Itens'}
-                            </Button>
+                            {canWrite && (
+                                <Button variant={editing ? 'secondary' : 'primary'} onClick={() => setEditing(!editing)}>
+                                    {editing ? 'Concluir Edição' : 'Editar Itens'}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 )}

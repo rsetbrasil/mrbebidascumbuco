@@ -275,6 +275,25 @@ const Navbar = ({ onMenuClick }) => {
                         </Button>
                     )}
 
+                    {isMobile && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<LogOut size={14} />}
+                            title="Sair"
+                            style={{
+                                height: '32px',
+                                padding: '0 10px',
+                                whiteSpace: 'nowrap',
+                                alignItems: 'center',
+                                display: 'inline-flex'
+                            }}
+                            onClick={logout}
+                        >
+                            Sair
+                        </Button>
+                    )}
+
                     {/* User Info */}
                     <div style={{
                         display: (onMenuClick || isMobile) ? 'none' : 'flex',
@@ -293,7 +312,7 @@ const Navbar = ({ onMenuClick }) => {
                             color: 'var(--color-text-muted)',
                             textTransform: 'uppercase'
                         }}>
-                            ({user?.role === 'manager' ? 'GERENTE' : (user?.role === 'cashier' ? 'CAIXA' : 'VENDEDOR')})
+                            ({user?.role === 'manager' ? 'GERENTE' : (user?.role === 'cashier' ? 'CAIXA' : (user?.role === 'viewer' ? 'VISUALIZADOR' : 'VENDEDOR'))})
                         </span>
                     </div>
 

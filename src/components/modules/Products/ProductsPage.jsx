@@ -182,89 +182,93 @@ const ProductsPage = () => {
                     >
                         Lista (Venda/Custo)
                     </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={async () => {
-                            if (!window.confirm('ATENÇÃO: Isso vai redefinir TODOS os códigos (barcode) dos produtos. Deseja continuar?')) return;
-                            if (!window.confirm('Confirmar novamente: Redefinir códigos sequenciais por ordem alfabética?')) return;
+                    {true && (
+                        <>
+                            <Button
+                                variant="secondary"
+                                onClick={async () => {
+                                    if (!window.confirm('ATENÇÃO: Isso vai redefinir TODOS os códigos (barcode) dos produtos. Deseja continuar?')) return;
+                                    if (!window.confirm('Confirmar novamente: Redefinir códigos sequenciais por ordem alfabética?')) return;
 
-                            setLoading(true);
-                            try {
-                                // Ordena por nome (asc) e gera códigos sequenciais 1..N (sem zeros à esquerda)
-                                const sorted = [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
-                                let updatedCount = 0;
+                                    setLoading(true);
+                                    try {
+                                        // Ordena por nome (asc) e gera códigos sequenciais 1..N (sem zeros à esquerda)
+                                        const sorted = [...products].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+                                        let updatedCount = 0;
 
-                                for (let i = 0; i < sorted.length; i++) {
-                                    const product = sorted[i];
-                                    const seq = String(i + 1);
-                                    await productService.update(product.id, { barcode: seq });
-                                    updatedCount++;
-                                }
+                                        for (let i = 0; i < sorted.length; i++) {
+                                            const product = sorted[i];
+                                            const seq = String(i + 1);
+                                            await productService.update(product.id, { barcode: seq });
+                                            updatedCount++;
+                                        }
 
-                                showNotification('success', `${updatedCount} códigos redefinidos (1… em ordem alfabética)`);
-                                loadData();
-                            } catch (error) {
-                                console.error('Error resetting codes:', error);
-                                showNotification('error', 'Erro ao redefinir códigos');
-                            } finally {
-                                setLoading(false);
-                            }
-                        }}
-                        icon={<Package size={20} />}
-                    >
-                        Redefinir Códigos
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={async () => {
-                            if (!window.confirm('Deseja remover produtos duplicados e somar estoques automaticamente?')) return;
-                            setLoading(true);
-                            try {
-                                const { mergedGroups, removed } = await productService.deduplicateAndMerge();
-                                showNotification('success', `Mesclados ${mergedGroups} grupos, removidos ${removed} duplicados`);
-                                await loadData();
-                            } catch (error) {
-                                console.error('Erro ao remover duplicados:', error);
-                                showNotification('error', 'Falha ao remover duplicados');
-                            } finally {
-                                setLoading(false);
-                            }
-                        }}
-                        icon={<AlertCircle size={20} />}
-                    >
-                        Remover Duplicados
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        onClick={async () => {
-                            if (!window.confirm('ATENÇÃO: Isso vai APAGAR TODOS os produtos. Deseja continuar?')) return;
-                            if (!window.confirm('Confirme novamente: apagar todos os produtos?')) return;
-                            setLoading(true);
-                            try {
-                                await productService.deleteAll();
-                                setProducts([]);
-                                try { localStorage.removeItem('pdv_products_cache'); } catch {}
-                                showNotification('success', 'Todos os produtos foram apagados');
-                            } catch (error) {
-                                console.error('Erro ao apagar todos os produtos:', error);
-                                showNotification('error', 'Falha ao apagar todos os produtos');
-                            } finally {
-                                setLoading(false);
-                            }
-                        }}
-                        icon={<Trash2 size={20} />}
-                    >
-                        Apagar Todos os Produtos
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            setEditingProduct(null);
-                            setIsModalOpen(true);
-                        }}
-                        icon={<Plus size={20} />}
-                    >
-                        Novo Produto
-                    </Button>
+                                        showNotification('success', `${updatedCount} códigos redefinidos (1… em ordem alfabética)`);
+                                        loadData();
+                                    } catch (error) {
+                                        console.error('Error resetting codes:', error);
+                                        showNotification('error', 'Erro ao redefinir códigos');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                icon={<Package size={20} />}
+                            >
+                                Redefinir Códigos
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={async () => {
+                                    if (!window.confirm('Deseja remover produtos duplicados e somar estoques automaticamente?')) return;
+                                    setLoading(true);
+                                    try {
+                                        const { mergedGroups, removed } = await productService.deduplicateAndMerge();
+                                        showNotification('success', `Mesclados ${mergedGroups} grupos, removidos ${removed} duplicados`);
+                                        await loadData();
+                                    } catch (error) {
+                                        console.error('Erro ao remover duplicados:', error);
+                                        showNotification('error', 'Falha ao remover duplicados');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                icon={<AlertCircle size={20} />}
+                            >
+                                Remover Duplicados
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={async () => {
+                                    if (!window.confirm('ATENÇÃO: Isso vai APAGAR TODOS os produtos. Deseja continuar?')) return;
+                                    if (!window.confirm('Confirme novamente: apagar todos os produtos?')) return;
+                                    setLoading(true);
+                                    try {
+                                        await productService.deleteAll();
+                                        setProducts([]);
+                                        try { localStorage.removeItem('pdv_products_cache'); } catch {}
+                                        showNotification('success', 'Todos os produtos foram apagados');
+                                    } catch (error) {
+                                        console.error('Erro ao apagar todos os produtos:', error);
+                                        showNotification('error', 'Falha ao apagar todos os produtos');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                icon={<Trash2 size={20} />}
+                            >
+                                Apagar Todos os Produtos
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setEditingProduct(null);
+                                    setIsModalOpen(true);
+                                }}
+                                icon={<Plus size={20} />}
+                            >
+                                Novo Produto
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -374,43 +378,47 @@ const ProductsPage = () => {
                                         </td>
                                         <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
                                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingProduct(product);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    style={{
-                                                        padding: '8px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-primary)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        transition: 'background var(--transition-fast)'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Editar"
-                                                >
-                                                    <Edit size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(product.id)}
-                                                    style={{
-                                                        padding: '8px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-danger)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        transition: 'background var(--transition-fast)'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Excluir"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                                {canWrite && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingProduct(product);
+                                                            setIsModalOpen(true);
+                                                        }}
+                                                        style={{
+                                                            padding: '8px',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            color: 'var(--color-primary)',
+                                                            cursor: 'pointer',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            transition: 'background var(--transition-fast)'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        title="Editar"
+                                                    >
+                                                        <Edit size={18} />
+                                                    </button>
+                                                )}
+                                                {canWrite && (
+                                                    <button
+                                                        onClick={() => handleDelete(product.id)}
+                                                        style={{
+                                                            padding: '8px',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            color: 'var(--color-danger)',
+                                                            cursor: 'pointer',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            transition: 'background var(--transition-fast)'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                        title="Excluir"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
