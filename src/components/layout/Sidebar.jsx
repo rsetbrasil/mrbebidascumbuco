@@ -33,12 +33,14 @@ const Sidebar = ({ onClose }) => {
     };
 
     const pref = Array.isArray(settings?.menu) ? settings.menu : null;
+    const orderPref = pref ? new Map(pref.map((item, idx) => [item.key, idx])) : null;
     let menuItems = Object.entries(baseMenu).map(([key, def]) => ({ key, visible: true, ...def }));
     const visibility = pref ? new Map(pref.map(item => [item.key, item.visible !== false])) : null;
     if (visibility) {
         menuItems = menuItems.map(it => ({ ...it, visible: visibility.has(it.key) ? visibility.get(it.key) : true }));
     }
     const defaultOrder = [
+        'dashboard',
         'pdv',
         'products',
         'categories',
@@ -48,16 +50,19 @@ const Sidebar = ({ onClose }) => {
         'financial',
         'cashRegister',
         'settings',
-        'resetData',
-        'dashboard'
+        'resetData'
     ];
     menuItems = menuItems.sort((a, b) => {
+        if (orderPref) {
+            const ia = orderPref.has(a.key) ? orderPref.get(a.key) : Number.MAX_SAFE_INTEGER;
+            const ib = orderPref.has(b.key) ? orderPref.get(b.key) : Number.MAX_SAFE_INTEGER;
+            if (ia !== ib) return ia - ib;
+        }
         const ia = defaultOrder.indexOf(a.key);
         const ib = defaultOrder.indexOf(b.key);
-        if (ia === -1 && ib === -1) return 0;
-        if (ia === -1) return 1;
-        if (ib === -1) return -1;
-        return ia - ib;
+        const va = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+        const vb = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+        return va - vb;
     });
 
     const cashierAllowed = ['cashRegister'];

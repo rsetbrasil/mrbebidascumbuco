@@ -28,6 +28,7 @@ const SettingsPage = () => {
         brandLogoUrl: '',
         socialInstagram: '',
         whatsapp: '',
+        cashRegisterAutoCloseTime: '22:00',
         creditCardFee: '3.5',
         debitCardFee: '2.5',
         menu: [
@@ -308,6 +309,23 @@ const SettingsPage = () => {
                             </div>
                             <p className="text-sm text-gray-400">
                                 Estas taxas serão sugeridas automaticamente ao finalizar uma venda com cartão.
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card title="Caixa" icon={Settings}>
+                        <div className="space-y-4 p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Fechamento automático do caixa"
+                                    name="cashRegisterAutoCloseTime"
+                                    type="time"
+                                    value={settings.cashRegisterAutoCloseTime || '22:00'}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <p className="text-sm text-gray-400">
+                                Se o caixa estiver aberto, será fechado automaticamente no horário configurado.
                             </p>
                         </div>
                     </Card>
