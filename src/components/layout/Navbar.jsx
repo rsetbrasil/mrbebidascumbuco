@@ -175,7 +175,7 @@ const Navbar = ({ onMenuClick }) => {
                             display: 'inline-flex'
                         }}
                     >
-                        {isMobile ? 'Preços (F7)' : 'Consultar Preços (F7)'}
+                        {isMobile ? 'Preços' : 'Consultar Preços (F7)'}
                     </Button>
                 </div>
 
@@ -254,7 +254,7 @@ const Navbar = ({ onMenuClick }) => {
                             }}
                             onClick={() => navigate('/cash-register')}
                         >
-                            Caixa Aberto
+                            {isMobile ? 'Caixa' : 'Caixa Aberto'}
                         </Button>
                     ) : (
                         <Button
@@ -271,7 +271,7 @@ const Navbar = ({ onMenuClick }) => {
                             }}
                             onClick={() => navigate('/cash-register')}
                         >
-                            Caixa Fechado
+                            {isMobile ? 'Caixa' : 'Caixa Fechado'}
                         </Button>
                     )}
 
