@@ -250,7 +250,7 @@ const SalesPage = () => {
             }
             const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
             const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
-            const available = Math.max(0, baseStock - reserved);
+            const available = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
             const allItems = items.filter(it => it.id === item.id && ((it.isCold || false) === isCold));
             const totalUsed = allItems.reduce((acc, it) => {
                 const mult = it.unit && it.unit.multiplier ? it.unit.multiplier : 1;
@@ -411,7 +411,7 @@ const SalesPage = () => {
         // Determine which stock to check based on priceType
         const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
         const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
-        const availableStock = Math.max(0, baseStock - reserved);
+        const availableStock = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
         const stockType = isCold ? 'mercearia' : 'natural';
 
         if (totalStockUsed + deduction > availableStock) {
@@ -447,7 +447,7 @@ const SalesPage = () => {
 
         const baseStock = isCold ? Number(selectedProduct.coldStock || 0) : Number(selectedProduct.stock || 0);
         const reserved = isCold ? Number(selectedProduct.reservedColdStock || 0) : Number(selectedProduct.reservedStock || 0);
-        const availableStock = Math.max(0, baseStock - reserved);
+        const availableStock = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
         const stockType = isCold ? 'mercearia' : 'atacado';
 
         if (totalStockUsed + qty > availableStock) {
@@ -618,7 +618,7 @@ const SalesPage = () => {
                     const reservedKey = isColdItem ? 'reservedColdStock' : 'reservedStock';
                     const alreadyReserved = Number(product[reservedKey] || 0);
                     const available = baseStock - alreadyReserved;
-                    if (delta > 0 && delta > available) {
+                    if (!settings?.allowSaleWithoutStock && delta > 0 && delta > available) {
                         showNotification('Estoque insuficiente para reservar este pedido', 'warning');
                         throw new Error('Estoque insuficiente para reservar');
                     }

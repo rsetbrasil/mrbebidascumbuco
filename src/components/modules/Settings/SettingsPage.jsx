@@ -29,6 +29,7 @@ const SettingsPage = () => {
         socialInstagram: '',
         whatsapp: '',
         cashRegisterAutoCloseTime: '22:00',
+        allowSaleWithoutStock: true,
         creditCardFee: '3.5',
         debitCardFee: '2.5',
         menu: [
@@ -326,6 +327,26 @@ const SettingsPage = () => {
                             </div>
                             <p className="text-sm text-gray-400">
                                 Se o caixa estiver aberto, será fechado automaticamente no horário configurado.
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card title="Estoque" icon={Settings}>
+                        <div className="space-y-4 p-4">
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    name="allowSaleWithoutStock"
+                                    checked={!!settings.allowSaleWithoutStock}
+                                    onChange={(e) => {
+                                        const { checked } = e.target;
+                                        setSettings(prev => ({ ...prev, allowSaleWithoutStock: checked }));
+                                    }}
+                                />
+                                <span>Permitir vender sem estoque</span>
+                            </label>
+                            <p className="text-sm text-gray-400">
+                                Ao ativar, o sistema não bloqueia vendas ou reservas quando o estoque disponível é insuficiente.
                             </p>
                         </div>
                     </Card>
