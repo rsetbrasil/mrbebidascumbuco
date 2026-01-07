@@ -765,6 +765,48 @@ export const presalesService = {
 
     subscribeAll(callback) {
         return firestoreService.subscribe(COLLECTIONS.PRESALES, callback, []);
+    },
+    async recomputeReservations() {
+        const pendingReserved = await firestoreService.query(
+            COLLECTIONS.PRESALES,
+            [
+                { field: 'status', operator: '==', value: 'pending' },
+                { field: 'reserved', operator: '==', value: true }
+            ],
+            null
+        );
+        const totalsByProduct = new Map();
+        const getDeduction = (it) => {
+            if (it.stockDeductionPerUnit) return Number(it.stockDeductionPerUnit || 0) * Number(it.quantity || 0);
+            const mult = Number(it?.unit?.multiplier || 1);
+            return Number(it?.quantity || 0) * mult;
+        };
+        for (const presale of (pendingReserved || [])) {
+            const items = Array.isArray(presale.items) ? presale.items : [];
+            for (const item of items) {
+                const pid = item?.productId;
+                if (!pid) continue;
+                const acc = totalsByProduct.get(pid) || { warm: 0, cold: 0 };
+                const deduction = getDeduction(item);
+                if (item?.isCold) acc.cold += deduction;
+                else acc.warm += deduction;
+                totalsByProduct.set(pid, acc);
+            }
+        }
+        const products = await productService.getAll();
+        let updated = 0;
+        for (const p of (products || [])) {
+            const acc = totalsByProduct.get(p.id) || { warm: 0, cold: 0 };
+            const desiredWarm = Math.max(0, Number(acc.warm || 0));
+            const desiredCold = Math.max(0, Number(acc.cold || 0));
+            const currWarm = Number(p.reservedStock || 0);
+            const currCold = Number(p.reservedColdStock || 0);
+            if (currWarm !== desiredWarm || currCold !== desiredCold) {
+                await productService.update(p.id, { reservedStock: desiredWarm, reservedColdStock: desiredCold });
+                updated++;
+            }
+        }
+        return { updated, pendingPresales: (pendingReserved || []).length };
     }
 };
 

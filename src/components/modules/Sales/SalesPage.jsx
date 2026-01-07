@@ -434,23 +434,19 @@ const SalesPage = () => {
         }
 
         const isCold = itemPriceType === 'cold';
-        const existingItem = items.find(item => item.id === selectedProduct.id && !item.unit && ((item.isCold || false) === isCold));
-        const currentQtyInCart = existingItem ? existingItem.quantity : 0;
-        const totalQty = currentQtyInCart + qty;
-
         const allCartItemsForProduct = items.filter(item => item.id === selectedProduct.id && ((item.isCold || false) === isCold));
         const totalStockUsed = allCartItemsForProduct.reduce((acc, item) => {
             const itemDeduction = item.unit ? item.unit.multiplier : 1;
-            if (item.id === selectedProduct.id && !item.unit) return acc;
-            return acc + (item.quantity * itemDeduction);
+            return acc + (Number(item.quantity || 0) * itemDeduction);
         }, 0);
+        const additionalUnits = qty;
 
         const baseStock = isCold ? Number(selectedProduct.coldStock || 0) : Number(selectedProduct.stock || 0);
         const reserved = isCold ? Number(selectedProduct.reservedColdStock || 0) : Number(selectedProduct.reservedStock || 0);
         const availableStock = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
         const stockType = isCold ? 'mercearia' : 'atacado';
 
-        if (totalStockUsed + qty > availableStock) {
+        if (totalStockUsed + additionalUnits > availableStock) {
             showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock} (Reservado: ${reserved})`, 'warning');
             return;
         }

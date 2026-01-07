@@ -348,6 +348,27 @@ const SettingsPage = () => {
                             <p className="text-sm text-gray-400">
                                 Ao ativar, o sistema não bloqueia vendas ou reservas quando o estoque disponível é insuficiente.
                             </p>
+                            <div className="border-t border-slate-700 pt-4 mt-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={async () => {
+                                        setLoading(true);
+                                        try {
+                                            const result = await presalesService.recomputeReservations();
+                                            showNotification('success', `Reservas recalculadas. Produtos atualizados: ${result.updated}`);
+                                        } catch (error) {
+                                            console.error('Recompute reservations error:', error);
+                                            showNotification('error', 'Erro ao recalcular reservas');
+                                        } finally {
+                                            setLoading(false);
+                                        }
+                                    }}
+                                    className="w-full justify-center"
+                                >
+                                    Recalcular Reservas de Pré-venda
+                                </Button>
+                            </div>
                         </div>
                     </Card>
 
