@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, XCircle, Eye, Printer } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
+import DateInput from '../../common/DateInput';
 import Loading from '../../common/Loading';
 import Notification from '../../common/Notification';
 import { salesService, productService, cashRegisterService, firestoreService, COLLECTIONS } from '../../../services/firestore';
@@ -20,7 +21,8 @@ const SalesHistoryPage = () => {
     const { loadSale } = useCart();
     const navigate = useNavigate();
     const [sales, setSales] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [pageLoading, setPageLoading] = useState(true);
+    const [dataLoading, setDataLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [notification, setNotification] = useState(null);
     const [selectedSale, setSelectedSale] = useState(null);
@@ -44,6 +46,7 @@ const SalesHistoryPage = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const [highlightIndex, setHighlightIndex] = useState(-1);
+    const firstLoadRef = useRef(true);
 
     const toLocalIsoDate = (date) => {
         const d = new Date(date);
@@ -66,16 +69,33 @@ const SalesHistoryPage = () => {
         setEndDate(yesterdayStr);
     };
 
+    const handleLastNDays = (days) => {
+        const endStr = toLocalIsoDate(new Date());
+        const d = new Date();
+        d.setDate(d.getDate() - Number(days));
+        const startStr = toLocalIsoDate(d);
+        setStartDate(startStr);
+        setEndDate(endStr);
+    };
+
     useEffect(() => {
-        setLoading(true);
-        
+        if (firstLoadRef.current) {
+            setPageLoading(true);
+        } else {
+            setDataLoading(true);
+        }
+
         // Construct date objects in local time
         const start = new Date(startDate + 'T00:00:00');
         const end = new Date(endDate + 'T23:59:59.999');
 
         const unsub = salesService.subscribeByDateRange((data) => {
             setSales(data);
-            setLoading(false);
+            if (firstLoadRef.current) {
+                setPageLoading(false);
+                firstLoadRef.current = false;
+            }
+            setDataLoading(false);
         }, start, end);
         
         return () => { try { unsub && unsub(); } catch {} };
@@ -606,7 +626,7 @@ const SalesHistoryPage = () => {
             return bv - av;
         });
 
-    if (loading) return <Loading fullScreen />;
+    if (pageLoading) return <Loading fullScreen />;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
@@ -654,84 +674,36 @@ const SalesHistoryPage = () => {
                         />
                     </div>
                     
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                                De {startDate ? `(${formatDate(startDate)})` : ''}
-                            </label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                lang="pt-BR"
-                                style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)',
-                                    background: 'var(--color-bg-primary)',
-                                    color: 'var(--color-text-primary)',
-                                    outline: 'none',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                                Até {endDate ? `(${formatDate(endDate)})` : ''}
-                            </label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                lang="pt-BR"
-                                style={{
-                                    padding: '8px 12px',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)',
-                                    background: 'var(--color-bg-primary)',
-                                    color: 'var(--color-text-primary)',
-                                    outline: 'none',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                            <Button
-                                variant="secondary"
-                                onClick={handleViewSalesReport}
-                                icon={Eye}
-                                style={{ height: '38px' }}
-                            >
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <DateInput value={startDate} onChange={setStartDate} labelPrefix="De" style={{ minWidth: 120, padding: '6px 10px', fontSize: 'var(--font-size-sm)', letterSpacing: '0.2px', fontWeight: 500 }} />
+                        <DateInput value={endDate} onChange={setEndDate} labelPrefix="Até" style={{ minWidth: 120, padding: '6px 10px', fontSize: 'var(--font-size-sm)', letterSpacing: '0.2px', fontWeight: 500 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '2px', flexWrap: 'nowrap' }}>
+                            <Button variant="secondary" size="sm" onClick={handleViewSalesReport} icon={Eye}>
                                 Ver
                             </Button>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                             <Button
-                                variant="secondary"
-                                onClick={handleYesterday}
-                                style={{ height: '38px' }}
-                             >
-                                 Ontem
-                             </Button>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                             <Button
-                                variant="secondary"
-                                onClick={handleToday}
-                                style={{ height: '38px' }}
-                             >
-                                 Hoje
-                             </Button>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '2px' }}>
-                            <Button
-                                variant="secondary"
-                                onClick={handlePrintSalesReport}
-                                icon={Printer}
-                                style={{ height: '38px' }}
-                            >
+                            <Button variant="secondary" size="sm" onClick={handleYesterday}>
+                                Ontem
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={handleToday}>
+                                Hoje
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(30)}>
+                                30 dias
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(60)}>
+                                60 dias
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(90)}>
+                                90 dias
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={handlePrintSalesReport} icon={Printer}>
                                 Imprimir
                             </Button>
+                            {dataLoading && (
+                                <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                                    Atualizando...
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -30,6 +30,12 @@ export const formatDate = (date, formatStr = 'dd/MM/yyyy') => {
     if (!date) return '';
 
     try {
+        // Handle ISO date string safely (YYYY-MM-DD)
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            const local = new Date(`${date}T00:00:00`);
+            return format(local, formatStr, { locale: ptBR });
+        }
+
         // Handle Firestore Timestamp
         if (date.toDate && typeof date.toDate === 'function') {
             return format(date.toDate(), formatStr, { locale: ptBR });
