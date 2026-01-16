@@ -113,13 +113,13 @@ export const CartProvider = ({ children }) => {
 
                 updatedItems[existingIndex] = {
                     ...item,
-                    quantity: item.quantity + quantity,
+                    quantity: options.replaceQuantity ? quantity : (item.quantity + quantity),
                     // If it's a unit, price is fixed. If base product, it follows priceType
                     unitPrice: unit ? (options.customPrice !== undefined ? Number(options.customPrice) : unit.price) : priceToUse,
                     unitCost: unit ? costToUse : baseCost,
                     isCold,
                     isWholesale,
-                    stockDeduction: (item.quantity + quantity) * stockDeduction
+                    stockDeduction: (options.replaceQuantity ? quantity : (item.quantity + quantity)) * stockDeduction
                 };
 
                 // Recalculate total for this item

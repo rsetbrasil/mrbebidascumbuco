@@ -55,6 +55,7 @@ const SalesPage = () => {
     const [quantityModalOpen, setQuantityModalOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantityInput, setQuantityInput] = useState('1');
+    const [weightMode, setWeightMode] = useState('KG'); // 'KG' quando usa vírgula, 'G' quando só dígitos/tem 'g'
     const [itemPriceType, setItemPriceType] = useState('wholesale');
     const [priceInput, setPriceInput] = useState('');
 
@@ -248,19 +249,7 @@ const SalesPage = () => {
                 updateQuantity(item.cartItemId, item.quantity + 1);
                 return;
             }
-            const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
-            const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
-            const available = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
-            const allItems = items.filter(it => it.id === item.id && ((it.isCold || false) === isCold));
-            const totalUsed = allItems.reduce((acc, it) => {
-                const mult = it.unit && it.unit.multiplier ? it.unit.multiplier : 1;
-                return acc + (Number(it.quantity || 0) * mult);
-            }, 0);
-            if (totalUsed + deduction > available) {
-                const stockType = isCold ? 'mercearia' : 'atacado';
-                showNotification(`Estoque ${stockType} insuficiente. Disponível: ${available} (Reservado: ${reserved})`, 'warning');
-                return;
-            }
+            // Não bloquear por estoque
             updateQuantity(item.cartItemId, item.quantity + 1);
         } catch {
             updateQuantity(item.cartItemId, item.quantity + 1);
@@ -362,6 +351,51 @@ const SalesPage = () => {
         }, 100);
     };
 
+    const getBaseUnit = () => {
+        const base = itemPriceType === 'cold'
+            ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+        return base || 'UN';
+    };
+
+    const handleQuantityInputChange = (e) => {
+        const raw = e.target.value;
+        const base = getBaseUnit();
+        if (base === 'KG') {
+            const endsWithG = /[gG]$/.test(raw);
+            if (endsWithG) {
+                setWeightMode('G');
+                const v = String(raw).replace(/\D/g, '');
+                setQuantityInput(v);
+                return;
+            }
+            if (String(raw).includes(',')) {
+                setWeightMode('KG');
+                let v = String(raw).replace('.', ',');
+                v = v.replace(/[^0-9,]/g, '');
+                const pos = v.indexOf(',');
+                if (pos >= 0) {
+                    const intPart = v.slice(0, pos).replace(/,/g, '');
+                    let decPart = v.slice(pos + 1).replace(/,/g, '');
+                    if (decPart.length > 3) decPart = decPart.slice(0, 3);
+                    v = (intPart || '0') + ',' + decPart;
+                } else {
+                    v = v.replace(/,/g, '');
+                }
+                if (v.startsWith(',')) v = '0' + v;
+                setQuantityInput(v);
+            } else {
+                // Sem vírgula: interpretar como gramas
+                setWeightMode('G');
+                const v = String(raw).replace(/\D/g, '');
+                setQuantityInput(v);
+            }
+        } else {
+            const v = String(raw).replace(/\D/g, '');
+            setQuantityInput(v);
+        }
+    };
+
     useEffect(() => {
         if (quantityModalOpen) {
             if (quantityStep === 'priceType') {
@@ -409,15 +443,7 @@ const SalesPage = () => {
         }, 0);
 
         // Determine which stock to check based on priceType
-        const baseStock = isCold ? Number(product.coldStock || 0) : Number(product.stock || 0);
-        const reserved = isCold ? Number(product.reservedColdStock || 0) : Number(product.reservedStock || 0);
-        const availableStock = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
-        const stockType = isCold ? 'mercearia' : 'natural';
-
-        if (totalStockUsed + deduction > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock} (Reservado: ${reserved})`, 'warning');
-            return;
-        }
+        // Não bloquear por estoque
 
         addItem(product, 1, unit);
         showNotification('success', 'Produto adicionado!');
@@ -427,7 +453,21 @@ const SalesPage = () => {
     };
 
     const handleConfirmQuantity = () => {
-        const qty = parseFloat(quantityInput);
+        const baseUnit = itemPriceType === 'cold'
+            ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+        let qty = 0;
+        if (baseUnit === 'KG') {
+            if (weightMode === 'G') {
+                const grams = parseInt(String(quantityInput).replace(/\D/g, ''), 10) || 0;
+                qty = grams / 1000;
+            } else {
+                const normalized = String(quantityInput).replace(/\./g, '').replace(',', '.');
+                qty = parseFloat(normalized);
+            }
+        } else {
+            qty = parseFloat(String(quantityInput).replace(/\D/g, ''));
+        }
         if (!qty || qty <= 0) {
             showNotification('Quantidade inválida', 'warning');
             return;
@@ -441,20 +481,13 @@ const SalesPage = () => {
         }, 0);
         const additionalUnits = qty;
 
-        const baseStock = isCold ? Number(selectedProduct.coldStock || 0) : Number(selectedProduct.stock || 0);
-        const reserved = isCold ? Number(selectedProduct.reservedColdStock || 0) : Number(selectedProduct.reservedStock || 0);
-        const availableStock = settings?.allowSaleWithoutStock ? Number.POSITIVE_INFINITY : Math.max(0, baseStock - reserved);
-        const stockType = isCold ? 'mercearia' : 'atacado';
-
-        if (totalStockUsed + additionalUnits > availableStock) {
-            showNotification(`Estoque ${stockType} insuficiente. Disponível: ${availableStock} (Reservado: ${reserved})`, 'warning');
-            return;
-        }
+        // Não bloquear por estoque
 
         const customPrice = typeof priceInput === 'string' ? parseFloat(String(priceInput).replace(/[^0-9.,]/g, '').replace('.', '').replace(',', '.')) : Number(priceInput);
         addItem(selectedProduct, qty, null, {
             itemPriceType,
-            customPrice: !isNaN(customPrice) && customPrice > 0 ? customPrice : undefined
+            customPrice: !isNaN(customPrice) && customPrice > 0 ? customPrice : undefined,
+            replaceQuantity: true
         });
         setQuantityModalOpen(false);
         setQuantityStep('quantity');
@@ -1151,10 +1184,29 @@ const SalesPage = () => {
                     </p>
                     <Input
                         ref={quantityInputRef}
-                        type="number"
-                        label="Quantidade"
+                        type="text"
+                        inputMode={(() => {
+                            const base = itemPriceType === 'cold'
+                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                            return base === 'KG' ? 'decimal' : 'numeric';
+                        })()}
+                        label={(() => {
+                            const base = itemPriceType === 'cold'
+                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                            if (base === 'KG') return weightMode === 'G' ? 'Peso (g)' : 'Peso (KG)';
+                            return 'Quantidade';
+                        })()}
+                        suffix={(() => {
+                            const base = itemPriceType === 'cold'
+                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                            if (base !== 'KG') return base || undefined;
+                            return weightMode === 'G' ? 'g' : 'KG';
+                        })()}
                         value={quantityInput}
-                        onChange={(e) => setQuantityInput(e.target.value)}
+                        onChange={handleQuantityInputChange}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault();
@@ -1173,6 +1225,17 @@ const SalesPage = () => {
                         }}
                         autoFocus
                     />
+                    {(() => {
+                        const base = itemPriceType === 'cold'
+                            ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
+                            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                        if (base !== 'KG') return null;
+                        return (
+                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                Preço por KG
+                            </div>
+                        );
+                    })()}
                     <div>
                         <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
                             Tipo de Preço (por item)
