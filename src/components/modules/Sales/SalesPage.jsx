@@ -646,11 +646,6 @@ const SalesPage = () => {
                     const baseStock = isColdItem ? Number(product.coldStock || 0) : Number(product.stock || 0);
                     const reservedKey = isColdItem ? 'reservedColdStock' : 'reservedStock';
                     const alreadyReserved = Number(product[reservedKey] || 0);
-                    const available = baseStock - alreadyReserved;
-                    if (!settings?.allowSaleWithoutStock && delta > 0 && delta > available) {
-                        showNotification('Estoque insuficiente para reservar este pedido', 'warning');
-                        throw new Error('Estoque insuficiente para reservar');
-                    }
                     const nextReserved = Math.max(0, alreadyReserved + delta);
                     const updated = { [reservedKey]: nextReserved };
                     await productService.update(product.id, updated);
