@@ -408,15 +408,15 @@ const SalesHistoryPage = () => {
 
     const deductStockForProduct = async (sale, productId, deduction) => {
         const product = await productService.getById(productId);
-        if (!product) return false;
+        if (!product) return true; // não bloquear
         if (sale.priceType === 'cold') {
-            const available = product.coldStock || 0;
-            if (available < deduction) return false;
-            await productService.update(product.id, { coldStock: available - deduction });
+            const available = Number(product.coldStock || 0);
+            const next = Math.max(0, available - Number(deduction || 0));
+            await productService.update(product.id, { coldStock: next });
         } else {
-            const available = product.stock || 0;
-            if (available < deduction) return false;
-            await productService.update(product.id, { stock: available - deduction });
+            const available = Number(product.stock || 0);
+            const next = Math.max(0, available - Number(deduction || 0));
+            await productService.update(product.id, { stock: next });
         }
         return true;
     };
