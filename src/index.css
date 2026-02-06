@@ -1,37 +1,58 @@
+/* Default (Dark Mode) */
 :root {
   /* Modern Palette - Slate & Indigo/Violet */
-  --color-bg-primary: #0f172a;   /* Slate 950 */
-  --color-bg-secondary: #1e293b; /* Slate 800 */
-  --color-bg-tertiary: #334155;  /* Slate 700 */
-  --color-bg-hover: #475569;     /* Slate 600 */
-  --color-bg-input: #1e293b;     /* Slate 800 */
+  --color-bg-primary: #0f172a;
+  /* Slate 950 */
+  --color-bg-secondary: #1e293b;
+  /* Slate 800 */
+  --color-bg-tertiary: #334155;
+  /* Slate 700 */
+  --color-bg-hover: #475569;
+  /* Slate 600 */
+  --color-bg-input: #1e293b;
+  /* Slate 800 */
 
-  --color-primary: #6366f1;       /* Indigo 500 */
-  --color-primary-hover: #4f46e5; /* Indigo 600 */
+  --color-primary: #6366f1;
+  /* Indigo 500 */
+  --color-primary-hover: #4f46e5;
+  /* Indigo 600 */
   --color-primary-light: rgba(99, 102, 241, 0.2);
 
-  --color-success: #10b981;       /* Emerald 500 */
+  --color-success: #10b981;
+  /* Emerald 500 */
   --color-success-hover: #059669;
-  --color-warning: #f59e0b;       /* Amber 500 */
+  --color-warning: #f59e0b;
+  /* Amber 500 */
   --color-warning-hover: #d97706;
-  --color-danger: #ef4444;        /* Red 500 */
+  --color-danger: #ef4444;
+  /* Red 500 */
   --color-danger-hover: #dc2626;
-  
-  --color-text-primary: #f8fafc;   /* Slate 50 */
-  --color-text-secondary: #94a3b8; /* Slate 400 */
-  --color-text-muted: #64748b;     /* Slate 500 */
+
+  --color-text-primary: #f8fafc;
+  /* Slate 50 */
+  --color-text-secondary: #94a3b8;
+  /* Slate 400 */
+  --color-text-muted: #64748b;
+  /* Slate 500 */
   --color-text-inverse: #0f172a;
 
-  --color-border: #334155;         /* Slate 700 */
+  --color-border: #334155;
+  /* Slate 700 */
   --color-divider: #334155;
 
   /* Spacing Scale */
-  --spacing-xs: 0.25rem; /* 4px */
-  --spacing-sm: 0.5rem;  /* 8px */
-  --spacing-md: 1rem;    /* 16px */
-  --spacing-lg: 1.5rem;  /* 24px */
-  --spacing-xl: 2rem;    /* 32px */
-  --spacing-2xl: 3rem;   /* 48px */
+  --spacing-xs: 0.25rem;
+  /* 4px */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 1rem;
+  /* 16px */
+  --spacing-lg: 1.5rem;
+  /* 24px */
+  --spacing-xl: 2rem;
+  /* 32px */
+  --spacing-2xl: 3rem;
+  /* 48px */
 
   /* Typography */
   --font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -52,10 +73,12 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  
+
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+
 
 /* Reset & Base */
 * {
@@ -72,16 +95,29 @@ body {
 }
 
 /* Typography Defaults */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0 0 var(--spacing-md) 0;
   font-weight: 600;
   color: var(--color-text-primary);
   line-height: 1.2;
 }
 
-h1 { font-size: 2rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.25rem; }
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+}
 
 p {
   margin: 0 0 var(--spacing-md) 0;
@@ -92,6 +128,7 @@ a {
   text-decoration: none;
   transition: color var(--transition-fast);
 }
+
 a:hover {
   color: var(--color-primary-hover);
 }
@@ -101,13 +138,16 @@ a:hover {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--color-bg-primary);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-bg-tertiary);
   border-radius: var(--radius-full);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-bg-hover);
 }
@@ -124,8 +164,15 @@ a:hover {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Helpers */
@@ -141,10 +188,10 @@ a:hover {
 
 /* Input Autofill Fix for Dark Mode */
 input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px var(--color-bg-input) inset !important;
-    -webkit-text-fill-color: var(--color-text-primary) !important;
-    transition: background-color 5000s ease-in-out 0s;
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--color-bg-input) inset !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
 }

@@ -9,14 +9,16 @@ import {
     ClipboardList,
     BarChart3,
     Settings,
-    Database
+    Database,
+    Sun,
+    Moon
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
 const Sidebar = ({ onClose }) => {
     const { isManager, user } = useAuth();
-    const { settings } = useApp();
+    const { settings, theme, toggleTheme } = useApp();
 
     const baseMenu = {
         pdv: { path: '/sales', icon: ShoppingCart, label: 'PDV' },
@@ -149,15 +151,52 @@ const Sidebar = ({ onClose }) => {
                 ))}
             </nav>
 
-            {/* Footer */}
+            {/* Theme Toggle & Footer */}
             <div style={{
                 padding: 'var(--spacing-md)',
                 borderTop: '1px solid var(--color-border)',
-                fontSize: 'var(--font-size-sm)',
-                color: 'var(--color-text-muted)',
-                textAlign: 'center'
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-sm)'
             }}>
-                © 2024 MR Bebidas
+                <button
+                    onClick={toggleTheme}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 'var(--spacing-sm)',
+                        padding: 'var(--spacing-sm)',
+                        background: 'var(--color-bg-tertiary)',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--color-text-primary)',
+                        cursor: 'pointer',
+                        fontSize: 'var(--font-size-sm)',
+                        width: '100%',
+                        transition: 'all var(--transition-fast)'
+                    }}
+                >
+                    {settings?.theme === 'light' || theme === 'light' ? (
+                        <>
+                            <Moon size={18} />
+                            <span>Modo Escuro</span>
+                        </>
+                    ) : (
+                        <>
+                            <Sun size={18} />
+                            <span>Modo Claro</span>
+                        </>
+                    )}
+                </button>
+
+                <div style={{
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text-muted)',
+                    textAlign: 'center'
+                }}>
+                    © 2024 MR Bebidas
+                </div>
             </div>
         </aside>
     );

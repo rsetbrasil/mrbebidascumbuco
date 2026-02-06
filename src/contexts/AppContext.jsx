@@ -16,7 +16,18 @@ export const AppProvider = ({ children }) => {
     const [settings, setSettings] = useState({});
     const [loading, setLoading] = useState(true);
     const [notification, setNotification] = useState(null);
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
     const autoClosedRef = useRef(new Set());
+
+    // Sync theme with DOM and localStorage
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    };
 
     // Load current cash register and settings on mount
     useEffect(() => {
@@ -217,6 +228,8 @@ export const AppProvider = ({ children }) => {
     const value = {
         currentCashRegister,
         settings,
+        theme,
+        toggleTheme,
         loading,
         notification,
         showNotification,
