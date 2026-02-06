@@ -148,7 +148,7 @@ const SalesPage = () => {
     }, []);
 
     useEffect(() => {
-        return () => {};
+        return () => { };
     }, []);
 
     const searchDebounceRef = useRef(null);
@@ -530,7 +530,7 @@ const SalesPage = () => {
         }
 
         const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        
+
         // Se houver taxa, não limitamos o valor pago ao total original + 1000
         // pois o valor com taxa será naturalmente maior que o total original
         if (!cardFeePercentage && totalPaid + amount > totals.total + 1000) {
@@ -538,8 +538,8 @@ const SalesPage = () => {
             return;
         }
 
-        setPayments([...payments, { 
-            method: paymentMethod, 
+        setPayments([...payments, {
+            method: paymentMethod,
             amount,
             feePercentage: cardFeePercentage ? parseFloat(cardFeePercentage) : 0
         }]);
@@ -562,27 +562,28 @@ const SalesPage = () => {
     };
 
     const confirmSavePresale = async () => {
+        if (processing) return; // Prevent duplication
         try {
             setProcessing(true);
             const totals = calculateTotals();
 
             const presaleType = priceType === 'cold' ? 'cold' : (customer?.priceType === 'wholesale' ? 'wholesale' : null);
-                const presaleItems = items.map(item => {
-                    const pid = item.id || item.productId;
-                    const cached = products.find(p => p.id === pid);
-                    const pname = item.name || item.productName || (cached ? cached.name : null) || 'Item';
-                    return {
-                        productId: pid,
-                        productName: pname,
-                        quantity: Number(item.quantity) || 0,
-                        unitPrice: Number(item.unitPrice) || 0,
-                        discount: Number(item.discount) || 0,
-                        total: Number(item.total) || 0,
-                        unit: item.unit || null,
-                        isCold: !!item.isCold,
-                        isWholesale: !!item.isWholesale
-                    };
-                });
+            const presaleItems = items.map(item => {
+                const pid = item.id || item.productId;
+                const cached = products.find(p => p.id === pid);
+                const pname = item.name || item.productName || (cached ? cached.name : null) || 'Item';
+                return {
+                    productId: pid,
+                    productName: pname,
+                    quantity: Number(item.quantity) || 0,
+                    unitPrice: Number(item.unitPrice) || 0,
+                    discount: Number(item.discount) || 0,
+                    total: Number(item.total) || 0,
+                    unit: item.unit || null,
+                    isCold: !!item.isCold,
+                    isWholesale: !!item.isWholesale
+                };
+            });
             const presaleData = {
                 customerId: customer?.id || null,
                 customerName: presaleCustomerName || 'Cliente Balcão',
@@ -774,9 +775,160 @@ const SalesPage = () => {
             const cleanSaleData = JSON.parse(JSON.stringify(saleData));
 
             let saleNumber = isEditingSale ? String(editingSale?.saleNumber || '') : generateSaleNumber();
-            const sale = { ...cleanSaleData, saleNumber };
 
-            printReceipt(sale, settings);
+            // 1. Processar CMV (Custo da Mercadoria Vendida)
+            let cmvTotal = 0;
+            let cmvDetails = [];
+            try {
+                const cmv = await stockService.consumeForItems(items);
+                cmvTotal = Number(cmv.cmvTotal || 0);
+                cmvDetails = cmv.details || [];
+            } catch (err) {
+                console.error("Erro ao calcular CMV:", err);
+                // Não bloquear venda por erro de CMV, mas logar
+            }
+
+            const saleWithCmv = {
+                ...cleanSaleData,
+                saleNumber,
+                cmvTotal,
+                cmvDetails
+            };
+
+            // 2. Salvar Venda no Banco de Dados (AWAIT IMPORTANTE)
+            // Isso previne que a venda seja considerada "ok" antes de salvar de fato
+            if (isEditingSale) {
+                await salesService.update(editingSale.id, { ...saleWithCmv, status: 'modified' });
+            } else {
+                await firestoreService.create(COLLECTIONS.SALES, saleWithCmv);
+            }
+
+            // 3. Imprimir Comprovante
+            printReceipt({ ...saleWithCmv }, settings);
+
+            // 4. Atualizar Estoque Local e Remoto
+            const localById = new Map();
+            const ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
+
+            // Pré-carregar produtos envolvidos para garantir dados frescos
+            try {
+                const fetchedProducts = await Promise.all(ids.map(id => productService.getById(id).catch(() => null)));
+                fetchedProducts.forEach(p => {
+                    if (p && p.id) {
+                        // Atualiza estado local de produtos também
+                        setProducts(prev => {
+                            const idx = prev.findIndex(prod => prod.id === p.id);
+                            if (idx >= 0) {
+                                const newArr = [...prev];
+                                newArr[idx] = p;
+                                return newArr;
+                            }
+                            return prev;
+                        });
+                        localById.set(p.id, p);
+                    }
+                });
+            } catch (err) {
+                console.error("Erro ao atualizar produtos locais:", err);
+            }
+
+            // 5. Atualizar Movimentação de Caixa (Troco)
+            if (change > 0) {
+                try {
+                    await cashRegisterService.addMovement({
+                        cashRegisterId: currentCashRegister.id,
+                        type: 'change',
+                        amount: change,
+                        description: `Troco da venda #${saleNumber}`,
+                        createdBy: user?.name || 'Sistema'
+                    });
+                } catch (error) {
+                    console.error("Erro ao registrar troco:", error);
+                }
+            }
+
+            // 6. Atualizar Estoques (Decremento)
+            const deductionsMap = new Map();
+            for (const item of items) {
+                if (!item.id) continue;
+                const d = getDeduction(item);
+                const entry = deductionsMap.get(item.id) || { cold: 0, warm: 0 };
+                if (item.isCold) entry.cold += d; else entry.warm += d;
+                deductionsMap.set(item.id, entry);
+            }
+
+            const stockUpdates = [];
+            deductionsMap.forEach((entry, id) => {
+                const product = localById.get(id); // Usa o produto fresco buscado acima
+                // Se não achou fresco, tenta do state
+                const productFallback = product || products.find(p => p.id === id);
+
+                if (!productFallback) return;
+
+                const payload = {};
+                if (entry.cold > 0) {
+                    const newCold = Math.max(0, Number(productFallback.coldStock || 0) - entry.cold);
+                    payload.coldStock = newCold;
+                }
+                if (entry.warm > 0) {
+                    const newWarm = Math.max(0, Number(productFallback.stock || 0) - entry.warm);
+                    payload.stock = newWarm;
+                }
+
+                if (Object.keys(payload).length > 0) {
+                    stockUpdates.push(
+                        productService.update(id, payload).then(() => {
+                            // Atualiza UI localmente após sucesso do update individual
+                            setProducts(prev => prev.map(p => {
+                                if (p.id !== id) return p;
+                                return { ...p, ...payload };
+                            }));
+                        }).catch(e => console.error(`Erro ao atualizar estoque do produto ${id}`, e))
+                    );
+                }
+            });
+
+            await Promise.all(stockUpdates);
+
+
+            // 7. Atualizar Pré-venda se existir (Baixar reservas)
+            if (cartData.presaleId) {
+                try {
+                    const reservedUpdates = [];
+                    deductionsMap.forEach((entry, id) => {
+                        const product = localById.get(id) || products.find(p => p.id === id);
+                        if (!product) return;
+
+                        const payload = {};
+                        if (entry.cold > 0) {
+                            const current = Number(product.reservedColdStock || 0);
+                            const next = Math.max(0, current - entry.cold);
+                            payload.reservedColdStock = next;
+                        }
+                        if (entry.warm > 0) {
+                            const current = Number(product.reservedStock || 0);
+                            const next = Math.max(0, current - entry.warm);
+                            payload.reservedStock = next;
+                        }
+
+                        if (Object.keys(payload).length > 0) {
+                            reservedUpdates.push(
+                                productService.update(id, payload).then(() => {
+                                    setProducts(prev => prev.map(p => {
+                                        if (p.id !== id) return p;
+                                        return { ...p, ...payload };
+                                    }));
+                                }).catch(e => console.error(`Erro ao baixar reserva do produto ${id}`, e))
+                            );
+                        }
+                    });
+                    await Promise.all(reservedUpdates);
+                    await presalesService.update(cartData.presaleId, { status: PRESALE_STATUS.COMPLETED, reserved: false, closedAt: new Date() });
+                } catch (e) {
+                    console.error("Erro ao finalizar pré-venda:", e);
+                }
+            }
+
             showNotification('Venda realizada com sucesso!', 'success');
             clearCart();
             setFilteredProducts([]);
@@ -785,122 +937,11 @@ const SalesPage = () => {
             setPaymentModalOpen(false);
             setPayments([]);
             setSearchTerm('');
-            setProcessing(false);
             navigate('/presales');
-
-            Promise.resolve().then(async () => {
-                const localById = new Map();
-                try {
-                    const ids = Array.from(new Set(items.map(it => it.id).filter(Boolean)));
-                    for (const id of ids) {
-                        const cached = products.find(p => p.id === id);
-                        if (cached) localById.set(id, cached);
-                    }
-                    if (change > 0) {
-                        await cashRegisterService.addMovement({
-                            cashRegisterId: currentCashRegister.id,
-                            type: 'change',
-                            amount: change,
-                            description: `Troco da venda #${sale.saleNumber}`,
-                            createdBy: user?.name || 'Sistema'
-                        });
-                    }
-                } catch (error) {}
-
-                try {
-                    const cmv = await stockService.consumeForItems(items);
-                    const saleWithCmv = { ...cleanSaleData, saleNumber, cmvTotal: Number(cmv.cmvTotal || 0), cmvDetails: cmv.details || [] };
-                    if (isEditingSale) {
-                        await salesService.update(editingSale.id, { ...saleWithCmv, status: 'modified' });
-                    } else {
-                        await firestoreService.create(COLLECTIONS.SALES, saleWithCmv);
-                    }
-                } catch {}
-
-                const missingIds = Array.from(new Set(items.map(it => it.id).filter(Boolean))).filter(id => !localById.has(id));
-                if (missingIds.length > 0) {
-                    try {
-                        const fetched = await Promise.all(missingIds.map(id => productService.getById(id).catch(() => null)));
-                        fetched.forEach(p => { if (p && p.id) localById.set(p.id, p); });
-                    } catch {}
-                }
-                const deductionsMap = new Map();
-                for (const item of items) {
-                    if (!item.id) continue;
-                    const d = getDeduction(item);
-                    const entry = deductionsMap.get(item.id) || { cold: 0, warm: 0 };
-                    if (item.isCold) entry.cold += d; else entry.warm += d;
-                    deductionsMap.set(item.id, entry);
-                }
-                const stockUpdates = [];
-                deductionsMap.forEach((entry, id) => {
-                    const product = localById.get(id);
-                    if (!product) return;
-                    const payload = {};
-                    if (entry.cold > 0) {
-                        const newCold = Math.max(0, Number(product.coldStock || 0) - entry.cold);
-                        payload.coldStock = newCold;
-                    }
-                    if (entry.warm > 0) {
-                        const newWarm = Math.max(0, Number(product.stock || 0) - entry.warm);
-                        payload.stock = newWarm;
-                    }
-                    if (Object.keys(payload).length > 0) {
-                        stockUpdates.push(
-                            productService.update(id, payload).then(() => {
-                                setProducts(prev => prev.map(p => {
-                                    if (p.id !== id) return p;
-                                    const next = { ...p };
-                                    if (payload.coldStock !== undefined) next.coldStock = payload.coldStock;
-                                    if (payload.stock !== undefined) next.stock = payload.stock;
-                                    return next;
-                                }));
-                            }).catch(() => {})
-                        );
-                    }
-                });
-                try { await Promise.all(stockUpdates); } catch {}
-
-                if (cartData.presaleId) {
-                    try {
-                        const reservedUpdates = [];
-                        deductionsMap.forEach((entry, id) => {
-                            const product = localById.get(id);
-                            if (!product) return;
-                            const payload = {};
-                            if (entry.cold > 0) {
-                                const current = Number(product.reservedColdStock || 0);
-                                const next = Math.max(0, current - entry.cold);
-                                payload.reservedColdStock = next;
-                            }
-                            if (entry.warm > 0) {
-                                const current = Number(product.reservedStock || 0);
-                                const next = Math.max(0, current - entry.warm);
-                                payload.reservedStock = next;
-                            }
-                            if (Object.keys(payload).length > 0) {
-                                reservedUpdates.push(
-                                    productService.update(id, payload).then(() => {
-                                        setProducts(prev => prev.map(p => {
-                                            if (p.id !== id) return p;
-                                            const nextP = { ...p };
-                                            if (payload.reservedColdStock !== undefined) nextP.reservedColdStock = payload.reservedColdStock;
-                                            if (payload.reservedStock !== undefined) nextP.reservedStock = payload.reservedStock;
-                                            return nextP;
-                                        }));
-                                    }).catch(() => {})
-                                );
-                            }
-                        });
-                        try { await Promise.all(reservedUpdates); } catch {}
-                        await presalesService.update(cartData.presaleId, { status: PRESALE_STATUS.COMPLETED, reserved: false, closedAt: new Date() });
-                    } catch {}
-                }
-            });
 
         } catch (error) {
             console.error('Error finalizing sale:', error);
-            showNotification('Erro ao finalizar venda', 'error');
+            showNotification('Erro ao finalizar venda. Tente novamente.', 'error');
         } finally {
             setProcessing(false);
         }
@@ -992,19 +1033,19 @@ const SalesPage = () => {
                                                 </span>
                                             </div>
                                         </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Atacado</div>
-                                    <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                                        {getWholesalePrice(product) === null ? '-' : formatCurrency(getWholesalePrice(product))}
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Atacado</div>
+                                            <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>
+                                                {getWholesalePrice(product) === null ? '-' : formatCurrency(getWholesalePrice(product))}
+                                            </div>
+                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Mercearia</div>
+                                            <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                                                {getColdPrice(product) === null ? '-' : formatCurrency(getColdPrice(product))}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Mercearia</div>
-                                    <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                                        {getColdPrice(product) === null ? '-' : formatCurrency(getColdPrice(product))}
-                                    </div>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
                         )}
                     </Card>
 
@@ -1017,7 +1058,7 @@ const SalesPage = () => {
                                     <p style={{ fontSize: 'var(--font-size-sm)' }}>Use a busca acima para adicionar produtos</p>
                                 </div>
                             ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
                                     {items.map((item, idx) => (
                                         <div key={item.cartItemId || `${item.id || 'item'}-${idx}`} style={{
                                             display: 'flex',
@@ -1128,7 +1169,7 @@ const SalesPage = () => {
                             </div>
                         </div>
 
-                        
+
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                             <Button
@@ -1490,7 +1531,7 @@ const SalesPage = () => {
                                         <span>{payment.method}</span>
                                         {payment.feePercentage > 0 && (
                                             <span style={{ fontSize: '0.8em', color: 'var(--color-text-muted)' }}>
-                                                (+ {payment.feePercentage}% taxa: {formatCurrency(payment.amount * (payment.feePercentage/100))})
+                                                (+ {payment.feePercentage}% taxa: {formatCurrency(payment.amount * (payment.feePercentage / 100))})
                                             </span>
                                         )}
                                     </div>
@@ -1499,7 +1540,7 @@ const SalesPage = () => {
                                             <span style={{ fontWeight: 600, display: 'block' }}>{formatCurrency(payment.amount)}</span>
                                             {payment.feePercentage > 0 && (
                                                 <span style={{ fontSize: '0.8em', color: 'var(--color-primary)', display: 'block' }}>
-                                                    Cobrar: {formatCurrency(payment.amount * (1 + payment.feePercentage/100))}
+                                                    Cobrar: {formatCurrency(payment.amount * (1 + payment.feePercentage / 100))}
                                                 </span>
                                             )}
                                         </div>

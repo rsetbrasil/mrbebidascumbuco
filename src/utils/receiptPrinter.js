@@ -45,7 +45,7 @@ const getPrintStyles = (paperWidthMm = 80) => `
     </style>
 `;
 
-const printHtml = (htmlContent, paperWidthMm = 80) => {
+export const printHtml = (htmlContent, paperWidthMm = 80) => {
     const w = window.open('', '', 'width=280,height=600');
     if (!w) {
         alert('Por favor, permita popups para imprimir o comprovante.');
@@ -102,10 +102,10 @@ const printHtml = (htmlContent, paperWidthMm = 80) => {
             setTimeout(() => {
                 try {
                     w.print();
-                    setTimeout(() => { try { w.close(); } catch {} }, 700);
-                } catch {}
+                    setTimeout(() => { try { w.close(); } catch { } }, 700);
+                } catch { }
             }, 450);
-        } catch {}
+        } catch { }
     };
     if (w.document.readyState === 'complete') {
         setTimeout(trigger, 250);
@@ -275,8 +275,17 @@ export const printReceipt = (sale, settings = {}) => {
 
 export const printCashRegisterReport = (data, settings = {}) => {
     const companyName = settings.companyName || 'MR BEBIDAS DISTRIBUIDORA';
-    const dateStr = formatDateTime(data.closedAt || new Date());
     const paperWidthMm = Number(settings.paperWidthMm) || 80;
+
+    // Custom overrides for Financial Report reuse
+    const reportTitle = data.reportTitle || 'FECHAMENTO DE CAIXA';
+    const isGenericReport = !!data.isGenericReport;
+
+    // Dates
+    const openedAtStr = data.openedAt ? formatDateTime(data.openedAt) : '-';
+    const closedAtStr = data.closedAt ? formatDateTime(data.closedAt) : formatDateTime(new Date());
+    const operatorStr = data.closedBy || '-';
+    const periodStr = data.periodStr || ''; // e.g. "01/02/2026 a 28/02/2026"
 
     const profitAtacado = Number(data.profitAtacado || 0);
     const profitMercearia = Number(data.profitMercearia || 0);
@@ -296,10 +305,6 @@ export const printCashRegisterReport = (data, settings = {}) => {
                 <span>${formatCurrency(0)}</span>
             </div>
         `;
-
-    const openedAtStr = data.openedAt ? formatDateTime(data.openedAt) : '-';
-    const closedAtStr = data.closedAt ? formatDateTime(data.closedAt) : dateStr;
-    const operatorStr = data.closedBy || '-';
 
     const profitSectionHtml = (profitAtacado > 0 || profitMercearia > 0 || profitTotal > 0 || totalProfitFallback > 0)
         ? `
@@ -328,20 +333,31 @@ export const printCashRegisterReport = (data, settings = {}) => {
         `
         : '';
 
-    const html = `
-        <div class="text-center mb-2">
-            <div class="font-bold">${companyName}</div>
-            <div class="font-bold mt-1">FECHAMENTO DE CAIXA</div>
+    const headerDetailsHtml = isGenericReport && periodStr
+        ? `
+        <div class="mb-2 text-sm">
+            <div class="details-row"><span>Período:</span><span>${periodStr}</span></div>
+            <div class="details-row"><span>Emissão:</span><span>${formatDateTime(new Date())}</span></div>
         </div>
-
-        <div class="border-b mb-2"></div>
-
+        `
+        : `
         <div class="mb-2 text-sm">
             <div class="font-bold text-center mb-1">DADOS DO FECHAMENTO</div>
             <div class="details-row"><span>Abertura:</span><span>${openedAtStr}</span></div>
             <div class="details-row"><span>Fechamento:</span><span>${closedAtStr}</span></div>
             <div class="details-row"><span>Operador:</span><span class="text">${operatorStr}</span></div>
         </div>
+        `;
+
+    const html = `
+        <div class="text-center mb-2">
+            <div class="font-bold">${companyName}</div>
+            <div class="font-bold mt-1">${reportTitle}</div>
+        </div>
+
+        <div class="border-b mb-2"></div>
+
+        ${headerDetailsHtml}
 
         <div class="border-b mb-2"></div>
 

@@ -30,7 +30,7 @@ const SalesHistoryPage = () => {
     const [reportModalOpen, setReportModalOpen] = useState(false);
     const [reportLoading, setReportLoading] = useState(false);
     const [reportData, setReportData] = useState(null);
-    
+
     // Date filter states - default to today
     const getDefaultDateStr = () => {
         const d = new Date();
@@ -97,11 +97,11 @@ const SalesHistoryPage = () => {
             }
             setDataLoading(false);
         }, start, end);
-        
-        return () => { try { unsub && unsub(); } catch {} };
+
+        return () => { try { unsub && unsub(); } catch { } };
     }, [startDate, endDate]);
 
-    const loadSales = async () => {};
+    const loadSales = async () => { };
 
     const showNotification = (type, message) => {
         setNotification({ type, message });
@@ -367,7 +367,7 @@ const SalesHistoryPage = () => {
                         description: `Estorno venda #${sale.saleNumber}`,
                         createdBy: 'Sistema'
                     });
-                } catch {}
+                } catch { }
                 try {
                     const movements = await cashRegisterService.getMovements(sale.cashRegisterId);
                     const relatedChange = (movements || []).filter(m =>
@@ -377,7 +377,7 @@ const SalesHistoryPage = () => {
                     await Promise.all(
                         relatedChange.map(m => firestoreService.delete(COLLECTIONS.CASH_MOVEMENTS, m.id))
                     );
-                } catch {}
+                } catch { }
             }
 
             await firestoreService.delete(COLLECTIONS.SALES, sale.id);
@@ -590,35 +590,78 @@ const SalesHistoryPage = () => {
     const rangeMatch = term.match(/^([\d.,]+)\s*-\s*([\d.,]+)$/);
     const opMatch = term.match(/^(>=|<=|>|<|=)?\s*([\d.,]+)$/);
 
+    const [filterPayment, setFilterPayment] = useState('all');
+    const [filterType, setFilterType] = useState('all');
+
+    // ... existing date logic ...
+
+    // Helper to extract unique payment methods from current sales for the dropdown
+    const paymentMethods = React.useMemo(() => {
+        const methods = new Set();
+        sales.forEach(s => {
+            if (s.paymentMethod) methods.add(s.paymentMethod);
+            if (Array.isArray(s.payments)) s.payments.forEach(p => methods.add(p.method));
+        });
+        return Array.from(methods).sort();
+    }, [sales]);
+
     const filteredSales = (sales || [])
         .filter((sale) => {
+            // Text Search
             const textMatch =
                 sale.saleNumber?.toLowerCase().includes(term.toLowerCase()) ||
                 sale.customerName?.toLowerCase().includes(term.toLowerCase());
-            if (textMatch || !term) return textMatch;
+
+            // Allow searching by exact value or range even if text doesn't match name/number
             const total = Number(sale.total || 0);
-            if (rangeMatch) {
-                const a = parseNumber(rangeMatch[1]);
-                const b = parseNumber(rangeMatch[2]);
-                if (a == null || b == null) return false;
-                const min = Math.min(a, b), max = Math.max(a, b);
-                return total >= min && total <= max;
+            let matchesSearch = textMatch;
+
+            if (!matchesSearch && term) {
+                if (rangeMatch) {
+                    const a = parseNumber(rangeMatch[1]);
+                    const b = parseNumber(rangeMatch[2]);
+                    if (a != null && b != null) {
+                        const min = Math.min(a, b), max = Math.max(a, b);
+                        matchesSearch = total >= min && total <= max;
+                    }
+                } else if (opMatch) {
+                    const op = opMatch[1] || '=';
+                    const val = parseNumber(opMatch[2]);
+                    if (val != null) {
+                        if (op === '>') matchesSearch = total > val;
+                        else if (op === '>=') matchesSearch = total >= val;
+                        else if (op === '<') matchesSearch = total < val;
+                        else if (op === '<=') matchesSearch = total <= val;
+                        else matchesSearch = Math.abs(total - val) < 0.005;
+                    }
+                } else {
+                    const numeric = parseNumber(term);
+                    if (numeric != null) {
+                        matchesSearch = Math.abs(total - numeric) < 0.005;
+                    }
+                }
             }
-            if (opMatch) {
-                const op = opMatch[1] || '=';
-                const val = parseNumber(opMatch[2]);
-                if (val == null) return false;
-                if (op === '>') return total > val;
-                if (op === '>=') return total >= val;
-                if (op === '<') return total < val;
-                if (op === '<=') return total <= val;
-                return Math.abs(total - val) < 0.005;
+
+            if (term && !matchesSearch) return false;
+
+            // Payment Filter
+            if (filterPayment !== 'all') {
+                const mainMethod = sale.paymentMethod;
+                const subMethods = Array.isArray(sale.payments) ? sale.payments.map(p => p.method) : [];
+                if (mainMethod !== filterPayment && !subMethods.includes(filterPayment)) {
+                    return false;
+                }
             }
-            const numeric = parseNumber(term);
-            if (numeric != null) {
-                return Math.abs(total - numeric) < 0.005;
+
+            // Type Filter
+            if (filterType !== 'all') {
+                const typeLabel = getSaleTypeLabel(sale);
+                if (filterType === 'Atacado' && typeLabel !== 'Atacado') return false;
+                if (filterType === 'Mercearia' && typeLabel !== 'Mercearia') return false;
+                if (filterType === 'Misto' && typeLabel !== 'Atacado + Mercearia') return false;
             }
-            return false;
+
+            return true;
         })
         .sort((a, b) => {
             const av = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : new Date(a.createdAt || 0).getTime();
@@ -661,46 +704,62 @@ const SalesHistoryPage = () => {
                     padding: 'var(--spacing-md)',
                     borderBottom: '1px solid var(--color-border)',
                     display: 'flex',
-                    gap: 'var(--spacing-md)',
-                    alignItems: 'center',
-                    flexWrap: 'wrap'
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-md)'
                 }}>
-                    <div style={{ flex: 1, minWidth: '300px' }}>
-                        <Input
-                            placeholder="Buscar por número, cliente ou valor (ex: 50, >=100, 50-100)"
-                            icon={Search}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                    <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 2, minWidth: '300px' }}>
+                            <Input
+                                placeholder="Buscar por número, cliente ou valor..."
+                                icon={Search}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="no-margin"
+                            />
+                        </div>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                            <select
+                                className="input"
+                                value={filterPayment}
+                                onChange={(e) => setFilterPayment(e.target.value)}
+                                style={{ height: '48px', cursor: 'pointer' }}
+                            >
+                                <option value="all">Forma de Pagto. (Todas)</option>
+                                {paymentMethods.map(m => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                            <select
+                                className="input"
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                style={{ height: '48px', cursor: 'pointer' }}
+                            >
+                                <option value="all">Tipo de Venda (Todos)</option>
+                                <option value="Atacado">Atacado</option>
+                                <option value="Mercearia">Mercearia</option>
+                                <option value="Misto">Misto</option>
+                            </select>
+                        </div>
                     </div>
-                    
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <DateInput value={startDate} onChange={setStartDate} labelPrefix="De" style={{ minWidth: 120, padding: '6px 10px', fontSize: 'var(--font-size-sm)', letterSpacing: '0.2px', fontWeight: 500 }} />
-                        <DateInput value={endDate} onChange={setEndDate} labelPrefix="Até" style={{ minWidth: 120, padding: '6px 10px', fontSize: 'var(--font-size-sm)', letterSpacing: '0.2px', fontWeight: 500 }} />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '2px', flexWrap: 'nowrap' }}>
-                            <Button variant="secondary" size="sm" onClick={handleViewSalesReport} icon={Eye}>
-                                Ver
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={handleYesterday}>
-                                Ontem
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={handleToday}>
-                                Hoje
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(30)}>
-                                30 dias
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(60)}>
-                                60 dias
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(90)}>
-                                90 dias
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={handlePrintSalesReport} icon={Printer}>
-                                Imprimir
-                            </Button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
+                            <DateInput value={startDate} onChange={setStartDate} labelPrefix="De" style={{ minWidth: 130 }} />
+                            <DateInput value={endDate} onChange={setEndDate} labelPrefix="Até" style={{ minWidth: 130 }} />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                            <Button variant="secondary" size="sm" onClick={handleToday}>Hoje</Button>
+                            <Button variant="secondary" size="sm" onClick={handleYesterday}>Ontem</Button>
+                            <Button variant="secondary" size="sm" onClick={() => handleLastNDays(30)}>30D</Button>
+                            <div style={{ width: '1px', height: '20px', background: 'var(--color-border)', margin: '0 8px' }}></div>
+                            <Button variant="secondary" size="sm" onClick={handleViewSalesReport} icon={Eye}>Ver Relatório</Button>
+                            <Button variant="secondary" size="sm" onClick={handlePrintSalesReport} icon={Printer}>Imprimir</Button>
                             {dataLoading && (
-                                <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                                <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', marginLeft: '8px' }}>
                                     Atualizando...
                                 </span>
                             )}

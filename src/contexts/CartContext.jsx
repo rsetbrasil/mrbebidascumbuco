@@ -98,8 +98,16 @@ export const CartProvider = ({ children }) => {
                 stockDeduction = unit.multiplier;
             } else {
                 // Standard unit logic
-                if (isWholesale && wholesaleBasePrice !== null && wholesaleBasePrice !== undefined) priceToUse = wholesaleBasePrice;
-                if (isCold && coldBasePrice !== null && coldBasePrice !== undefined) priceToUse = coldBasePrice;
+                if (isWholesale && wholesaleBasePrice !== null && wholesaleBasePrice !== undefined) {
+                    priceToUse = wholesaleBasePrice;
+                    costToUse = rawCost; // Use full cost of the bundle/unit
+                    stockDeduction = costUnitMultiplier > 0 ? costUnitMultiplier : 1;
+                }
+                if (isCold && coldBasePrice !== null && coldBasePrice !== undefined) {
+                    priceToUse = coldBasePrice;
+                    costToUse = rawCost; // Use full cost of the bundle/unit
+                    stockDeduction = costUnitMultiplier > 0 ? costUnitMultiplier : 1;
+                }
             }
 
             if (options.customPrice !== undefined) {

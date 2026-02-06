@@ -18,7 +18,8 @@ const Card = ({
                             <p style={{
                                 margin: 0,
                                 fontSize: 'var(--font-size-sm)',
-                                color: 'var(--color-text-muted)'
+                                color: 'var(--color-text-secondary)',
+                                marginTop: '4px'
                             }}>
                                 {subtitle}
                             </p>

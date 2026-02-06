@@ -12,6 +12,7 @@ const UsersManagement = () => {
     const [editingUser, setEditingUser] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -60,6 +61,7 @@ const UsersManagement = () => {
         }
 
         try {
+            setSaving(true);
             if (editingUser) {
                 await userService.update(editingUser.id, formData);
                 showNotification('success', 'Usuário atualizado com sucesso');
@@ -75,6 +77,8 @@ const UsersManagement = () => {
         } catch (error) {
             console.error('Error saving user:', error);
             showNotification('error', error.message || 'Erro ao salvar usuário');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -212,6 +216,7 @@ const UsersManagement = () => {
                                 type="button"
                                 onClick={() => setIsFormOpen(false)}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+                                disabled={saving}
                             >
                                 <X size={24} />
                             </button>
@@ -224,6 +229,7 @@ const UsersManagement = () => {
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 required
+                                disabled={saving}
                             />
 
                             <Input
@@ -232,6 +238,7 @@ const UsersManagement = () => {
                                 value={formData.username}
                                 onChange={handleInputChange}
                                 required
+                                disabled={saving}
                             />
                         </div>
 
@@ -243,6 +250,7 @@ const UsersManagement = () => {
                                 value={formData.password}
                                 onChange={handleInputChange}
                                 required
+                                disabled={saving}
                             />
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -251,6 +259,7 @@ const UsersManagement = () => {
                                     name="role"
                                     value={formData.role}
                                     onChange={handleInputChange}
+                                    disabled={saving}
                                     style={{
                                         padding: '10px',
                                         borderRadius: 'var(--radius-md)',
@@ -275,22 +284,23 @@ const UsersManagement = () => {
                                 checked={formData.active}
                                 onChange={handleInputChange}
                                 id="active-check"
+                                disabled={saving}
                             />
                             <label htmlFor="active-check">Usuário Ativo</label>
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
-                            <Button type="button" variant="secondary" onClick={() => setIsFormOpen(false)}>
+                            <Button type="button" variant="secondary" onClick={() => setIsFormOpen(false)} disabled={saving}>
                                 Cancelar
                             </Button>
-                            <Button type="submit" variant="primary" icon={<Save size={18} />}>
+                            <Button type="submit" variant="primary" icon={<Save size={18} />} loading={saving}>
                                 Salvar
                             </Button>
                         </div>
                     </form>
                 )}
             </div>
-        </Card>
+        </Card >
     );
 };
 

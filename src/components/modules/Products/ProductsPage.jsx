@@ -15,7 +15,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 
 const ProductsPage = () => {
     const { settings } = useApp();
-    const { canWrite } = useAuth();
+    const { canWrite, user } = useAuth();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState({});
     const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ const ProductsPage = () => {
             if (cachedCategories && typeof cachedCategories === 'object') {
                 setCategories(cachedCategories);
             }
-        } catch {}
+        } catch { }
         loadData();
     }, []);
 
@@ -53,7 +53,7 @@ const ProductsPage = () => {
             ]);
 
             setProducts(productsData);
-            try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch {}
+            try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch { }
 
             // Create categories map for easy lookup
             const catMap = {};
@@ -61,7 +61,7 @@ const ProductsPage = () => {
                 catMap[cat.id] = cat.name;
             });
             setCategories(catMap);
-            try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch {}
+            try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch { }
         } catch (error) {
             console.error('Error loading data:', error);
             showNotification('error', 'Erro ao carregar dados');
@@ -184,7 +184,7 @@ const ProductsPage = () => {
                     >
                         Lista (Venda/Custo)
                     </Button>
-                    {canWrite && (
+                    {canWrite && user?.role === 'admin' && (
                         <>
                             <Button
                                 variant="secondary"
@@ -247,7 +247,7 @@ const ProductsPage = () => {
                                     try {
                                         await productService.deleteAll();
                                         setProducts([]);
-                                        try { localStorage.removeItem('pdv_products_cache'); } catch {}
+                                        try { localStorage.removeItem('pdv_products_cache'); } catch { }
                                         showNotification('success', 'Todos os produtos foram apagados');
                                     } catch (error) {
                                         console.error('Erro ao apagar todos os produtos:', error);
@@ -260,16 +260,18 @@ const ProductsPage = () => {
                             >
                                 Apagar Todos os Produtos
                             </Button>
-                            <Button
-                                onClick={() => {
-                                    setEditingProduct(null);
-                                    setIsModalOpen(true);
-                                }}
-                                icon={<Plus size={20} />}
-                            >
-                                Novo Produto
-                            </Button>
                         </>
+                    )}
+                    {canWrite && (
+                        <Button
+                            onClick={() => {
+                                setEditingProduct(null);
+                                setIsModalOpen(true);
+                            }}
+                            icon={<Plus size={20} />}
+                        >
+                            Novo Produto
+                        </Button>
                     )}
                 </div>
             </div>
@@ -515,7 +517,7 @@ const ProductsPage = () => {
                     </table>
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 };
 

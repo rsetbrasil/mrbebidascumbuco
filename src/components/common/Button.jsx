@@ -42,7 +42,19 @@ const Button = React.forwardRef(({
             disabled={disabled || loading}
             {...props}
         >
-            {renderIcon()}
+            {loading && (
+                <span style={{
+                    display: 'inline-block',
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid currentColor',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    marginRight: children ? '8px' : '0'
+                }} />
+            )}
+            {!loading && renderIcon()}
             {children}
         </button>
     );

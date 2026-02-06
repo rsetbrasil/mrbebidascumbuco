@@ -14,6 +14,7 @@ const UnitsManagement = () => {
     const [editingUnit, setEditingUnit] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [notification, setNotification] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -61,6 +62,7 @@ const UnitsManagement = () => {
         }
 
         try {
+            setSaving(true);
             if (editingUnit) {
                 await unitsService.update(editingUnit.id, formData);
                 showNotification('success', 'Unidade atualizada com sucesso');
@@ -76,6 +78,8 @@ const UnitsManagement = () => {
         } catch (error) {
             console.error('Error saving unit:', error);
             showNotification('error', 'Erro ao salvar unidade');
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -200,6 +204,7 @@ const UnitsManagement = () => {
                                 type="button"
                                 onClick={() => setIsFormOpen(false)}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
+                                disabled={saving}
                             >
                                 <X size={24} />
                             </button>
@@ -213,6 +218,7 @@ const UnitsManagement = () => {
                                 onChange={handleInputChange}
                                 placeholder="Ex: Garrafa"
                                 required
+                                disabled={saving}
                             />
 
                             <Input
@@ -223,21 +229,22 @@ const UnitsManagement = () => {
                                 placeholder="Ex: GF"
                                 required
                                 maxLength={5}
+                                disabled={saving}
                             />
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
-                            <Button type="button" variant="secondary" onClick={() => setIsFormOpen(false)}>
+                            <Button type="button" variant="secondary" onClick={() => setIsFormOpen(false)} disabled={saving}>
                                 Cancelar
                             </Button>
-                            <Button type="submit" variant="primary" icon={<Save size={18} />}>
+                            <Button type="submit" variant="primary" icon={<Save size={18} />} loading={saving}>
                                 Salvar
                             </Button>
                         </div>
                     </form>
                 )}
             </div>
-        </Card>
+        </Card >
     );
 };
 
