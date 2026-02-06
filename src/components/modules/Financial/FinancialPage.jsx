@@ -299,18 +299,20 @@ const FinancialPage = () => {
         const profitAtacado = revenueAtacado - costAtacado;
         const profitMercearia = revenueMercearia - costMercearia;
 
+        // Force totals to match the calculated splits (which include the cost fallbacks)
+        const calculatedTotalCMV = costAtacado + costMercearia;
+        const calculatedTotalProfit = profitAtacado + profitMercearia;
+
         setMetrics({
             totalSales,
             totalOrders,
             avgTicket,
             topPaymentMethod,
-            totalCMV,
-            profit,
-            margin,
+            totalCMV: calculatedTotalCMV,
+            profit: calculatedTotalProfit,
+            margin: totalSales > 0 ? (calculatedTotalProfit / totalSales) : 0,
             profitAtacado,
-            profitMercearia,
-            // Override totalProfit for the report to match the split sum if we used fallback costs
-            totalProfit: profitAtacado + profitMercearia
+            profitMercearia
         });
 
         // Produce Detailed List
