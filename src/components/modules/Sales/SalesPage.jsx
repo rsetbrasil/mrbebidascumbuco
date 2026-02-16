@@ -1608,7 +1608,7 @@ const SalesPage = () => {
             {/* Presale Modal */}
             <Modal
                 isOpen={presaleModalOpen}
-                onClose={() => setPresaleModalOpen(false)}
+                onClose={() => { if (!processing) setPresaleModalOpen(false); }}
                 title="Salvar Pré-venda"
                 size="sm"
             >
@@ -1645,16 +1645,18 @@ const SalesPage = () => {
                         label="Nome do Cliente (Opcional)"
                         value={presaleCustomerName}
                         onChange={(e) => setPresaleCustomerName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') confirmSavePresale(); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !processing) confirmSavePresale(); }}
                         placeholder="Identificação do cliente"
                         autoFocus
+                        disabled={processing}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
-                        <Button variant="ghost" onClick={() => setPresaleModalOpen(false)}>Cancelar</Button>
+                        <Button variant="ghost" onClick={() => setPresaleModalOpen(false)} disabled={processing}>Cancelar</Button>
                         <Button
                             variant="primary"
                             onClick={confirmSavePresale}
                             loading={processing}
+                            disabled={processing}
                         >
                             Salvar
                         </Button>
