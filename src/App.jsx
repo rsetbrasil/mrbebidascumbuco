@@ -14,12 +14,13 @@ import CustomersPage from './components/modules/Customers/CustomersPage';
 import CashRegisterPage from './components/modules/CashRegister/CashRegisterPage';
 import CashRegisterHistoryPage from './components/modules/CashRegister/CashRegisterHistoryPage';
 import PresalesPage from './components/modules/Presales/PresalesPage';
+import TablesPage from './components/modules/Tables/TablesPage';
 import FinancialPage from './components/modules/Financial/FinancialPage';
 import SettingsPage from './components/modules/Settings/SettingsPage';
 import ResetDataPage from './components/modules/Settings/ResetDataPage';
 import SalesHistoryPage from './components/modules/Sales/SalesHistoryPage';
 import LoginPage from './components/modules/Auth/LoginPage';
- 
+
 
 if (typeof window !== 'undefined') {
   const patterns = ['google.firestore.v1.Firestore/Listen', 'net::ERR_ABORTED', 'firestore.googleapis.com'];
@@ -83,13 +84,14 @@ function App() {
           <CartProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              
+
 
               <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
               <Route path="/pdv" element={<Navigate to="/sales" replace />} />
               <Route path="/sales" element={<PrivateRoute><SalesPage /></PrivateRoute>} />
               <Route path="/sales-history" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
               <Route path="/presales" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
+              <Route path="/tables" element={<PrivateRoute><TablesPage /></PrivateRoute>} />
               <Route path="/cash-register" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
               <Route path="/financial" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
               <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />

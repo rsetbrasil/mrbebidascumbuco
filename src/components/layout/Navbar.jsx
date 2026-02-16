@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { DollarSign, User, Menu, LogOut, Search } from 'lucide-react';
+import { DollarSign, User, Menu, LogOut, Search, Coffee } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -159,7 +159,7 @@ const Navbar = ({ onMenuClick }) => {
                         </button>
                     )}
 
-                    
+
 
                     <Button
                         variant="primary"
@@ -184,7 +184,8 @@ const Navbar = ({ onMenuClick }) => {
                     <div style={{
                         display: 'flex',
                         justifyContent: 'center',
-                        alignItems: 'center'
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xl)'
                     }}>
                         <div style={{
                             fontFamily: 'Courier New, monospace',
@@ -198,6 +199,22 @@ const Navbar = ({ onMenuClick }) => {
                             minWidth: '120px',
                             textAlign: 'center'
                         }}>{time}</div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<Coffee size={14} />}
+                            title="Mesas"
+                            style={{
+                                height: '32px',
+                                padding: '0 10px',
+                                whiteSpace: 'nowrap',
+                                alignItems: 'center',
+                                display: 'inline-flex'
+                            }}
+                            onClick={() => navigate('/tables')}
+                        >
+                            Mesas
+                        </Button>
                     </div>
                 )}
 
@@ -317,31 +334,31 @@ const Navbar = ({ onMenuClick }) => {
                     </div>
 
                     {!isMobile && (
-                    <button
-                        onClick={logout}
-                        title="Sair"
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
-                            padding: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            borderRadius: 'var(--radius-md)',
-                            transition: 'all var(--transition-fast)'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--color-bg-hover)';
-                            e.currentTarget.style.color = 'var(--color-danger)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--color-text-secondary)';
-                        }}
-                    >
-                        <LogOut size={20} />
-                    </button>
+                        <button
+                            onClick={logout}
+                            title="Sair"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--color-text-secondary)',
+                                cursor: 'pointer',
+                                padding: '8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                borderRadius: 'var(--radius-md)',
+                                transition: 'all var(--transition-fast)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'var(--color-bg-hover)';
+                                e.currentTarget.style.color = 'var(--color-danger)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'var(--color-text-secondary)';
+                            }}
+                        >
+                            <LogOut size={20} />
+                        </button>
                     )}
                 </div>
             </div>

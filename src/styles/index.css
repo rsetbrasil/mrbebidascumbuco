@@ -371,6 +371,10 @@ a:hover {
   margin-bottom: var(--spacing-md);
 }
 
+.input-group.no-margin {
+  margin-bottom: 0;
+}
+
 .input-label {
   font-size: var(--font-size-sm);
   font-weight: 500;

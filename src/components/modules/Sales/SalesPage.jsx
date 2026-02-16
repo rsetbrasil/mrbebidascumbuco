@@ -8,7 +8,7 @@ import Modal from '../../common/Modal';
 import { useCart } from '../../../contexts/CartContext';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { productService, salesService, presalesService, customerService, stockService } from '../../../services/firestore';
+import { productService, salesService, presalesService, tablesService, customerService, stockService } from '../../../services/firestore';
 import { formatCurrency, generateSaleNumber } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
 import { cashRegisterService, firestoreService, COLLECTIONS, PRESALE_STATUS } from '../../../services/firestore';
@@ -30,6 +30,7 @@ const SalesPage = () => {
         setPriceType,
         getCartData,
         presaleId,
+        tableId,
         editingSale
     } = useCart();
 
@@ -561,6 +562,26 @@ const SalesPage = () => {
         setPresaleModalOpen(true);
     };
 
+    const handleSaveToTable = async () => {
+        if (processing || items.length === 0 || !tableId) return;
+        try {
+            setProcessing(true);
+            const cartData = getCartData();
+            await tablesService.addItems(tableId, cartData.items, {
+                subtotal: cartData.subtotal,
+                total: cartData.total
+            });
+            showNotification('Itens salvos na mesa!', 'success');
+            clearCart();
+            navigate('/tables');
+        } catch (error) {
+            console.error('Error saving to table:', error);
+            showNotification('Erro ao salvar itens na mesa', 'error');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     const confirmSavePresale = async () => {
         if (processing) return; // Prevent duplication
         try {
@@ -929,6 +950,15 @@ const SalesPage = () => {
                 }
             }
 
+            // Close table if from table
+            if (cartData.tableId) {
+                try {
+                    await tablesService.close(cartData.tableId, saleId);
+                } catch (e) {
+                    console.error('Erro ao fechar mesa:', e);
+                }
+            }
+
             showNotification('Venda realizada com sucesso!', 'success');
             clearCart();
             setFilteredProducts([]);
@@ -937,7 +967,7 @@ const SalesPage = () => {
             setPaymentModalOpen(false);
             setPayments([]);
             setSearchTerm('');
-            navigate('/presales');
+            navigate(cartData.tableId ? '/tables' : '/presales');
 
         } catch (error) {
             console.error('Error finalizing sale:', error);
@@ -1113,6 +1143,24 @@ const SalesPage = () => {
                         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                             <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Resumo</h3>
 
+                            {tableId && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 'var(--spacing-sm)',
+                                    padding: 'var(--spacing-sm) var(--spacing-md)',
+                                    background: 'rgba(245, 158, 11, 0.1)',
+                                    border: '1px solid var(--color-warning)',
+                                    borderRadius: 'var(--radius-md)',
+                                    marginBottom: 'var(--spacing-md)',
+                                    fontSize: 'var(--font-size-sm)',
+                                    fontWeight: 600,
+                                    color: 'var(--color-warning)'
+                                }}>
+                                    ☕ Mesa: {customer?.name || 'Sem nome'}
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
                                 <span style={{ color: 'var(--color-text-secondary)' }}>Subtotal</span>
                                 <span>{formatCurrency(totals.subtotal)}</span>
@@ -1183,7 +1231,7 @@ const SalesPage = () => {
                             </Button>
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                                {canWrite && (
+                                {canWrite && !tableId && (
                                     <Button
                                         variant="secondary"
                                         icon={<Save size={18} />}
@@ -1191,6 +1239,17 @@ const SalesPage = () => {
                                         disabled={items.length === 0}
                                     >
                                         Salvar (F3)
+                                    </Button>
+                                )}
+                                {canWrite && tableId && (
+                                    <Button
+                                        variant="secondary"
+                                        icon={<Save size={18} />}
+                                        onClick={handleSaveToTable}
+                                        disabled={items.length === 0}
+                                        loading={processing}
+                                    >
+                                        Salvar na Mesa
                                     </Button>
                                 )}
                                 <Button
@@ -1436,33 +1495,27 @@ const SalesPage = () => {
                     </div>
 
                     <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        <div style={{ flex: '1 1 200px', marginBottom: 0 }}>
-                            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ flex: '1 1 200px' }} className="input-group no-margin">
+                            <label className="input-label">
                                 Forma de Pagamento
                             </label>
                             <select
                                 value={paymentMethod}
                                 onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="input"
                                 style={{
-                                    width: '100%',
-                                    height: '48px',
-                                    padding: '0 10px',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)',
-                                    background: 'var(--color-bg-tertiary)',
-                                    color: 'var(--color-text-primary)',
-                                    outline: 'none'
+                                    cursor: 'pointer'
                                 }}
                             >
-                                <option value="Dinheiro" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>Dinheiro</option>
-                                <option value="Cartão de Crédito" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>Cartão de Crédito</option>
-                                <option value="Cartão de Débito" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>Cartão de Débito</option>
-                                <option value="PIX" style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}>PIX</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                <option value="Cartão de Débito">Cartão de Débito</option>
+                                <option value="PIX">PIX</option>
                             </select>
                         </div>
 
                         {(paymentMethod === 'Cartão de Crédito' || paymentMethod === 'Cartão de Débito') && (
-                            <div style={{ width: '100px', marginBottom: 0, flexShrink: 0 }}>
+                            <div style={{ width: '100px', flexShrink: 0 }}>
                                 <Input
                                     label="Taxa (%)"
                                     type="number"
@@ -1474,7 +1527,7 @@ const SalesPage = () => {
                             </div>
                         )}
 
-                        <div style={{ width: '150px', marginBottom: 0, flexShrink: 0 }}>
+                        <div style={{ width: '150px', flexShrink: 0 }}>
                             <CurrencyInput
                                 label={cardFeePercentage ? `Valor (+ Taxa)` : "Valor"}
                                 value={paymentAmount}
@@ -1508,13 +1561,11 @@ const SalesPage = () => {
                                 </span>
                             </div>
                         )}
-                        <div style={{ display: 'flex', alignItems: 'flex-end', flexShrink: 0 }}>
-                            <Button
-                                onClick={handleAddPayment}
-                                icon={<Plus size={20} />}
-                                style={{ height: '48px', width: '48px', padding: 0 }}
-                            />
-                        </div>
+                        <Button
+                            onClick={handleAddPayment}
+                            icon={<Plus size={20} />}
+                            style={{ height: '48px', width: '48px', padding: 0, flexShrink: 0 }}
+                        />
                     </div>
 
                     {payments.length > 0 && (

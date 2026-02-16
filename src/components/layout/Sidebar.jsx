@@ -9,9 +9,9 @@ import {
     ClipboardList,
     BarChart3,
     Settings,
-    Database,
     Sun,
-    Moon
+    Moon,
+    Coffee
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -23,14 +23,13 @@ const Sidebar = ({ onClose }) => {
     const baseMenu = {
         pdv: { path: '/sales', icon: ShoppingCart, label: 'PDV' },
         products: { path: '/products', icon: Package, label: 'Produtos' },
-        categories: { path: '/categories', icon: Database, label: 'Categorias' },
         customers: { path: '/customers', icon: Users, label: 'Clientes' },
         sales: { path: '/sales-history', icon: ClipboardList, label: 'Vendas' },
         presales: { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
+        tables: { path: '/tables', icon: Coffee, label: 'Mesas' },
         financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
         cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
         settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
-        resetData: { path: '/reset-data', icon: Database, label: 'Resetar Dados', restricted: true },
         dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
     };
 
@@ -45,14 +44,13 @@ const Sidebar = ({ onClose }) => {
         'dashboard',
         'pdv',
         'products',
-        'categories',
         'customers',
         'sales',
         'presales',
+        'tables',
         'financial',
         'cashRegister',
-        'settings',
-        'resetData'
+        'settings'
     ];
     menuItems = menuItems.sort((a, b) => {
         if (orderPref) {
@@ -85,17 +83,18 @@ const Sidebar = ({ onClose }) => {
             width: '280px',
             background: 'var(--color-bg-secondary)',
             borderRight: '1px solid var(--color-border)',
-            height: '100vh',
+            height: '100dvh',
             position: 'sticky',
             top: 0,
-            overflowY: 'auto',
+            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
         }}>
             {/* Logo/Brand */}
             <div style={{
                 padding: 'var(--spacing-xl)',
-                borderBottom: '1px solid var(--color-border)'
+                borderBottom: '1px solid var(--color-border)',
+                flexShrink: 0
             }}>
                 <h2 style={{
                     fontSize: 'var(--font-size-xl)',
@@ -115,7 +114,9 @@ const Sidebar = ({ onClose }) => {
                 padding: 'var(--spacing-md)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--spacing-xs)'
+                gap: 'var(--spacing-xs)',
+                overflowY: 'auto',
+                minHeight: 0
             }}>
                 {filteredItems.map((item) => (
                     <NavLink
@@ -157,7 +158,8 @@ const Sidebar = ({ onClose }) => {
                 borderTop: '1px solid var(--color-border)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 'var(--spacing-sm)'
+                gap: 'var(--spacing-sm)',
+                flexShrink: 0
             }}>
                 <button
                     onClick={toggleTheme}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight, Coffee } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
@@ -260,6 +260,12 @@ const Dashboard = () => {
                             Relatórios
                         </Button>
                     </Link>
+                    <Link to="/tables" style={{ textDecoration: 'none' }}>
+                        <Button variant="secondary" style={{ width: '100%' }}>
+                            <Coffee size={20} />
+                            Mesas
+                        </Button>
+                    </Link>
                 </div>
             </Card>
 
@@ -390,17 +396,17 @@ const Dashboard = () => {
                                                         }) : [];
                                                         return names.length > 0;
                                                     })() && (
-                                                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                                                            {Array.isArray(p.reservedWholesaleNames)
-                                                                ? p.reservedWholesaleNames
-                                                                    .filter(n => {
-                                                                        const s = String(n || '').trim().toLowerCase();
-                                                                        return s !== '' && s !== 'sss';
-                                                                    })
-                                                                    .join(', ')
-                                                                : ''}
-                                                        </span>
-                                                    )}
+                                                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                                {Array.isArray(p.reservedWholesaleNames)
+                                                                    ? p.reservedWholesaleNames
+                                                                        .filter(n => {
+                                                                            const s = String(n || '').trim().toLowerCase();
+                                                                            return s !== '' && s !== 'sss';
+                                                                        })
+                                                                        .join(', ')
+                                                                    : ''}
+                                                            </span>
+                                                        )}
                                                     <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
                                                         Mercearia: {Number(p.reservedColdStock ?? 0)}
                                                     </span>
@@ -411,17 +417,17 @@ const Dashboard = () => {
                                                         }) : [];
                                                         return names.length > 0;
                                                     })() && (
-                                                        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                                                            {Array.isArray(p.reservedColdNames)
-                                                                ? p.reservedColdNames
-                                                                    .filter(n => {
-                                                                        const s = String(n || '').trim().toLowerCase();
-                                                                        return s !== '' && s !== 'sss';
-                                                                    })
-                                                                    .join(', ')
-                                                                : ''}
-                                                        </span>
-                                                    )}
+                                                            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                                {Array.isArray(p.reservedColdNames)
+                                                                    ? p.reservedColdNames
+                                                                        .filter(n => {
+                                                                            const s = String(n || '').trim().toLowerCase();
+                                                                            return s !== '' && s !== 'sss';
+                                                                        })
+                                                                        .join(', ')
+                                                                    : ''}
+                                                            </span>
+                                                        )}
                                                 </div>
                                             </td>
                                             <td style={{ width: '160px' }}>

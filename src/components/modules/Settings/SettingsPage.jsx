@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Save, Printer, Building, AlertTriangle, Trash2, Settings, Upload, Download, CreditCard } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -13,6 +14,7 @@ import ImportProductsModal from '../Products/ImportProductsModal';
 
 const SettingsPage = () => {
     const { isManager } = useAuth();
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -42,8 +44,7 @@ const SettingsPage = () => {
             { key: 'cashRegister', visible: true, label: 'Caixa' },
             { key: 'presales', visible: true, label: 'Pré-vendas' },
             { key: 'financial', visible: true, label: 'Financeiro' },
-            { key: 'settings', visible: true, label: 'Configurações' },
-            { key: 'resetData', visible: true, label: 'Resetar Dados' }
+            { key: 'settings', visible: true, label: 'Configurações' }
         ]
     });
     const [devDemoEnabled, setDevDemoEnabled] = useState(() => {
@@ -402,7 +403,7 @@ const SettingsPage = () => {
                                         try {
                                             if (val) localStorage.setItem('pdv_force_demo', 'true');
                                             else localStorage.removeItem('pdv_force_demo');
-                                        } catch {}
+                                        } catch { }
                                         showNotification('success', 'Modo Demo local atualizado. Recarregue a página para aplicar.');
                                     }}
                                 />
@@ -437,9 +438,9 @@ const SettingsPage = () => {
                                             const catMap = {};
                                             categories.forEach(c => { catMap[c.id] = c.name; });
                                             const headers = [
-                                                'nome','codigo','preco','custo','estoque','categoria',
-                                                'preco_mercearia','custo_mercearia','estoque_mercearia',
-                                                'unidade','unidade_mercearia'
+                                                'nome', 'codigo', 'preco', 'custo', 'estoque', 'categoria',
+                                                'preco_mercearia', 'custo_mercearia', 'estoque_mercearia',
+                                                'unidade', 'unidade_mercearia'
                                             ];
                                             const escapeCSV = (v) => {
                                                 const s = String(v ?? '');
@@ -464,7 +465,7 @@ const SettingsPage = () => {
                                             const url = window.URL.createObjectURL(blob);
                                             const a = document.createElement('a');
                                             a.href = url;
-                                            a.download = `produtos-${new Date().toISOString().slice(0,10)}.csv`;
+                                            a.download = `produtos-${new Date().toISOString().slice(0, 10)}.csv`;
                                             document.body.appendChild(a);
                                             a.click();
                                             window.URL.revokeObjectURL(url);
@@ -520,6 +521,21 @@ const SettingsPage = () => {
                                     className="w-full justify-center"
                                 >
                                     Cancelar todos os pedidos da Pré-venda
+                                </Button>
+                            </div>
+                            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                <h3 className="text-red-400 font-medium mb-2">Resetar Dados</h3>
+                                <p className="text-red-300/70 text-sm mb-4">
+                                    Acesse a página de reset para zerar vendas, caixa, pré-vendas e mais.
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="danger"
+                                    onClick={() => navigate('/reset-data')}
+                                    icon={Trash2}
+                                    className="w-full justify-center"
+                                >
+                                    Ir para Resetar Dados
                                 </Button>
                             </div>
                         </div>

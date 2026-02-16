@@ -66,7 +66,7 @@ const Layout = ({ children }) => {
                         position: 'fixed',
                         top: 0,
                         left: sidebarOpen ? 0 : '-280px',
-                        height: '100vh',
+                        height: '100dvh',
                         zIndex: 1000,
                         transition: 'left 0.3s ease'
                     }}>

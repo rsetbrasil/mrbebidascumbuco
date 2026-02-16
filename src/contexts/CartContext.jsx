@@ -16,6 +16,7 @@ export const CartProvider = ({ children }) => {
     const [discount, setDiscount] = useState(0);
     const [notes, setNotes] = useState('');
     const [presaleId, setPresaleId] = useState(null);
+    const [tableId, setTableId] = useState(null);
     const [editingSale, setEditingSale] = useState(null); // { id, originalTotal, originalItems, priceType }
     const [priceType, setPriceType] = useState('wholesale'); // 'retail', 'wholesale', or 'cold'
     const [cartVersion, setCartVersion] = useState(0);
@@ -267,6 +268,7 @@ export const CartProvider = ({ children }) => {
         setDiscount(0);
         setNotes('');
         setPresaleId(null);
+        setTableId(null);
         setEditingSale(null);
         setPriceType('wholesale');
         setCartVersion(v => v + 1);
@@ -300,9 +302,10 @@ export const CartProvider = ({ children }) => {
             total: totals.total,
             notes,
             presaleId,
+            tableId,
             priceType // Include priceType in sale data
         };
-    }, [items, customer, discount, notes, calculateTotals, presaleId, priceType]);
+    }, [items, customer, discount, notes, calculateTotals, presaleId, tableId, priceType]);
 
     // Load presale into cart
     const loadPresale = useCallback((presale) => {
@@ -344,6 +347,44 @@ export const CartProvider = ({ children }) => {
         setNotes(presale.notes || '');
         setPresaleId(presale.id);
         setPriceType(presale.priceType || 'wholesale');
+    }, [buildCartItemId]);
+
+    // Load table into cart
+    const loadTable = useCallback((table) => {
+        const list = Array.isArray(table?.items) ? table.items : [];
+        const used = new Map();
+        const mapped = list.map((item) => {
+            const isCold = (item?.isCold !== undefined) ? !!item.isCold : (table?.priceType === 'cold');
+            const unit = item?.unit || null;
+            const baseId = buildCartItemId(item?.productId, unit, isCold);
+            const next = (used.get(baseId) || 0) + 1;
+            used.set(baseId, next);
+            const cartItemId = next === 1 ? baseId : `${baseId}-${next}`;
+            return {
+                cartItemId,
+                id: item.productId,
+                name: item.productName || item.name,
+                ...item,
+                retailPrice: item.retailPrice || item.unitPrice,
+                wholesalePrice: item.wholesalePrice === null ? null : (item.wholesalePrice ?? item.unitPrice),
+                coldPrice: item.coldPrice === null ? null : (item.coldPrice ?? item.unitPrice),
+                stockDeductionPerUnit: unit?.multiplier ? unit.multiplier : 1,
+                isCold
+            };
+        });
+        setItems(mapped);
+
+        if (table.customerName) {
+            setCustomer({ id: null, name: table.customerName });
+        } else {
+            setCustomer(null);
+        }
+
+        setDiscount(0);
+        setNotes(table.notes || '');
+        setPresaleId(null);
+        setTableId(table.id);
+        setPriceType(table.priceType || 'wholesale');
     }, [buildCartItemId]);
 
     const loadSale = useCallback((sale) => {
@@ -398,6 +439,7 @@ export const CartProvider = ({ children }) => {
         discount,
         notes,
         presaleId,
+        tableId,
         editingSale,
         priceType,
         addItem,
@@ -413,6 +455,7 @@ export const CartProvider = ({ children }) => {
         clearCart,
         getCartData,
         loadPresale,
+        loadTable,
         loadSale,
         itemCount: items.length,
         totalItems: items.reduce((sum, item) => sum + item.quantity, 0)

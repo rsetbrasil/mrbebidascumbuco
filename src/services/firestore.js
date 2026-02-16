@@ -22,6 +22,7 @@ export const COLLECTIONS = {
     CUSTOMERS: 'customers',
     SALES: 'sales',
     PRESALES: 'presales',
+    TABLES: 'tables',
     CASH_REGISTER: 'cashRegister',
     CASH_MOVEMENTS: 'cashMovements',
     CATEGORIES: 'categories',
@@ -37,6 +38,11 @@ export const PRESALE_STATUS = {
     PENDING: 'pending',
     COMPLETED: 'completed',
     CANCELLED: 'cancelled'
+};
+
+export const TABLE_STATUS = {
+    OPEN: 'open',
+    CLOSED: 'closed'
 };
 
 // Mock Data Store
@@ -65,7 +71,8 @@ const mockStore = {
         { id: '2', key: 'receiptFooter', value: 'Obrigado pela preferência!\nVolte sempre!' }
     ],
     inventoryEntries: [],
-    stocks: []
+    stocks: [],
+    tables: []
 };
 
 // Demo mode subscribers per collection for live updates in preview
@@ -74,7 +81,7 @@ const notifyDemoSubscribers = (collectionName) => {
     const subs = demoSubscribers.get(collectionName) || [];
     const data = [...(mockStore[collectionName] || [])];
     subs.forEach(cb => {
-        try { cb(data); } catch {}
+        try { cb(data); } catch { }
     });
 };
 
@@ -313,7 +320,7 @@ export const firestoreService = {
                     const arr = demoSubscribers.get(collectionName) || [];
                     const next = arr.filter(cb => cb !== callback);
                     demoSubscribers.set(collectionName, next);
-                } catch {}
+                } catch { }
             };
         }
         let q = collection(db, collectionName);
@@ -642,7 +649,7 @@ export const salesService = {
         // Ensure we have valid Date objects
         const start = startDate instanceof Date ? startDate : new Date(startDate);
         const end = endDate instanceof Date ? endDate : new Date(endDate);
-        
+
         // Adjust end date to end of day if it's at 00:00:00
         if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
             end.setHours(23, 59, 59, 999);
@@ -751,7 +758,7 @@ export const presalesService = {
                     await productService.update(pid, payload);
                     releasedProducts++;
                 }
-            } catch {}
+            } catch { }
         }
         try {
             await Promise.all(
@@ -759,7 +766,7 @@ export const presalesService = {
                     firestoreService.update(COLLECTIONS.PRESALES, p.id, { status: 'cancelled', reserved: false })
                 )
             );
-        } catch {}
+        } catch { }
         return { cancelled: pendingReserved.length, releasedProducts };
     },
 
@@ -807,6 +814,90 @@ export const presalesService = {
             }
         }
         return { updated, pendingPresales: (pendingReserved || []).length };
+    }
+};
+
+// Tables operations
+export const tablesService = {
+    async create(table) {
+        const data = {
+            ...table,
+            status: 'open',
+            items: table.items || [],
+            subtotal: table.subtotal || 0,
+            total: table.total || 0,
+            openedAt: isDemoMode ? new Date() : Timestamp.now()
+        };
+        return firestoreService.create(COLLECTIONS.TABLES, data);
+    },
+
+    async getAll() {
+        return firestoreService.getAll(COLLECTIONS.TABLES);
+    },
+
+    async getById(id) {
+        return firestoreService.getById(COLLECTIONS.TABLES, id);
+    },
+
+    async getByStatus(status) {
+        return firestoreService.query(
+            COLLECTIONS.TABLES,
+            [{ field: 'status', operator: '==', value: status }],
+            null
+        );
+    },
+
+    async update(id, data) {
+        return firestoreService.update(COLLECTIONS.TABLES, id, data);
+    },
+
+    async close(id, saleId = null) {
+        return firestoreService.update(COLLECTIONS.TABLES, id, {
+            status: 'closed',
+            saleId,
+            closedAt: isDemoMode ? new Date() : Timestamp.now()
+        });
+    },
+
+    async addItems(id, newItems, totals) {
+        const table = await this.getById(id);
+        if (!table) throw new Error('Mesa não encontrada');
+        const existingItems = Array.isArray(table.items) ? table.items : [];
+        const mergedItems = [...existingItems];
+        for (const newItem of newItems) {
+            const existingIdx = mergedItems.findIndex(
+                i => i.productId === newItem.productId &&
+                    (i.unit?.name || 'base') === (newItem.unit?.name || 'base') &&
+                    !!i.isCold === !!newItem.isCold
+            );
+            if (existingIdx >= 0) {
+                const existing = mergedItems[existingIdx];
+                const newQty = existing.quantity + newItem.quantity;
+                mergedItems[existingIdx] = {
+                    ...existing,
+                    quantity: newQty,
+                    total: newQty * existing.unitPrice - (existing.discount || 0)
+                };
+            } else {
+                mergedItems.push(newItem);
+            }
+        }
+        const subtotal = mergedItems.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
+        const discount = mergedItems.reduce((sum, i) => sum + (i.discount || 0), 0);
+        const total = Math.max(0, subtotal - discount);
+        return firestoreService.update(COLLECTIONS.TABLES, id, {
+            items: mergedItems,
+            subtotal,
+            total
+        });
+    },
+
+    async delete(id) {
+        return firestoreService.delete(COLLECTIONS.TABLES, id);
+    },
+
+    subscribeAll(callback) {
+        return firestoreService.subscribe(COLLECTIONS.TABLES, callback, []);
     }
 };
 
@@ -1118,7 +1209,7 @@ export const stockService = {
                 seedQty = Number(p?.stock || 0);
                 seedCost = Number(p?.cost || 0);
             }
-        } catch {}
+        } catch { }
         const payload = {
             productId,
             type: keyType,
