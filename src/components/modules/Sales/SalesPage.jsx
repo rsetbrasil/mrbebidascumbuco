@@ -818,11 +818,13 @@ const SalesPage = () => {
 
             // 2. Salvar Venda no Banco de Dados (AWAIT IMPORTANTE)
             // Isso previne que a venda seja considerada "ok" antes de salvar de fato
+            let createdSale = null;
             if (isEditingSale) {
-                await salesService.update(editingSale.id, { ...saleWithCmv, status: 'modified' });
+                createdSale = await salesService.update(editingSale.id, { ...saleWithCmv, status: 'modified' });
             } else {
-                await firestoreService.create(COLLECTIONS.SALES, saleWithCmv);
+                createdSale = await firestoreService.create(COLLECTIONS.SALES, saleWithCmv);
             }
+            const saleId = createdSale?.id;
 
             // 3. Imprimir Comprovante
             printReceipt({ ...saleWithCmv }, settings);

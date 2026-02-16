@@ -374,25 +374,47 @@ const TablesPage = () => {
                                                 <Button variant="success" size="sm" onClick={() => handleCloseTable(table)} icon={<CheckCircle size={14} />}>
                                                     Fechar
                                                 </Button>
-                                                <button
-                                                    onClick={() => handleCancelTable(table)}
-                                                    title="Cancelar mesa"
-                                                    style={{
-                                                        padding: '6px',
-                                                        background: 'transparent',
-                                                        border: '1px solid var(--color-border)',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        color: 'var(--color-danger)',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        marginLeft: 'auto'
-                                                    }}
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                {(user?.role === 'admin' || user?.role === 'manager') && (
+                                                    <button
+                                                        onClick={() => handleCancelTable(table)}
+                                                        title="Cancelar mesa"
+                                                        style={{
+                                                            padding: '6px',
+                                                            background: 'transparent',
+                                                            border: '1px solid var(--color-border)',
+                                                            borderRadius: 'var(--radius-md)',
+                                                            color: 'var(--color-danger)',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            marginLeft: 'auto'
+                                                        }}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
                                             </>
+                                        )}
+                                        {!isOpen && (user?.role === 'admin' || user?.role === 'manager') && (
+                                            <button
+                                                onClick={() => handleCancelTable(table)}
+                                                title="Excluir mesa fechada"
+                                                style={{
+                                                    padding: '6px',
+                                                    background: 'transparent',
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: 'var(--radius-md)',
+                                                    color: 'var(--color-danger)',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    marginLeft: 'auto'
+                                                }}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         )}
                                     </div>
                                 </div>
