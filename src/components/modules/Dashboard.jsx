@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight, Coffee } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight, Coffee, Truck } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
@@ -15,6 +15,7 @@ const Dashboard = () => {
     const [stats, setStats] = useState({
         todaySales: 0,
         todayRevenue: 0,
+        todayDeliveryFees: 0,
         lowStockProducts: 0,
         openPresales: 0
     });
@@ -33,8 +34,18 @@ const Dashboard = () => {
         try {
             setLoading(true);
 
-            // Load recent sales
-            const recentSalesData = await salesService.getAll(10);
+            // 1. Load critical data first (Sales & Revenue) - Fast
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const endToday = new Date();
+            endToday.setHours(23, 59, 59, 999);
+
+            const [recentSalesData, allTodaySales] = await Promise.all([
+                salesService.getAll(10),
+                salesService.getByDateRange(today, endToday)
+            ]);
+
+            // Process Recent Sales
             const enrichedRecent = (recentSalesData || []).map((sale) => {
                 const items = Array.isArray(sale.items) ? sale.items : [];
                 const hasCold = items.some(it => it && it.isCold);
@@ -44,80 +55,131 @@ const Dashboard = () => {
             });
             setRecentSales(enrichedRecent);
 
-            // Calculate today's stats
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const endToday = new Date();
-            endToday.setHours(23, 59, 59, 999);
-
-            const allTodaySales = await salesService.getByDateRange(today, endToday);
+            // Process Today's Stats
             const todayRevenue = allTodaySales.reduce((sum, sale) => sum + sale.total, 0);
+            const todayDeliveryFees = allTodaySales.reduce((sum, sale) => sum + Number(sale.deliveryFeeValue || 0), 0);
 
-            const products = await productService.getAll();
-            const lowStock = products.filter(p => {
-                const toNum = (v) => {
-                    const n = Number(v ?? 0);
-                    return Number.isFinite(n) ? n : 0;
-                };
-                const min = toNum(p.minStock || 0);
-                const aAvailRaw = toNum(p.stock) - toNum(p.reservedStock);
-                const mAvailRaw = toNum(p.coldStock) - toNum(p.reservedColdStock);
-                const aAvail = Math.max(0, aAvailRaw);
-                const mAvail = Math.max(0, mAvailRaw);
-                return (aAvail <= min) || (mAvail <= min) || (aAvail <= 0) || (mAvail <= 0);
-            });
-
-            const aMap = new Map();
-            const mMap = new Map();
+            // Set initial stats (Low Stock will be 0 or cached initially)
+            // Try to get cached low stock count if available
+            let initialLowStockCount = 0;
             try {
-                const pendingPresales = await presalesService.getByStatus('pending');
-                (pendingPresales || []).forEach(ps => {
-                    const customerName = ps.customerName || 'Cliente';
-                    const items = Array.isArray(ps.items) ? ps.items : [];
-                    items.forEach(it => {
-                        const pid = it?.productId;
-                        if (!pid) return;
-                        if (it?.isCold) {
-                            const set = mMap.get(pid) || new Set();
-                            set.add(customerName);
-                            mMap.set(pid, set);
-                        } else {
-                            const set = aMap.get(pid) || new Set();
-                            set.add(customerName);
-                            aMap.set(pid, set);
-                        }
-                    });
-                });
-            } catch {
-            }
-
-            const enrichedLowStock = lowStock
-                .map(p => ({
-                    ...p,
-                    reservedWholesaleNames: Array.from(aMap.get(p.id) || []),
-                    reservedColdNames: Array.from(mMap.get(p.id) || [])
-                }))
-                .sort((a, b) => {
-                    const an = String(a.name || '').toLowerCase();
-                    const bn = String(b.name || '').toLowerCase();
-                    if (an < bn) return -1;
-                    if (an > bn) return 1;
-                    return 0;
-                });
-            setLowStockItems(enrichedLowStock);
+                const cached = localStorage.getItem('pdv_low_stock_count');
+                if (cached) initialLowStockCount = Number(cached);
+            } catch { }
 
             setStats({
                 todaySales: allTodaySales.length,
                 todayRevenue,
-                lowStockProducts: enrichedLowStock.length,
+                todayDeliveryFees,
+                lowStockProducts: initialLowStockCount,
                 openPresales: 0
             });
 
+            setLoading(false); // <--- UNBLOCK UI HERE
+
+            // 2. Load heavy data (Products for Low Stock) - Background
+            setTimeout(async () => {
+                try {
+                    // Try to use cache first for products to avoid heavy network
+                    let products = [];
+                    try {
+                        const cachedProds = JSON.parse(localStorage.getItem('pdv_products_cache') || 'null');
+                        if (Array.isArray(cachedProds)) products = cachedProds;
+                    } catch { }
+
+                    // If no cache or we want to ensure freshness, we might need to fetch
+                    // For dashboard, maybe we can rely on cache IF it exists, otherwise fetch
+                    if (products.length === 0) {
+                        products = await productService.getAll();
+                        // Update cache
+                        try { localStorage.setItem('pdv_products_cache', JSON.stringify(products)); } catch { }
+                    } else {
+                        // If we have cache, we can trigger a background refresh too, but maybe overkill for just this number
+                        // Let's just use what we have or fetch if empty.
+                        // Actually, to be accurate we should fetch, but let's do it quietly.
+                        productService.getAll().then(fresh => {
+                            if (fresh && fresh.length) {
+                                // Recalculate with fresh data
+                                calculateLowStock(fresh);
+                                try { localStorage.setItem('pdv_products_cache', JSON.stringify(fresh)); } catch { }
+                            }
+                        }).catch(console.error);
+                    }
+
+                    calculateLowStock(products);
+
+                } catch (err) {
+                    console.error('Error loading background data:', err);
+                }
+            }, 100);
+
         } catch (error) {
             console.error('Error loading dashboard:', error);
-        } finally {
             setLoading(false);
         }
+    };
+
+    const calculateLowStock = async (products) => {
+        const lowStock = products.filter(p => {
+            const toNum = (v) => {
+                const n = Number(v ?? 0);
+                return Number.isFinite(n) ? n : 0;
+            };
+            const min = toNum(p.minStock || 0);
+            const aAvailRaw = toNum(p.stock) - toNum(p.reservedStock);
+            const mAvailRaw = toNum(p.coldStock) - toNum(p.reservedColdStock);
+            const aAvail = Math.max(0, aAvailRaw);
+            const mAvail = Math.max(0, mAvailRaw);
+            return (aAvail <= min) || (mAvail <= min) || (aAvail <= 0) || (mAvail <= 0);
+        });
+
+        const aMap = new Map();
+        const mMap = new Map();
+        try {
+            const pendingPresales = await presalesService.getByStatus('pending');
+            (pendingPresales || []).forEach(ps => {
+                const customerName = ps.customerName || 'Cliente';
+                const items = Array.isArray(ps.items) ? ps.items : [];
+                items.forEach(it => {
+                    const pid = it?.productId;
+                    if (!pid) return;
+                    if (it?.isCold) {
+                        const set = mMap.get(pid) || new Set();
+                        set.add(customerName);
+                        mMap.set(pid, set);
+                    } else {
+                        const set = aMap.get(pid) || new Set();
+                        set.add(customerName);
+                        aMap.set(pid, set);
+                    }
+                });
+            });
+        } catch {
+        }
+
+        const enrichedLowStock = lowStock
+            .map(p => ({
+                ...p,
+                reservedWholesaleNames: Array.from(aMap.get(p.id) || []),
+                reservedColdNames: Array.from(mMap.get(p.id) || [])
+            }))
+            .sort((a, b) => {
+                const an = String(a.name || '').toLowerCase();
+                const bn = String(b.name || '').toLowerCase();
+                if (an < bn) return -1;
+                if (an > bn) return 1;
+                return 0;
+            });
+
+        setLowStockItems(enrichedLowStock);
+
+        // Update stats with new count
+        setStats(prev => ({
+            ...prev,
+            lowStockProducts: enrichedLowStock.length
+        }));
+
+        try { localStorage.setItem('pdv_low_stock_count', String(enrichedLowStock.length)); } catch { }
     };
 
     if (loading) {
@@ -179,6 +241,30 @@ const Dashboard = () => {
                             justifyContent: 'center'
                         }}>
                             <TrendingUp size={30} color="white" />
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                                Taxas de Entrega Hoje
+                            </p>
+                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-3xl)' }}>
+                                {formatCurrency(stats.todayDeliveryFees)}
+                            </h2>
+                        </div>
+                        <div style={{
+                            width: '60px',
+                            height: '60px',
+                            borderRadius: 'var(--radius-lg)',
+                            background: 'var(--color-warning)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <Truck size={30} color="white" />
                         </div>
                     </div>
                 </Card>

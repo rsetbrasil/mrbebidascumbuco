@@ -15,6 +15,7 @@ export const CartProvider = ({ children }) => {
     const [customer, setCustomer] = useState(null);
     const [discount, setDiscount] = useState(0);
     const [notes, setNotes] = useState('');
+    const [deliveryFee, setDeliveryFee] = useState({ mode: 'none', rateId: null, description: '', value: 0 });
     const [presaleId, setPresaleId] = useState(null);
     const [tableId, setTableId] = useState(null);
     const [editingSale, setEditingSale] = useState(null); // { id, originalTotal, originalItems, priceType }
@@ -251,15 +252,19 @@ export const CartProvider = ({ children }) => {
     const calculateTotals = useCallback(() => {
         const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
         const itemsDiscount = items.reduce((sum, item) => sum + (item.discount || 0), 0);
-        const total = subtotal - itemsDiscount - discount;
+        const productsTotal = Math.max(0, subtotal - itemsDiscount - discount);
+        const deliveryFeeValue = Math.max(0, Number(deliveryFee?.value || 0));
+        const total = productsTotal + deliveryFeeValue;
 
         return {
             subtotal,
             itemsDiscount,
             discount,
+            productsTotal,
+            deliveryFeeValue,
             total: Math.max(0, total)
         };
-    }, [items, discount]);
+    }, [items, discount, deliveryFee]);
 
     // Clear cart
     const clearCart = useCallback(() => {
@@ -267,6 +272,7 @@ export const CartProvider = ({ children }) => {
         setCustomer(null);
         setDiscount(0);
         setNotes('');
+        setDeliveryFee({ mode: 'none', rateId: null, description: '', value: 0 });
         setPresaleId(null);
         setTableId(null);
         setEditingSale(null);
@@ -299,13 +305,18 @@ export const CartProvider = ({ children }) => {
             customerName: customer?.name || null,
             subtotal: totals.subtotal,
             discount: totals.discount + totals.itemsDiscount,
+            productsTotal: totals.productsTotal,
+            deliveryFeeMode: deliveryFee?.mode || 'none',
+            deliveryFeeRateId: deliveryFee?.rateId || null,
+            deliveryFeeDescription: deliveryFee?.description || '',
+            deliveryFeeValue: totals.deliveryFeeValue,
             total: totals.total,
             notes,
             presaleId,
             tableId,
             priceType // Include priceType in sale data
         };
-    }, [items, customer, discount, notes, calculateTotals, presaleId, tableId, priceType]);
+    }, [items, customer, discount, notes, calculateTotals, presaleId, tableId, priceType, deliveryFee]);
 
     // Load presale into cart
     const loadPresale = useCallback((presale) => {
@@ -345,6 +356,12 @@ export const CartProvider = ({ children }) => {
 
         setDiscount(presale.discount || 0);
         setNotes(presale.notes || '');
+        setDeliveryFee({
+            mode: presale.deliveryFeeMode || ((Number(presale.deliveryFeeValue || 0) > 0) ? 'manual' : 'none'),
+            rateId: presale.deliveryFeeRateId || null,
+            description: presale.deliveryFeeDescription || '',
+            value: Number(presale.deliveryFeeValue || 0)
+        });
         setPresaleId(presale.id);
         setPriceType(presale.priceType || 'wholesale');
     }, [buildCartItemId]);
@@ -382,6 +399,12 @@ export const CartProvider = ({ children }) => {
 
         setDiscount(0);
         setNotes(table.notes || '');
+        setDeliveryFee({
+            mode: table.deliveryFeeMode || ((Number(table.deliveryFeeValue || 0) > 0) ? 'manual' : 'none'),
+            rateId: table.deliveryFeeRateId || null,
+            description: table.deliveryFeeDescription || '',
+            value: Number(table.deliveryFeeValue || 0)
+        });
         setPresaleId(null);
         setTableId(table.id);
         setPriceType(table.priceType || 'wholesale');
@@ -428,6 +451,12 @@ export const CartProvider = ({ children }) => {
 
         setDiscount(Number(sale.discount) || 0);
         setNotes(sale.notes || '');
+        setDeliveryFee({
+            mode: sale.deliveryFeeMode || ((Number(sale.deliveryFeeValue || 0) > 0) ? 'manual' : 'none'),
+            rateId: sale.deliveryFeeRateId || null,
+            description: sale.deliveryFeeDescription || '',
+            value: Number(sale.deliveryFeeValue || 0)
+        });
         setPresaleId(null);
         setPriceType(sale.priceType || 'wholesale');
         setEditingSale({ id: sale.id, originalTotal: Number(sale.total) || 0, originalItems: sale.items || [], priceType: sale.priceType || 'wholesale' });
@@ -438,6 +467,7 @@ export const CartProvider = ({ children }) => {
         customer,
         discount,
         notes,
+        deliveryFee,
         presaleId,
         tableId,
         editingSale,
@@ -451,6 +481,7 @@ export const CartProvider = ({ children }) => {
         setPriceType: updatePriceType, // Expose manual update
         setDiscount,
         setNotes,
+        setDeliveryFee,
         calculateTotals,
         clearCart,
         getCartData,

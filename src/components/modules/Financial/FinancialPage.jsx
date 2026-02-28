@@ -14,7 +14,7 @@ import {
     Pie,
     Cell
 } from 'recharts';
-import { DollarSign, TrendingUp, ShoppingBag, CreditCard, Printer, FileText } from 'lucide-react';
+import { DollarSign, TrendingUp, ShoppingBag, CreditCard, Printer, FileText, Truck } from 'lucide-react';
 import Card from '../../common/Card';
 import Loading from '../../common/Loading';
 import { salesService, categoryService, productService } from '../../../services/firestore';
@@ -33,6 +33,8 @@ const FinancialPage = () => {
     const [productsMap, setProductsMap] = useState({});
     const [metrics, setMetrics] = useState({
         totalSales: 0,
+        totalSalesProducts: 0,
+        totalDeliveryFees: 0,
         totalOrders: 0,
         avgTicket: 0,
         topPaymentMethod: '-',
@@ -170,6 +172,8 @@ const FinancialPage = () => {
         if (!data.length) {
             setMetrics({
                 totalSales: 0,
+                totalSalesProducts: 0,
+                totalDeliveryFees: 0,
                 totalOrders: 0,
                 avgTicket: 0,
                 topPaymentMethod: '-',
@@ -183,11 +187,17 @@ const FinancialPage = () => {
         }
 
         const totalSales = data.reduce((acc, curr) => acc + Number(curr.total || 0), 0);
+        const totalDeliveryFees = data.reduce((acc, curr) => acc + Number(curr.deliveryFeeValue || 0), 0);
+        const totalSalesProducts = data.reduce((acc, curr) => {
+            const fee = Number(curr.deliveryFeeValue || 0);
+            const products = curr.productsTotal !== undefined ? Number(curr.productsTotal || 0) : (Number(curr.total || 0) - fee);
+            return acc + Math.max(0, products);
+        }, 0);
         const totalCMV = data.reduce((acc, curr) => acc + Number(curr.cmvTotal || 0), 0);
         const totalOrders = data.length;
         const avgTicket = totalSales / totalOrders;
-        const profit = totalSales - totalCMV;
-        const margin = totalSales > 0 ? (profit / totalSales) : 0;
+        const profit = totalSalesProducts - totalCMV;
+        const margin = totalSalesProducts > 0 ? (profit / totalSalesProducts) : 0;
 
         const paymentCounts = {};
         const paymentTotals = {};
@@ -289,7 +299,9 @@ const FinancialPage = () => {
                 };
             }
             detailedMap[dateStr].count += 1;
-            detailedMap[dateStr].revenue += Number(sale.total || 0);
+            const fee = Number(sale.deliveryFeeValue || 0);
+            const productsRevenue = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
+            detailedMap[dateStr].revenue += Math.max(0, productsRevenue);
             detailedMap[dateStr].cost += Number(sale.cmvTotal || 0);
         });
 
@@ -305,12 +317,14 @@ const FinancialPage = () => {
 
         setMetrics({
             totalSales,
+            totalSalesProducts,
+            totalDeliveryFees,
             totalOrders,
             avgTicket,
             topPaymentMethod,
             totalCMV: calculatedTotalCMV,
             profit: calculatedTotalProfit,
-            margin: totalSales > 0 ? (calculatedTotalProfit / totalSales) : 0,
+            margin: totalSalesProducts > 0 ? (calculatedTotalProfit / totalSalesProducts) : 0,
             profitAtacado,
             profitMercearia
         });
@@ -381,6 +395,7 @@ const FinancialPage = () => {
             // Financial Summary
             openingBalance: 0, // Not applicable for sales report
             totalSales: metrics.totalSales,
+            totalDeliveryFees: metrics.totalDeliveryFees,
             totalSupplies: 0,
             totalBleeds: 0,
             totalChange: 0, // Could calculate if needed
@@ -400,7 +415,7 @@ const FinancialPage = () => {
             profitMercearia: metrics.profitMercearia || 0,
             totalProfit: metrics.profit,
 
-            notes: `Margem: ${(metrics.margin * 100).toFixed(1)}% | Ticket Médio: ${formatCurrency(metrics.avgTicket)}`
+            notes: `Margem: ${(metrics.margin * 100).toFixed(1)}% | Ticket Médio: ${formatCurrency(metrics.avgTicket)} | Taxas de entrega: ${formatCurrency(metrics.totalDeliveryFees)} (fora do lucro)`
         };
 
         printCashRegisterReport(printData);
@@ -552,7 +567,28 @@ const FinancialPage = () => {
                     </div>
                 </Card>
 
-
+                <Card>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                        <div style={{
+                            padding: 'var(--spacing-md)',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <Truck style={{ color: 'var(--color-warning)' }} size={24} />
+                        </div>
+                        <div>
+                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
+                                Taxas Entrega
+                            </p>
+                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
+                                {formatCurrency(metrics.totalDeliveryFees)}
+                            </h3>
+                        </div>
+                    </div>
+                </Card>
 
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
@@ -576,6 +612,7 @@ const FinancialPage = () => {
                         </div>
                     </div>
                 </Card>
+
 
                 <Card>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>

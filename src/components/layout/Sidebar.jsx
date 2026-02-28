@@ -11,7 +11,8 @@ import {
     Settings,
     Sun,
     Moon,
-    Coffee
+    Coffee,
+    Truck
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -29,6 +30,7 @@ const Sidebar = ({ onClose }) => {
         tables: { path: '/tables', icon: Coffee, label: 'Mesas' },
         financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
         cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
+        deliveryFees: { path: '/taxas-entrega', icon: Truck, label: 'Taxas de Entrega', restricted: true },
         settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
         dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
     };
@@ -50,6 +52,7 @@ const Sidebar = ({ onClose }) => {
         'tables',
         'financial',
         'cashRegister',
+        'deliveryFees',
         'settings'
     ];
     menuItems = menuItems.sort((a, b) => {

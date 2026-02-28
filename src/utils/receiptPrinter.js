@@ -227,6 +227,25 @@ export const printReceipt = (sale, settings = {}) => {
         `;
     }
 
+    const deliveryFeeValueRaw = Number(sale.deliveryFeeValue || 0);
+    const deliveryFeeValue = Number.isFinite(deliveryFeeValueRaw) ? Math.max(0, deliveryFeeValueRaw) : 0;
+    const productsTotal = sale.productsTotal !== undefined
+        ? Math.max(0, Number(sale.productsTotal || 0))
+        : Math.max(0, Number(sale.total || 0) - deliveryFeeValue);
+
+    const deliveryFeeHtml = deliveryFeeValue > 0 ? `
+        <div class="totals-section text-sm">
+            <div class="flex">
+                <span>Produtos:</span>
+                <span>${formatCurrency(productsTotal)}</span>
+            </div>
+            <div class="flex">
+                <span>Entrega:</span>
+                <span>${formatCurrency(deliveryFeeValue)}</span>
+            </div>
+        </div>
+    ` : '';
+
     const html = `
         <div class="header text-center">
             <div class="company-name">${companyName}</div>
@@ -252,6 +271,7 @@ export const printReceipt = (sale, settings = {}) => {
         </div>
 
         <div class="totals-section">
+            ${deliveryFeeHtml}
             <div class="flex font-bold text-lg final-total">
                 <span>TOTAL:</span>
                 <span>${formatCurrency(sale.total)}</span>
@@ -372,6 +392,12 @@ export const printCashRegisterReport = (data, settings = {}) => {
                 <span>Total Vendas (+):</span>
                 <span>${formatCurrency(data.totalSales)}</span>
             </div>
+            ${Number(data.totalDeliveryFees || 0) > 0 ? `
+                <div class="flex">
+                    <span>Taxas Entrega (+):</span>
+                    <span>${formatCurrency(data.totalDeliveryFees)}</span>
+                </div>
+            ` : ''}
             <div class="flex">
                 <span>Suprimentos (+):</span>
                 <span>${formatCurrency(data.totalSupplies)}</span>
@@ -450,6 +476,8 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
     const sorted = [...daySales].sort((a, b) => toDate(a.createdAt).getTime() - toDate(b.createdAt).getTime());
 
     let totalNet = 0;
+    let totalProductsNet = 0;
+    let totalDeliveryFees = 0;
     let totalPaid = 0;
     let totalChange = 0;
     let totalDiscount = 0;
@@ -466,12 +494,16 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
 
     for (const sale of sorted) {
         const net = Number(sale.total || 0);
+        const fee = Number(sale.deliveryFeeValue || 0);
+        const productsNet = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (net - fee);
         const paid = Number(sale.totalPaid || sale.total || 0);
         const change = Math.max(0, Number(sale.change || 0));
         const discount = Number(sale.discount || 0);
         const itemsCount = Array.isArray(sale.items) ? sale.items.length : 0;
 
         totalNet += net;
+        totalProductsNet += Math.max(0, productsNet);
+        totalDeliveryFees += Math.max(0, fee);
         totalPaid += paid;
         totalChange += change;
         totalDiscount += discount;
@@ -545,6 +577,8 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
         const number = sanitize(sale.saleNumber || '');
         const customer = sanitize(sale.customerName || 'Cliente Balcão');
         const net = Number(sale.total || 0);
+        const fee = Number(sale.deliveryFeeValue || 0);
+        const productsNet = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (net - fee);
         const paid = Number(sale.totalPaid || sale.total || 0);
         const change = Math.max(0, Number(sale.change || 0));
         const payments = normalizePayments(sale);
@@ -556,7 +590,8 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
             const unitCost = Number(it?.unitCost || 0);
             return acc + (unitCost * qty);
         }, 0);
-        const saleProfit = net - saleCost;
+        const productsNetSafe = Number.isFinite(productsNet) ? Math.max(0, productsNet) : 0;
+        const saleProfit = productsNetSafe - saleCost;
 
         const itemsLines = items.length === 0 ? '' : items.map((it) => {
             const name = sanitize(it?.productName || it?.name || 'Item');
@@ -582,6 +617,8 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
                 <div class="flex font-bold"><span>${time} #${number}</span><span>${formatCurrency(net)}</span></div>
                 <div class="text-xs">
                     <div class="details-row"><span>Cliente:</span><span class="text">${customer}</span></div>
+                    ${fee > 0 ? `<div class="details-row"><span>Produtos:</span><span>${formatCurrency(productsNetSafe)}</span></div>` : ''}
+                    ${fee > 0 ? `<div class="details-row"><span>Entrega:</span><span>${formatCurrency(Math.max(0, fee))}</span></div>` : ''}
                     <div class="details-row"><span>Pago:</span><span>${formatCurrency(paid)}</span></div>
                     <div class="details-row"><span>Troco:</span><span>${formatCurrency(change)}</span></div>
                     <div class="details-row"><span>Pag.:</span><span class="text">${paymentsLabel}</span></div>
@@ -618,6 +655,8 @@ export const printSalesDayReport = ({ sales = [], start, end }, settings = {}) =
             <div class="flex"><span>Vendas:</span><span>${sorted.length}</span></div>
             <div class="flex"><span>Itens:</span><span>${totalItems}</span></div>
             <div class="flex"><span>Descontos:</span><span>${formatCurrency(totalDiscount)}</span></div>
+            ${totalDeliveryFees > 0 ? `<div class="flex"><span>Taxas entrega:</span><span>${formatCurrency(totalDeliveryFees)}</span></div>` : ''}
+            <div class="flex"><span>Total produtos (líquido):</span><span>${formatCurrency(totalProductsNet)}</span></div>
             <div class="flex font-bold"><span>Total (líquido):</span><span>${formatCurrency(totalNet)}</span></div>
             <div class="flex"><span>Total recebido:</span><span>${formatCurrency(totalPaid)}</span></div>
             <div class="flex"><span>Troco (-):</span><span>${formatCurrency(totalChange)}</span></div>

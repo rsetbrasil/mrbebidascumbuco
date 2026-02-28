@@ -46,86 +46,41 @@ const TablesPage = () => {
 
     useEffect(() => {
         setLoading(true);
-        const unsub = tablesService.subscribeAll((data) => {
-            setTables(data);
-            setLoading(false);
-        });
+        let unsub;
+
+        const load = () => {
+            if (statusFilter === 'all') {
+                unsub = tablesService.subscribeAll((data) => {
+                    setTables(data);
+                    setLoading(false);
+                });
+            } else {
+                unsub = tablesService.subscribeByStatus(statusFilter, (data) => {
+                    setTables(data);
+                    setLoading(false);
+                });
+            }
+        };
+
+        load();
         return () => { try { unsub && unsub(); } catch { } };
-    }, []);
+    }, [statusFilter]);
 
-    const showNotification = (type, message) => {
-        setNotification({ type, message });
-        setTimeout(() => setNotification(null), 3000);
-    };
-
-    const handleCreateTable = async () => {
-        if (!newTableName.trim()) {
-            showNotification('error', 'Informe o nome do cliente');
-            return;
-        }
-        if (creating) return;
-        setCreating(true);
-        try {
-            await tablesService.create({
-                customerName: newTableName.trim(),
-                priceType: 'wholesale',
-                createdBy: user?.uid || null
-            });
-            showNotification('success', `Mesa "${newTableName.trim()}" aberta com sucesso`);
-            setNewTableName('');
-            setNewTableModalOpen(false);
-        } catch (error) {
-            console.error('Error creating table:', error);
-            showNotification('error', 'Erro ao abrir mesa');
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    const handleAddItems = (table) => {
-        try {
-            loadTable(table);
-            navigate('/sales');
-        } catch (error) {
-            console.error('Error loading table:', error);
-            showNotification('error', 'Erro ao carregar mesa');
-        }
-    };
-
-    const handleCloseTable = (table) => {
-        try {
-            loadTable(table);
-            navigate('/sales');
-        } catch (error) {
-            console.error('Error loading table for closing:', error);
-            showNotification('error', 'Erro ao carregar mesa');
-        }
-    };
-
-    const handleCancelTable = async (table) => {
-        if (!window.confirm(`Tem certeza que deseja cancelar a mesa "${table.customerName}"?`)) return;
-        try {
-            await tablesService.update(table.id, { status: 'cancelled', closedAt: new Date() });
-            showNotification('success', 'Mesa cancelada com sucesso');
-        } catch (error) {
-            console.error('Error cancelling table:', error);
-            showNotification('error', 'Erro ao cancelar mesa');
-        }
-    };
-
-    const handleViewTable = (table) => {
-        setViewTable(table);
-        setViewModalOpen(true);
-    };
+    // ... existing code ...
 
     const filteredTables = (tables || []).filter(t => {
         const matchesSearch =
             (t.customerName && t.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
             t.id.toLowerCase().includes(searchTerm.toLowerCase());
 
+        // Status filtering is now handled by Firestore subscription, 
+        // but we keep this check for 'all' mode where we might want to filter search results 
+        // or if we switch tabs rapidly and use cached data (though here we reset tables on filter change)
+        // Actually, since 'tables' now contains only the filtered status (unless 'all'), 
+        // we don't strictly need to filter by status again unless statusFilter is 'all'.
+        // But keeping it robust:
         const tStatus = t.status || 'open';
-        const matchesStatus =
-            statusFilter === 'all' || tStatus === statusFilter;
+        const matchesStatus = statusFilter === 'all' || tStatus === statusFilter;
 
         return matchesSearch && matchesStatus;
     }).sort((a, b) => {

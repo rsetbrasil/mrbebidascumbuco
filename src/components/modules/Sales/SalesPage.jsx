@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, FileText, Printer, Save, X } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, FileText, Printer, Save, X, Truck } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -8,7 +8,7 @@ import Modal from '../../common/Modal';
 import { useCart } from '../../../contexts/CartContext';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { productService, salesService, presalesService, tablesService, customerService, stockService } from '../../../services/firestore';
+import { productService, salesService, presalesService, tablesService, customerService, stockService, deliveryFeeService } from '../../../services/firestore';
 import { formatCurrency, generateSaleNumber } from '../../../utils/formatters';
 import { printReceipt } from '../../../utils/receiptPrinter';
 import { cashRegisterService, firestoreService, COLLECTIONS, PRESALE_STATUS } from '../../../services/firestore';
@@ -31,7 +31,9 @@ const SalesPage = () => {
         getCartData,
         presaleId,
         tableId,
-        editingSale
+        editingSale,
+        deliveryFee,
+        setDeliveryFee
     } = useCart();
 
     const { showNotification, currentCashRegister, settings } = useApp();
@@ -49,6 +51,10 @@ const SalesPage = () => {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [payments, setPayments] = useState([]);
     const [cardFeePercentage, setCardFeePercentage] = useState('');
+
+    const [deliveryFeeModalOpen, setDeliveryFeeModalOpen] = useState(false);
+    const [deliveryFees, setDeliveryFees] = useState([]);
+    const [deliveryFeeForm, setDeliveryFeeForm] = useState({ mode: 'none', rateId: '', description: '', value: 0 });
 
 
 
@@ -115,6 +121,18 @@ const SalesPage = () => {
     const canFinalize = isManager || user?.role === 'cashier';
     const totals = calculateTotals();
     const isEditingSale = !!editingSale;
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const list = await deliveryFeeService.getActive();
+                setDeliveryFees(Array.isArray(list) ? list : []);
+            } catch {
+                setDeliveryFees([]);
+            }
+        };
+        load();
+    }, []);
 
     // Auto-fill payment amount when modal opens or payments change
     useEffect(() => {
@@ -516,11 +534,69 @@ const SalesPage = () => {
             return;
         }
 
+        if ((deliveryFee?.mode === 'manual' || deliveryFee?.mode === 'rate') && Number(totals.deliveryFeeValue || 0) <= 0) {
+            showNotification('Taxa de entrega deve ser numérica e positiva', 'warning');
+            return;
+        }
+
         setPayments([]);
         setPaymentAmount('');
         setPaymentMethod('Dinheiro');
         setCardFeePercentage('');
         setPaymentModalOpen(true);
+    };
+
+    const openDeliveryFeeModal = () => {
+        setDeliveryFeeForm({
+            mode: deliveryFee?.mode || 'none',
+            rateId: deliveryFee?.rateId || '',
+            description: deliveryFee?.description || '',
+            value: Number(deliveryFee?.value || 0)
+        });
+        setDeliveryFeeModalOpen(true);
+    };
+
+    const closeDeliveryFeeModal = () => {
+        setDeliveryFeeModalOpen(false);
+        setDeliveryFeeForm({ mode: 'none', rateId: '', description: '', value: 0 });
+    };
+
+    const saveDeliveryFee = () => {
+        const mode = deliveryFeeForm.mode || 'none';
+        if (mode === 'none') {
+            setDeliveryFee({ mode: 'none', rateId: null, description: '', value: 0 });
+            closeDeliveryFeeModal();
+            return;
+        }
+
+        if (mode === 'rate') {
+            const rate = (deliveryFees || []).find(f => String(f.id) === String(deliveryFeeForm.rateId));
+            if (!rate) {
+                showNotification('Selecione uma taxa cadastrada', 'warning');
+                return;
+            }
+            const value = Number(rate.value || 0);
+            if (!Number.isFinite(value) || value <= 0) {
+                showNotification('Taxa cadastrada inválida', 'warning');
+                return;
+            }
+            setDeliveryFee({ mode: 'rate', rateId: rate.id, description: rate.description || 'Entrega', value });
+            closeDeliveryFeeModal();
+            return;
+        }
+
+        const value = Number(deliveryFeeForm.value || 0);
+        if (!Number.isFinite(value) || value <= 0) {
+            showNotification('Taxa de entrega deve ser numérica e positiva', 'warning');
+            return;
+        }
+        setDeliveryFee({
+            mode: 'manual',
+            rateId: null,
+            description: String(deliveryFeeForm.description || '').trim() || 'Entrega',
+            value
+        });
+        closeDeliveryFeeModal();
     };
 
     const handleAddPayment = () => {
@@ -569,6 +645,11 @@ const SalesPage = () => {
             const cartData = getCartData();
             await tablesService.addItems(tableId, cartData.items, {
                 subtotal: cartData.subtotal,
+                productsTotal: cartData.productsTotal,
+                deliveryFeeMode: cartData.deliveryFeeMode,
+                deliveryFeeRateId: cartData.deliveryFeeRateId,
+                deliveryFeeDescription: cartData.deliveryFeeDescription,
+                deliveryFeeValue: cartData.deliveryFeeValue,
                 total: cartData.total
             });
             showNotification('Itens salvos na mesa!', 'success');
@@ -611,6 +692,11 @@ const SalesPage = () => {
                 items: presaleItems,
                 subtotal: totals.subtotal,
                 discount: totals.discount + totals.itemsDiscount,
+                productsTotal: totals.productsTotal,
+                deliveryFeeMode: deliveryFee?.mode || 'none',
+                deliveryFeeRateId: deliveryFee?.rateId || null,
+                deliveryFeeDescription: deliveryFee?.description || '',
+                deliveryFeeValue: totals.deliveryFeeValue,
                 total: totals.total,
                 priceType: presaleType,
                 customerPriceType: customer?.priceType || null,
@@ -778,6 +864,11 @@ const SalesPage = () => {
                 }),
                 subtotal: Number(totals.subtotal) || 0,
                 discount: Number(totals.discount + totals.itemsDiscount) || 0,
+                productsTotal: Number(cartData.productsTotal ?? totals.productsTotal) || 0,
+                deliveryFeeMode: cartData.deliveryFeeMode || (deliveryFee?.mode || 'none'),
+                deliveryFeeRateId: cartData.deliveryFeeRateId || (deliveryFee?.rateId || null),
+                deliveryFeeDescription: cartData.deliveryFeeDescription || (deliveryFee?.description || ''),
+                deliveryFeeValue: Number(cartData.deliveryFeeValue ?? totals.deliveryFeeValue) || 0,
                 total: Number(totals.total) || 0,
                 totalSavings: Number(totalSavings) || 0,
                 payments: payments.length > 0 ? payments.map(p => ({
@@ -1175,6 +1266,48 @@ const SalesPage = () => {
                                 </div>
                             )}
 
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
+                                <span style={{ color: 'var(--color-text-secondary)' }}>Taxa de entrega</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
+                                    <div style={{ width: 140 }}>
+                                        <CurrencyInput
+                                            name="deliveryFeeValue"
+                                            value={Number(deliveryFee?.value || 0)}
+                                            onChange={(e) => {
+                                                const raw = e?.target?.value;
+                                                const value = raw === '' ? 0 : Number(raw || 0);
+                                                if (!Number.isFinite(value) || value <= 0) {
+                                                    setDeliveryFee({ mode: 'none', rateId: null, description: '', value: 0 });
+                                                    return;
+                                                }
+                                                setDeliveryFee(prev => ({
+                                                    mode: 'manual',
+                                                    rateId: null,
+                                                    description: String(prev?.description || '').trim() || 'Entrega',
+                                                    value
+                                                }));
+                                            }}
+                                            placeholder="0,00"
+                                            className="no-margin"
+                                        />
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Truck size={16} />}
+                                        onClick={openDeliveryFeeModal}
+                                        title="Configurar taxa de entrega"
+                                    />
+                                </div>
+                            </div>
+
+                            {Number(totals.deliveryFeeValue || 0) > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Produtos</span>
+                                    <span>{formatCurrency(totals.productsTotal || 0)}</span>
+                                </div>
+                            )}
+
                             <div style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -1472,6 +1605,111 @@ const SalesPage = () => {
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
                         <Button variant="ghost" onClick={() => setQuantityModalOpen(false)}>Cancelar</Button>
                         <Button variant="primary" onClick={handleConfirmQuantity}>Confirmar</Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={deliveryFeeModalOpen}
+                onClose={closeDeliveryFeeModal}
+                title="Taxa de Entrega"
+                size="sm"
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <div className="input-group no-margin">
+                        <label className="input-label">Tipo</label>
+                        <select
+                            className="input"
+                            value={deliveryFeeForm.mode}
+                            onChange={(e) => {
+                                const nextMode = e.target.value;
+                                if (nextMode === 'none') {
+                                    setDeliveryFeeForm({ mode: 'none', rateId: '', description: '', value: 0 });
+                                    return;
+                                }
+                                if (nextMode === 'rate') {
+                                    const first = (deliveryFees || [])[0] || null;
+                                    setDeliveryFeeForm({
+                                        mode: 'rate',
+                                        rateId: first?.id || '',
+                                        description: first?.description || '',
+                                        value: Number(first?.value || 0)
+                                    });
+                                    return;
+                                }
+                                setDeliveryFeeForm(prev => ({
+                                    mode: 'manual',
+                                    rateId: '',
+                                    description: prev.description || 'Entrega',
+                                    value: Number(prev.value || 0)
+                                }));
+                            }}
+                        >
+                            <option value="none">Sem taxa</option>
+                            <option value="rate">Taxa cadastrada</option>
+                            <option value="manual">Manual</option>
+                        </select>
+                    </div>
+
+                    {deliveryFeeForm.mode === 'rate' && (
+                        <div className="input-group no-margin">
+                            <label className="input-label">Taxa</label>
+                            <select
+                                className="input"
+                                value={deliveryFeeForm.rateId}
+                                onChange={(e) => {
+                                    const id = e.target.value;
+                                    const rate = (deliveryFees || []).find(f => String(f.id) === String(id));
+                                    setDeliveryFeeForm(prev => ({
+                                        ...prev,
+                                        rateId: id,
+                                        description: rate?.description || prev.description,
+                                        value: Number(rate?.value || 0)
+                                    }));
+                                }}
+                            >
+                                {(deliveryFees || []).map(f => (
+                                    <option key={f.id} value={f.id}>
+                                        {f.description} ({formatCurrency(Number(f.value || 0))})
+                                    </option>
+                                ))}
+                                {(deliveryFees || []).length === 0 && (
+                                    <option value="">Nenhuma taxa ativa</option>
+                                )}
+                            </select>
+                        </div>
+                    )}
+
+                    {deliveryFeeForm.mode === 'manual' && (
+                        <>
+                            <Input
+                                label="Descrição"
+                                value={deliveryFeeForm.description}
+                                onChange={(e) => setDeliveryFeeForm(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Ex: Entrega Cumbuco"
+                                className="no-margin"
+                            />
+                            <CurrencyInput
+                                label="Valor"
+                                name="deliveryFeeValue"
+                                value={Number(deliveryFeeForm.value || 0)}
+                                onChange={(e) => setDeliveryFeeForm(prev => ({ ...prev, value: e.target.value }))}
+                                placeholder="0,00"
+                                className="no-margin"
+                            />
+                        </>
+                    )}
+
+                    {deliveryFeeForm.mode === 'rate' && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                            <span>Valor aplicado</span>
+                            <span style={{ fontWeight: 700 }}>{formatCurrency(Number(deliveryFeeForm.value || 0))}</span>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                        <Button variant="ghost" onClick={closeDeliveryFeeModal}>Cancelar</Button>
+                        <Button variant="primary" onClick={saveDeliveryFee}>Salvar</Button>
                     </div>
                 </div>
             </Modal>

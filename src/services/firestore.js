@@ -26,6 +26,7 @@ export const COLLECTIONS = {
     CASH_REGISTER: 'cashRegister',
     CASH_MOVEMENTS: 'cashMovements',
     CATEGORIES: 'categories',
+    DELIVERY_FEES: 'deliveryFees',
     SETTINGS: 'settings',
     USERS: 'users',
     COUNTERS: 'counters',
@@ -65,6 +66,9 @@ const mockStore = {
         { id: '1', name: 'Refrigerantes', description: 'Refrigerantes diversos' },
         { id: '2', name: 'Cervejas', description: 'Cervejas nacionais e importadas' },
         { id: '3', name: 'Não Alcoólicos', description: 'Águas e energéticos' }
+    ],
+    deliveryFees: [
+        { id: '1', description: 'Entrega padrão', value: 5.00, status: 'active', createdAt: new Date() }
     ],
     settings: [
         { id: '1', key: 'receiptHeader', value: 'MR BEBIDAS\nRua Demo, 123\n(11) 9999-9999' },
@@ -884,10 +888,18 @@ export const tablesService = {
         }
         const subtotal = mergedItems.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0);
         const discount = mergedItems.reduce((sum, i) => sum + (i.discount || 0), 0);
-        const total = Math.max(0, subtotal - discount);
+        const productsTotal = Math.max(0, subtotal - discount);
+        const deliveryFeeValueRaw = Number(totals?.deliveryFeeValue || 0);
+        const deliveryFeeValue = Number.isFinite(deliveryFeeValueRaw) ? Math.max(0, deliveryFeeValueRaw) : 0;
+        const total = productsTotal + deliveryFeeValue;
         return firestoreService.update(COLLECTIONS.TABLES, id, {
             items: mergedItems,
             subtotal,
+            productsTotal,
+            deliveryFeeMode: totals?.deliveryFeeMode || table.deliveryFeeMode || 'none',
+            deliveryFeeRateId: totals?.deliveryFeeRateId || table.deliveryFeeRateId || null,
+            deliveryFeeDescription: totals?.deliveryFeeDescription || table.deliveryFeeDescription || '',
+            deliveryFeeValue,
             total
         });
     },
@@ -898,6 +910,14 @@ export const tablesService = {
 
     subscribeAll(callback) {
         return firestoreService.subscribe(COLLECTIONS.TABLES, callback, []);
+    },
+
+    subscribeByStatus(status, callback) {
+        return firestoreService.subscribe(
+            COLLECTIONS.TABLES,
+            callback,
+            [{ field: 'status', operator: '==', value: status }]
+        );
     }
 };
 
@@ -1077,6 +1097,33 @@ export const categoryService = {
 
     async delete(id) {
         return firestoreService.delete(COLLECTIONS.CATEGORIES, id);
+    }
+};
+
+export const deliveryFeeService = {
+    async getAll() {
+        return firestoreService.getAll(COLLECTIONS.DELIVERY_FEES, 'createdAt', 'desc');
+    },
+
+    async getActive() {
+        const all = await this.getAll();
+        return (all || []).filter(f => (f.status || 'active') === 'active');
+    },
+
+    async create(fee) {
+        return firestoreService.create(COLLECTIONS.DELIVERY_FEES, fee);
+    },
+
+    async update(id, fee) {
+        return firestoreService.update(COLLECTIONS.DELIVERY_FEES, id, fee);
+    },
+
+    async delete(id) {
+        return firestoreService.delete(COLLECTIONS.DELIVERY_FEES, id);
+    },
+
+    subscribeAll(callback) {
+        return firestoreService.subscribe(COLLECTIONS.DELIVERY_FEES, callback, []);
     }
 };
 

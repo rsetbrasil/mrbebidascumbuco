@@ -298,6 +298,7 @@ const SalesHistoryPage = () => {
             }
 
             totalSales = enrichedSales.reduce((sum, s) => sum + Number(s?.total || 0), 0);
+            const totalDeliveryFees = enrichedSales.reduce((sum, s) => sum + Number(s?.deliveryFeeValue || 0), 0);
             totalCMV = byType.atacado.cost + byType.mercearia.cost;
             byType.atacado.profit = byType.atacado.revenue - byType.atacado.cost;
             byType.mercearia.profit = byType.mercearia.revenue - byType.mercearia.cost;
@@ -305,8 +306,9 @@ const SalesHistoryPage = () => {
             byType.total.cost = byType.atacado.cost + byType.mercearia.cost;
             byType.total.profit = byType.total.revenue - byType.total.cost;
 
-            const profit = totalSales - totalCMV;
-            const margin = totalSales > 0 ? (profit / totalSales) : 0;
+            const totalSalesProducts = byType.total.revenue;
+            const profit = totalSalesProducts - totalCMV;
+            const margin = totalSalesProducts > 0 ? (profit / totalSalesProducts) : 0;
 
             setReportData({
                 start,
@@ -315,6 +317,8 @@ const SalesHistoryPage = () => {
                     salesCount: enrichedSales.length,
                     itemsCount,
                     totalSales,
+                    totalSalesProducts,
+                    totalDeliveryFees,
                     totalCMV,
                     profit,
                     margin

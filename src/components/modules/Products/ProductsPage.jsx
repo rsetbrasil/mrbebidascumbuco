@@ -44,26 +44,33 @@ const ProductsPage = () => {
     }, []);
 
     const [limit, setLimit] = useState(200);
-    const [loadedAll, setLoadedAll] = useState(true);
+    const [loadedAll, setLoadedAll] = useState(false);
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const [productsData, categoriesData] = await Promise.all([
-                loadedAll ? productService.getAll() : productService.getAllLimited(limit),
-                categoryService.getAll()
-            ]);
+            // Start both requests in parallel
+            const productsPromise = loadedAll ? productService.getAll() : productService.getAllLimited(limit);
+            const categoriesPromise = categoryService.getAll();
 
+            // Await products first to show content ASAP
+            const productsData = await productsPromise;
             setProducts(productsData);
+
+            // Allow UI to render products (even with missing category names)
+            if (productsData.length > 0) setLoading(false);
+
             try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch { }
 
-            // Create categories map for easy lookup
+            // Then await categories and update
+            const categoriesData = await categoriesPromise;
             const catMap = {};
             categoriesData.forEach(cat => {
                 catMap[cat.id] = cat.name;
             });
             setCategories(catMap);
             try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch { }
+
         } catch (error) {
             console.error('Error loading data:', error);
             showNotification('error', 'Erro ao carregar dados');

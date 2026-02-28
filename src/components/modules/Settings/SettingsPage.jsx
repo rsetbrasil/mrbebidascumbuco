@@ -44,6 +44,7 @@ const SettingsPage = () => {
             { key: 'cashRegister', visible: true, label: 'Caixa' },
             { key: 'presales', visible: true, label: 'Pré-vendas' },
             { key: 'financial', visible: true, label: 'Financeiro' },
+            { key: 'deliveryFees', visible: true, label: 'Taxas de Entrega' },
             { key: 'settings', visible: true, label: 'Configurações' }
         ]
     });

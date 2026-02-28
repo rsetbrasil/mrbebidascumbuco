@@ -20,6 +20,7 @@ import SettingsPage from './components/modules/Settings/SettingsPage';
 import ResetDataPage from './components/modules/Settings/ResetDataPage';
 import SalesHistoryPage from './components/modules/Sales/SalesHistoryPage';
 import LoginPage from './components/modules/Auth/LoginPage';
+import DeliveryFeesPage from './components/modules/DeliveryFees/DeliveryFeesPage';
 
 
 if (typeof window !== 'undefined') {
@@ -99,6 +100,8 @@ function App() {
               <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
               <Route path="/configuracoes" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+              <Route path="/delivery-fees" element={<PrivateRoute><DeliveryFeesPage /></PrivateRoute>} />
+              <Route path="/taxas-entrega" element={<PrivateRoute><DeliveryFeesPage /></PrivateRoute>} />
               <Route path="/reset-data" element={<PrivateRoute><ResetDataPage /></PrivateRoute>} />
             </Routes>
           </CartProvider>

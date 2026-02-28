@@ -170,6 +170,7 @@ const CashRegisterPage = () => {
             const sales = await salesService.getByCashRegister(register.id);
             const validSales = await enrichSalesCosts((sales || []).filter(s => s && s.status !== 'cancelled'));
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+            const totalDeliveryFees = validSales.reduce((sum, s) => sum + Number(s.deliveryFeeValue || 0), 0);
             const profitCalc = (() => {
                 let atacado = 0;
                 let mercearia = 0;
@@ -207,6 +208,7 @@ const CashRegisterPage = () => {
                 closedBy: register.closedBy || 'Admin',
                 openingBalance: register.openingBalance,
                 totalSales,
+                totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
                 totalChange,
@@ -233,6 +235,12 @@ const CashRegisterPage = () => {
             const movements = await cashRegisterService.getMovements(register.id);
 
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
+            const totalDeliveryFees = validSales.reduce((sum, s) => sum + Number(s.deliveryFeeValue || 0), 0);
+            const totalSalesProducts = validSales.reduce((sum, s) => {
+                const fee = Number(s.deliveryFeeValue || 0);
+                const products = s.productsTotal !== undefined ? Number(s.productsTotal || 0) : (Number(s.total || 0) - fee);
+                return sum + Math.max(0, products);
+            }, 0);
             const totalSupplies = (movements || []).filter(m => m.type === 'supply').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalBleeds = (movements || []).filter(m => m.type === 'bleed').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalChange = (movements || []).filter(m => m.type === 'change').reduce((acc, m) => acc + Number(m.amount || 0), 0);
@@ -242,8 +250,8 @@ const CashRegisterPage = () => {
                 const items = Array.isArray(s.items) ? s.items : [];
                 return sum + items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
             }, 0);
-            const profitTotal = totalSales - totalCMV;
-            const margin = totalSales > 0 ? (profitTotal / totalSales) : 0;
+            const profitTotal = totalSalesProducts - totalCMV;
+            const margin = totalSalesProducts > 0 ? (profitTotal / totalSalesProducts) : 0;
 
             const profitByType = (() => {
                 let atacado = 0;
@@ -280,6 +288,7 @@ const CashRegisterPage = () => {
                 register,
                 totals: {
                     totalSales,
+                    totalDeliveryFees,
                     totalSupplies,
                     totalBleeds,
                     totalChange,
@@ -382,6 +391,7 @@ const CashRegisterPage = () => {
             const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
 
             const finalBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
+            const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
 
             const closedByLabel = approvedByManagerName
                 ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
@@ -418,6 +428,7 @@ const CashRegisterPage = () => {
                 closedBy: closedByLabel,
                 openingBalance: currentCashRegister.openingBalance,
                 totalSales,
+                totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
                 totalChange,
@@ -428,7 +439,6 @@ const CashRegisterPage = () => {
                 profitMercearia: profitCalc.mercearia,
                 profitTotal: profitCalc.total
             }, settings || {});
-
             showNotification('success', `Caixa fechado com sucesso. Pré-vendas reservadas zeradas: ${cancelledPresales}.`);
             setClosingNote('');
             setMovements([]);
@@ -491,6 +501,7 @@ const CashRegisterPage = () => {
             const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
 
             const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+            const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
 
             const profitCalc = (() => {
                 let atacado = 0;
@@ -517,6 +528,7 @@ const CashRegisterPage = () => {
                 closedBy: user?.name || 'Operador',
                 openingBalance: currentCashRegister.openingBalance,
                 totalSales,
+                totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
                 totalChange,
@@ -911,8 +923,13 @@ const CashRegisterPage = () => {
 
     const currentBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
     const totalCMVDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.cmvTotal || 0), 0);
-    const profitDay = totalSales - totalCMVDay;
-    const marginDay = totalSales > 0 ? (profitDay / totalSales) : 0;
+    const totalSalesProductsDay = activeSalesView.reduce((acc, sale) => {
+        const fee = Number(sale.deliveryFeeValue || 0);
+        const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
+        return acc + Math.max(0, products);
+    }, 0);
+    const profitDay = totalSalesProductsDay - totalCMVDay;
+    const marginDay = totalSalesProductsDay > 0 ? (profitDay / totalSalesProductsDay) : 0;
     const profitByType = (() => {
         let atacado = 0;
         let mercearia = 0;
