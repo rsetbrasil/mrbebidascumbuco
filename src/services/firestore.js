@@ -993,11 +993,16 @@ export const cashRegisterService = {
         const results = await firestoreService.query(
             COLLECTIONS.CASH_REGISTER,
             [{ field: 'status', operator: '==', value: 'open' }],
-            'openedAt',
-            'desc',
-            1
+            null
         );
-        return results[0] || null;
+        const sorted = Array.isArray(results)
+            ? results.sort((a, b) => {
+                const av = (a?.openedAt && a.openedAt.toMillis) ? a.openedAt.toMillis() : new Date(a?.openedAt || 0).getTime();
+                const bv = (b?.openedAt && b.openedAt.toMillis) ? b.openedAt.toMillis() : new Date(b?.openedAt || 0).getTime();
+                return bv - av;
+            })
+            : [];
+        return sorted[0] || null;
     },
 
     async getCurrentForTerminal(terminalId = (typeof window !== 'undefined' ? getTerminalId() : null)) {
@@ -1013,21 +1018,19 @@ export const cashRegisterService = {
                         { field: 'status', operator: '==', value: 'open' },
                         { field: 'terminalId', operator: '==', value: terminalId }
                     ],
-                    'openedAt',
-                    'desc',
-                    1
+                    null
                 );
-                if (byTid && byTid.length > 0) return byTid[0];
+                if (byTid && byTid.length > 0) {
+                    return pickActiveRegisterForTerminal(byTid, terminalId);
+                }
             }
         } catch {}
         const fallback = await firestoreService.query(
             COLLECTIONS.CASH_REGISTER,
             [{ field: 'status', operator: '==', value: 'open' }],
-            'openedAt',
-            'desc',
-            1
+            null
         );
-        return fallback[0] || null;
+        return pickActiveRegisterForTerminal(fallback, terminalId);
     },
 
     async getByDateRange(startDate, endDate) {
