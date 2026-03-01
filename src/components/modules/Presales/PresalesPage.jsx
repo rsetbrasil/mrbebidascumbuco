@@ -54,7 +54,7 @@ const PresalesPage = () => {
             // F2 - Novo Pedido
             if (e.key === 'F2') {
                 e.preventDefault();
-                navigate('/sales');
+                navigate('/vendas');
             }
             // F3 - Focar busca
             else if (e.key === 'F3') {
@@ -90,7 +90,7 @@ const PresalesPage = () => {
     const handleConvertToSale = (presale) => {
         try {
             loadPresale(presale);
-            navigate('/sales');
+            navigate('/vendas');
         } catch (error) {
             console.error('Error loading presale:', error);
             showNotification('error', 'Erro ao carregar pedido');
@@ -161,7 +161,7 @@ const PresalesPage = () => {
     const handleEditPresale = (presale) => {
         try {
             loadPresale(presale);
-            navigate('/sales');
+            navigate('/vendas');
             showNotification('success', 'Pré-venda carregada para edição');
         } catch (error) {
             console.error('Error loading presale for edit:', error);
@@ -253,7 +253,7 @@ const PresalesPage = () => {
                     )}
                     {canWrite && (
                         <Button
-                            onClick={() => navigate('/sales')}
+                            onClick={() => navigate('/vendas')}
                             icon={<ShoppingCart size={20} />}
                         >
                             Novo Pedido (PDV)

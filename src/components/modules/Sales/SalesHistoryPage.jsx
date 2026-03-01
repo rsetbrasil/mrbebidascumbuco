@@ -1010,7 +1010,7 @@ const SalesHistoryPage = () => {
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                         {canWrite && (
-                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/sales'); }}>
+                            <Button variant="primary" onClick={() => { loadSale(selectedSale); setDetailsModalOpen(false); navigate('/vendas'); }}>
                                 Editar no PDV
                             </Button>
                         )}

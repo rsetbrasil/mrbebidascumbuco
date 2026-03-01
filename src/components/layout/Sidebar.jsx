@@ -8,6 +8,7 @@ import {
     Wallet,
     ClipboardList,
     BarChart3,
+    PieChart,
     Settings,
     Sun,
     Moon,
@@ -22,16 +23,18 @@ const Sidebar = ({ onClose }) => {
     const { settings, theme, toggleTheme } = useApp();
 
     const baseMenu = {
-        pdv: { path: '/sales', icon: ShoppingCart, label: 'PDV' },
-        products: { path: '/products', icon: Package, label: 'Produtos' },
-        customers: { path: '/customers', icon: Users, label: 'Clientes' },
-        sales: { path: '/sales-history', icon: ClipboardList, label: 'Vendas' },
-        presales: { path: '/presales', icon: ClipboardList, label: 'Pré-vendas' },
-        tables: { path: '/tables', icon: Coffee, label: 'Mesas' },
-        financial: { path: '/financial', icon: BarChart3, label: 'Financeiro', restricted: true },
-        cashRegister: { path: '/cash-register', icon: Wallet, label: 'Caixa', restricted: true },
+        pdv: { path: '/vendas', icon: ShoppingCart, label: 'PDV' },
+        products: { path: '/produtos', icon: Package, label: 'Produtos' },
+        customers: { path: '/clientes', icon: Users, label: 'Clientes' },
+        sales: { path: '/historico-vendas', icon: ClipboardList, label: 'Vendas' },
+        presales: { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
+        tables: { path: '/mesas', icon: Coffee, label: 'Mesas' },
+        quickSummary: { path: '/resumo', icon: PieChart, label: 'Resumo' },
+        financial: { path: '/financeiro', icon: BarChart3, label: 'Financeiro', restricted: true },
+        cashRegister: { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
+        cashAudit: { path: '/auditoria-caixa', icon: ClipboardList, label: 'Auditoria de Caixa', restricted: true },
         deliveryFees: { path: '/taxas-entrega', icon: Truck, label: 'Taxas de Entrega', restricted: true },
-        settings: { path: '/settings', icon: Settings, label: 'Configurações', restricted: true },
+        settings: { path: '/configuracoes', icon: Settings, label: 'Configurações', restricted: true },
         dashboard: { path: '/', icon: Home, label: 'Painel', restricted: true }
     };
 
@@ -50,8 +53,10 @@ const Sidebar = ({ onClose }) => {
         'sales',
         'presales',
         'tables',
+        'quickSummary',
         'financial',
         'cashRegister',
+        'cashAudit',
         'deliveryFees',
         'settings'
     ];

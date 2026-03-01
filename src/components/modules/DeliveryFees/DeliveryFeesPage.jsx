@@ -21,7 +21,7 @@ const toDate = (v) => {
 };
 
 const DeliveryFeesPage = () => {
-    const { showNotification } = useApp();
+    const { showNotification, currentCashRegister } = useApp();
     const { user, isManager } = useAuth();
 
     const [loading, setLoading] = useState(true);
@@ -43,7 +43,11 @@ const DeliveryFeesPage = () => {
     });
 
     const [salesTotalsLoading, setSalesTotalsLoading] = useState(false);
-    const [collectedTotals, setCollectedTotals] = useState({ totalDeliveryFees: 0, countSalesWithFee: 0 });
+    const [collectedTotals, setCollectedTotals] = useState({
+        totalDeliveryFees: 0,
+        countSalesWithFee: 0,
+        currentCashRegisterFees: 0
+    });
 
     useEffect(() => {
         loadFees();
@@ -82,14 +86,19 @@ const DeliveryFeesPage = () => {
             });
             let totalDeliveryFees = 0;
             let countSalesWithFee = 0;
+            let currentCashRegisterFees = 0;
+            const currentId = currentCashRegister && currentCashRegister.id ? String(currentCashRegister.id) : null;
             for (const s of filtered) {
                 const fee = Number(s.deliveryFeeValue || 0);
                 if (fee > 0) countSalesWithFee += 1;
                 totalDeliveryFees += fee;
+                if (currentId && String(s.cashRegisterId || '') === currentId) {
+                    currentCashRegisterFees += fee;
+                }
             }
-            setCollectedTotals({ totalDeliveryFees, countSalesWithFee });
+            setCollectedTotals({ totalDeliveryFees, countSalesWithFee, currentCashRegisterFees });
         } catch {
-            setCollectedTotals({ totalDeliveryFees: 0, countSalesWithFee: 0 });
+            setCollectedTotals({ totalDeliveryFees: 0, countSalesWithFee: 0, currentCashRegisterFees: 0 });
         } finally {
             setSalesTotalsLoading(false);
         }
@@ -375,6 +384,19 @@ const DeliveryFeesPage = () => {
                             <span style={{ color: 'var(--color-text-secondary)' }}>Vendas com taxa</span>
                             <span style={{ fontWeight: 700 }}>{salesTotalsLoading ? '...' : collectedTotals.countSalesWithFee}</span>
                         </div>
+                        {currentCashRegister && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Total do caixa aberto</span>
+                                    <span style={{ fontWeight: 700 }}>
+                                        {salesTotalsLoading ? '...' : formatCurrency(collectedTotals.currentCashRegisterFees || 0)}
+                                    </span>
+                                </div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                                    Caixa atual: {currentCashRegister.openedAt ? formatDateTime(toDate(currentCashRegister.openedAt)) : currentCashRegister.id}
+                                </div>
+                            </div>
+                        )}
                         <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
                             Valores registrados separadamente e excluídos do lucro.
                         </div>
@@ -526,4 +548,3 @@ const DeliveryFeesPage = () => {
 };
 
 export default DeliveryFeesPage;
-

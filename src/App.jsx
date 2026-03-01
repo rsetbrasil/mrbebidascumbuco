@@ -13,6 +13,7 @@ import CategoriesPage from './components/modules/Categories/CategoriesPage';
 import CustomersPage from './components/modules/Customers/CustomersPage';
 import CashRegisterPage from './components/modules/CashRegister/CashRegisterPage';
 import CashRegisterHistoryPage from './components/modules/CashRegister/CashRegisterHistoryPage';
+import CashAuditPage from './components/modules/CashRegister/CashAuditPage';
 import PresalesPage from './components/modules/Presales/PresalesPage';
 import TablesPage from './components/modules/Tables/TablesPage';
 import FinancialPage from './components/modules/Financial/FinancialPage';
@@ -21,6 +22,8 @@ import ResetDataPage from './components/modules/Settings/ResetDataPage';
 import SalesHistoryPage from './components/modules/Sales/SalesHistoryPage';
 import LoginPage from './components/modules/Auth/LoginPage';
 import DeliveryFeesPage from './components/modules/DeliveryFees/DeliveryFeesPage';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import QuickSummaryPage from './components/modules/Financial/QuickSummaryPage';
 
 
 if (typeof window !== 'undefined') {
@@ -83,27 +86,45 @@ function App() {
       <AuthProvider>
         <AppProvider>
           <CartProvider>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
 
 
-              <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-              <Route path="/pdv" element={<Navigate to="/sales" replace />} />
-              <Route path="/sales" element={<PrivateRoute><SalesPage /></PrivateRoute>} />
-              <Route path="/sales-history" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
-              <Route path="/presales" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
-              <Route path="/tables" element={<PrivateRoute><TablesPage /></PrivateRoute>} />
-              <Route path="/cash-register" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
-              <Route path="/financial" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
-              <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
-              <Route path="/categories" element={<PrivateRoute><CategoriesPage /></PrivateRoute>} />
-              <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
-              <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
-              <Route path="/configuracoes" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
-              <Route path="/delivery-fees" element={<PrivateRoute><DeliveryFeesPage /></PrivateRoute>} />
-              <Route path="/taxas-entrega" element={<PrivateRoute><DeliveryFeesPage /></PrivateRoute>} />
-              <Route path="/reset-data" element={<PrivateRoute><ResetDataPage /></PrivateRoute>} />
-            </Routes>
+                <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/painel" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/pdv" element={<Navigate to="/vendas" replace />} />
+                <Route path="/vendas" element={<PrivateRoute><SalesPage /></PrivateRoute>} />
+                <Route path="/sales" element={<Navigate to="/vendas" replace />} />
+                <Route path="/historico-vendas" element={<PrivateRoute><SalesHistoryPage /></PrivateRoute>} />
+                <Route path="/sales-history" element={<Navigate to="/historico-vendas" replace />} />
+                <Route path="/pre-vendas" element={<PrivateRoute><PresalesPage /></PrivateRoute>} />
+                <Route path="/presales" element={<Navigate to="/pre-vendas" replace />} />
+                <Route path="/mesas" element={<PrivateRoute><TablesPage /></PrivateRoute>} />
+                <Route path="/tables" element={<Navigate to="/mesas" replace />} />
+                <Route path="/caixa" element={<PrivateRoute><CashRegisterPage /></PrivateRoute>} />
+                <Route path="/cash-register" element={<Navigate to="/caixa" replace />} />
+                <Route path="/financeiro" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
+                <Route path="/financial" element={<Navigate to="/financeiro" replace />} />
+                <Route path="/resumo" element={<PrivateRoute><QuickSummaryPage /></PrivateRoute>} />
+                <Route path="/quick-summary" element={<Navigate to="/resumo" replace />} />
+                <Route path="/produtos" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
+                <Route path="/products" element={<Navigate to="/produtos" replace />} />
+                <Route path="/categorias" element={<PrivateRoute><CategoriesPage /></PrivateRoute>} />
+                <Route path="/categories" element={<Navigate to="/categorias" replace />} />
+                <Route path="/clientes" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
+                <Route path="/customers" element={<Navigate to="/clientes" replace />} />
+                <Route path="/configuracoes" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+                <Route path="/settings" element={<Navigate to="/configuracoes" replace />} />
+                <Route path="/taxas-entrega" element={<PrivateRoute><DeliveryFeesPage /></PrivateRoute>} />
+                <Route path="/delivery-fees" element={<Navigate to="/taxas-entrega" replace />} />
+                <Route path="/auditoria-caixa" element={<PrivateRoute><CashAuditPage /></PrivateRoute>} />
+                <Route path="/cash-audit" element={<Navigate to="/auditoria-caixa" replace />} />
+                <Route path="/zerar-dados" element={<PrivateRoute><ResetDataPage /></PrivateRoute>} />
+                <Route path="/reset-data" element={<Navigate to="/zerar-dados" replace />} />
+                <Route path="/entrar" element={<LoginPage />} />
+              </Routes>
+            </ErrorBoundary>
           </CartProvider>
         </AppProvider>
       </AuthProvider>

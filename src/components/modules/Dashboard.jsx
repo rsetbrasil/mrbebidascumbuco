@@ -325,28 +325,28 @@ const Dashboard = () => {
             {/* Quick Actions */}
             <Card title="Ações Rápidas" style={{ marginBottom: 'var(--spacing-xl)' }}>
                 <div className="grid grid-4">
-                    <Link to="/sales" style={{ textDecoration: 'none' }}>
+                    <Link to="/vendas" style={{ textDecoration: 'none' }}>
                         <Button variant="primary" style={{ width: '100%' }}>
                             <ShoppingCart size={20} />
                             Nova Venda
                         </Button>
                     </Link>
-                    <Link to="/presales" style={{ textDecoration: 'none' }}>
+                    <Link to="/pre-vendas" style={{ textDecoration: 'none' }}>
                         <Button variant="secondary" style={{ width: '100%' }}>
                             Nova Pré-Venda
                         </Button>
                     </Link>
-                    <Link to="/products" style={{ textDecoration: 'none' }}>
+                    <Link to="/produtos" style={{ textDecoration: 'none' }}>
                         <Button variant="secondary" style={{ width: '100%' }}>
                             Gerenciar Produtos
                         </Button>
                     </Link>
-                    <Link to="/financial" style={{ textDecoration: 'none' }}>
+                    <Link to="/financeiro" style={{ textDecoration: 'none' }}>
                         <Button variant="secondary" style={{ width: '100%' }}>
                             Relatórios
                         </Button>
                     </Link>
-                    <Link to="/tables" style={{ textDecoration: 'none' }}>
+                    <Link to="/mesas" style={{ textDecoration: 'none' }}>
                         <Button variant="secondary" style={{ width: '100%' }}>
                             <Coffee size={20} />
                             Mesas
@@ -359,7 +359,7 @@ const Dashboard = () => {
             <Card
                 title="Vendas Recentes"
                 headerAction={
-                    <Link to="/financial">
+                    <Link to="/financeiro">
                         <Button variant="secondary" size="sm">
                             Ver Todas <ArrowRight size={16} />
                         </Button>

@@ -171,6 +171,11 @@ const CashRegisterPage = () => {
             const validSales = await enrichSalesCosts((sales || []).filter(s => s && s.status !== 'cancelled'));
             const totalSales = validSales.reduce((sum, s) => sum + Number(s.total || 0), 0);
             const totalDeliveryFees = validSales.reduce((sum, s) => sum + Number(s.deliveryFeeValue || 0), 0);
+            const totalSalesProducts = validSales.reduce((sum, s) => {
+                const fee = Number(s.deliveryFeeValue || 0);
+                const products = s.productsTotal !== undefined ? Number(s.productsTotal || 0) : (Number(s.total || 0) - fee);
+                return sum + Math.max(0, products);
+            }, 0);
             const profitCalc = (() => {
                 let atacado = 0;
                 let mercearia = 0;
@@ -200,14 +205,14 @@ const CashRegisterPage = () => {
             const totalChange = (movements || [])
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+            const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
 
             printCashRegisterReport({
                 openedAt: register.openedAt,
                 closedAt: register.closedAt,
                 closedBy: register.closedBy || 'Admin',
                 openingBalance: register.openingBalance,
-                totalSales,
+                totalSales: totalSalesProducts,
                 totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
@@ -244,7 +249,7 @@ const CashRegisterPage = () => {
             const totalSupplies = (movements || []).filter(m => m.type === 'supply').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalBleeds = (movements || []).filter(m => m.type === 'bleed').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalChange = (movements || []).filter(m => m.type === 'change').reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+            const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
 
             const totalCMV = validSales.reduce((sum, s) => {
                 const items = Array.isArray(s.items) ? s.items : [];
@@ -275,7 +280,13 @@ const CashRegisterPage = () => {
 
             const paymentsMap = new Map();
             for (const sale of validSales) {
-                const list = normalizePayments(sale);
+                const gross = Number(sale.total || 0);
+                const fee = Number(sale.deliveryFeeValue || 0);
+                const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
+                const factor = gross > 0 ? (net / gross) : 1;
+                const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                    ? sale.payments.map(p => ({ method: p.method, amount: Number(p.amount || 0) * factor }))
+                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: net }];
                 for (const p of list) {
                     const key = String(p.method || 'Dinheiro');
                     const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
@@ -287,7 +298,7 @@ const CashRegisterPage = () => {
             setHistoryViewData({
                 register,
                 totals: {
-                    totalSales,
+                    totalSales: totalSalesProducts,
                     totalDeliveryFees,
                     totalSupplies,
                     totalBleeds,
@@ -362,7 +373,13 @@ const CashRegisterPage = () => {
                         : new Date(s.createdAt || 0);
                     return d >= start && d <= end;
                 });
-            const totalSales = activeSales.reduce((acc, sale) => acc + sale.total, 0);
+            const totalSalesGross = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
+            const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
+            const totalSalesNet = activeSales.reduce((acc, sale) => {
+                const fee = Number(sale.deliveryFeeValue || 0);
+                const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
+                return acc + Math.max(0, products);
+            }, 0);
             const activeMovements = movements.filter(m => {
                 const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
                     ? m.createdAt.toDate()
@@ -390,8 +407,14 @@ const CashRegisterPage = () => {
             }
             const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
 
-            const finalBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
-            const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
+            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
+
+            const cents = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100);
+            if (cents(totalSalesGross) - cents(totalDeliveryFees) !== cents(totalSalesNet)) {
+                showNotification('error', 'Inconsistência entre total líquido e taxas de entrega. Verifique as vendas.');
+                setLoading(false);
+                return;
+            }
 
             const closedByLabel = approvedByManagerName
                 ? `${user?.name || 'Operador'} (aprovado por ${approvedByManagerName})`
@@ -427,8 +450,8 @@ const CashRegisterPage = () => {
                 closedAt: new Date(),
                 closedBy: closedByLabel,
                 openingBalance: currentCashRegister.openingBalance,
-                totalSales,
-                totalDeliveryFees,
+                totalSales: totalSalesNet,
+                totalDeliveryFees: totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
                 totalChange,
@@ -472,7 +495,7 @@ const CashRegisterPage = () => {
                         : new Date(s.createdAt || 0);
                     return d >= start && d <= end;
                 });
-            const totalSales = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
+            const totalSalesGross = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
             const activeMovements = movements.filter(m => {
                 const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
                     ? m.createdAt.toDate()
@@ -500,8 +523,13 @@ const CashRegisterPage = () => {
             }
             const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
 
-            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
             const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
+            const totalSalesNet = activeSales.reduce((acc, sale) => {
+                const fee = Number(sale.deliveryFeeValue || 0);
+                const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
+                return acc + Math.max(0, products);
+            }, 0);
+            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
 
             const profitCalc = (() => {
                 let atacado = 0;
@@ -527,7 +555,7 @@ const CashRegisterPage = () => {
                 closedAt: new Date(),
                 closedBy: user?.name || 'Operador',
                 openingBalance: currentCashRegister.openingBalance,
-                totalSales,
+                totalSales: totalSalesNet,
                 totalDeliveryFees,
                 totalSupplies,
                 totalBleeds,
@@ -598,7 +626,13 @@ const CashRegisterPage = () => {
                 });
             const paymentsMap = new Map();
             for (const sale of activeSales) {
-                const list = normalizePayments(sale);
+                const gross = Number(sale.total || 0);
+                const fee = Number(sale.deliveryFeeValue || 0);
+                const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
+                const factor = gross > 0 ? (net / gross) : 1;
+                const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                    ? sale.payments.map(p => ({ method: p.method, amount: Number(p.amount || 0) * factor }))
+                    : [{ method: sale.paymentMethod || 'Dinheiro', amount: net }];
                 for (const p of list) {
                     const key = String(p.method || 'Dinheiro');
                     const prev = paymentsMap.get(key) || { amount: 0, count: 0 };
@@ -921,13 +955,14 @@ const CashRegisterPage = () => {
         .filter(m => m.type === 'change')
         .reduce((acc, m) => acc + m.amount, 0);
 
-    const currentBalance = currentCashRegister.openingBalance + totalSales + totalSupplies - totalBleeds;
-    const totalCMVDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.cmvTotal || 0), 0);
+    const totalFeesDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
     const totalSalesProductsDay = activeSalesView.reduce((acc, sale) => {
         const fee = Number(sale.deliveryFeeValue || 0);
         const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
         return acc + Math.max(0, products);
     }, 0);
+    const totalCMVDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.cmvTotal || 0), 0);
+    const currentBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesProductsDay + totalSupplies - totalBleeds;
     const profitDay = totalSalesProductsDay - totalCMVDay;
     const marginDay = totalSalesProductsDay > 0 ? (profitDay / totalSalesProductsDay) : 0;
     const profitByType = (() => {
@@ -948,6 +983,24 @@ const CashRegisterPage = () => {
             }
         }
         return { atacado, mercearia, total: atacado + mercearia };
+    })();
+    const paymentsSummaryDay = (() => {
+        const map = new Map();
+        for (const sale of activeSalesView) {
+            const gross = Number(sale.total || 0);
+            const fee = Number(sale.deliveryFeeValue || 0);
+            const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
+            const factor = gross > 0 ? (net / gross) : 1;
+            const list = Array.isArray(sale.payments) && sale.payments.length > 0
+                ? sale.payments.map(p => ({ method: p.method, amount: Number(p.amount || 0) * factor }))
+                : [{ method: sale.paymentMethod || 'Dinheiro', amount: net }];
+            for (const p of list) {
+                const key = String(p.method || 'Dinheiro').toLowerCase();
+                const prev = map.get(key) || { amount: 0, count: 0 };
+                map.set(key, { amount: prev.amount + Number(p.amount || 0), count: prev.count + 1 });
+            }
+        }
+        return Array.from(map.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
     })();
 
     return (
@@ -1062,11 +1115,11 @@ const CashRegisterPage = () => {
 
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-green-500">
                     <div className="p-4">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-green-400" /> Vendas</p>
+                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-green-400" /> Vendas Líquidas</p>
                         <h3 className="text-2xl font-bold text-green-400">
-                            {formatCurrency(totalSales)}
+                            {formatCurrency(totalSalesProductsDay)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">{sales.length} venda(s)</p>
+                        <p className="text-xs text-gray-500 mt-1">Bruto: {formatCurrency(totalSales)} • {sales.length} venda(s)</p>
                     </div>
                 </Card>
 
@@ -1113,79 +1166,147 @@ const CashRegisterPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                     <Card title="Histórico de Movimentações" icon={History}>
-                        <div className="table-container">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Hora</th>
-                                        <th>Tipo</th>
-                                        <th>Descrição</th>
-                                        <th style={{ textAlign: 'right' }}>Valor</th>
-                                        <th style={{ textAlign: 'right' }}>Ações</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {movements.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="4" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                                Nenhuma movimentação registrada
-                                            </td>
-                                        </tr>
-                                        ) : (
-                                            movements.map((mov) => (
-                                                <tr key={mov.id}>
-                                                    <td>
-                                                        {formatDateTime(mov.createdAt).split(' ')[1]}
-                                                    </td>
-                                                    <td>
-                                                    <span className={`px-2 py-1 rounded text-xs font-medium ${mov.type === 'supply'
-                                                        ? 'bg-emerald-500/10 text-emerald-400'
-                                                        : 'bg-red-500/10 text-red-400'
-                                                        }`}>
-                                                        {mov.type === 'supply' ? 'Suprimento' : 'Sangria'}
-                                                    </span>
-                                                </td>
-                                                <td>{mov.description}</td>
-                                                    <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
-                                                        }`}>
-                                                        {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
-                                                    </td>
-                                                    <td style={{ textAlign: 'right' }}>
-                                                        {(mov.type === 'supply' || mov.type === 'bleed') && canWrite ? (
-                                                            <div style={{ display: 'inline-flex', gap: '8px' }}>
-                                                                <Button
-                                                                    variant="secondary"
-                                                                    size="sm"
-                                                                    icon={RotateCcw}
-                                                                    onClick={() => handleRevertMovement(mov)}
-                                                                >
-                                                                    Estornar
-                                                                </Button>
-                                                                <Button
-                                                                    variant="danger"
-                                                                    size="sm"
-                                                                    icon={Trash2}
-                                                                    onClick={() => handleDeleteMovement(mov)}
-                                                                >
-                                                                    Excluir
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>-</span>
-                                                        )}
+                        <div className="space-y-6">
+                            <div>
+                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)' }}>Vendas do Dia</div>
+                                <div className="table-container">
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Hora</th>
+                                                <th>Nº</th>
+                                                <th>Cliente</th>
+                                                <th style={{ textAlign: 'right' }}>Total</th>
+                                                <th style={{ textAlign: 'right' }}>Produtos</th>
+                                                <th style={{ textAlign: 'right' }}>Entrega</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {activeSalesView.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="4" style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                                        Nenhuma venda registrada hoje
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
+                                            ) : (
+                                                activeSalesView.map((sale) => {
+                                                    const gross = Number(sale.total || 0);
+                                                    const fee = Number(sale.deliveryFeeValue || 0);
+                                                    const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
+                                                    const time = formatDateTime(sale.createdAt).split(' ')[1];
+                                                    return (
+                                                        <tr key={sale.id || sale.saleNumber}>
+                                                            <td>{time}</td>
+                                                            <td>{sale.saleNumber || '-'}</td>
+                                                            <td>{sale.customer?.name || 'Cliente não informado'}</td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(gross)}</td>
+                                                            <td style={{ textAlign: 'right' }}>{formatCurrency(net)}</td>
+                                                            <td style={{ textAlign: 'right' }}>{fee > 0 ? formatCurrency(fee) : '-'}</td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)' }}>Movimentações do Dia</div>
+                                <div className="table-container">
+                                    <table className="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Hora</th>
+                                                <th>Tipo</th>
+                                                <th>Descrição</th>
+                                                <th style={{ textAlign: 'right' }}>Valor</th>
+                                                <th style={{ textAlign: 'right' }}>Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {activeMovementsView.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                                        Nenhuma movimentação registrada hoje
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                activeMovementsView.map((mov) => (
+                                                    <tr key={mov.id}>
+                                                        <td>
+                                                            {formatDateTime(mov.createdAt).split(' ')[1]}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${mov.type === 'supply'
+                                                                ? 'bg-emerald-500/10 text-emerald-400'
+                                                                : mov.type === 'bleed'
+                                                                ? 'bg-red-500/10 text-red-400'
+                                                                : 'bg-gray-500/10 text-gray-300'
+                                                                }`}>
+                                                                {mov.type === 'supply' ? 'Suprimento' : mov.type === 'bleed' ? 'Sangria' : mov.type}
+                                                            </span>
+                                                        </td>
+                                                        <td>{mov.description}</td>
+                                                        <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
+                                                            }`}>
+                                                            {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right' }}>
+                                                            {(mov.type === 'supply' || mov.type === 'bleed') && canWrite ? (
+                                                                <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                                                    <Button
+                                                                        variant="secondary"
+                                                                        size="sm"
+                                                                        icon={RotateCcw}
+                                                                        onClick={() => handleRevertMovement(mov)}
+                                                                    >
+                                                                        Estornar
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="danger"
+                                                                        size="sm"
+                                                                        icon={Trash2}
+                                                                        onClick={() => handleDeleteMovement(mov)}
+                                                                    >
+                                                                        Excluir
+                                                                    </Button>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>-</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </Card>
                 </div>
-
-                {canWrite && (
-                    <div>
-                        <Card title="Fechar Caixa" className="border-red-500/20">
+                <div>
+                    <Card title="Resumo de Pagamentos (Dia)">
+                        <div className="p-4 space-y-2">
+                            {paymentsSummaryDay.length === 0 ? (
+                                <div className="text-sm text-gray-400">Sem pagamentos registrados</div>
+                            ) : (
+                                paymentsSummaryDay.map((p, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ padding: '2px 8px', borderRadius: 9999, background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', fontSize: '12px' }}>
+                                                {p.method}
+                                            </span>
+                                            <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>{p.count}x</span>
+                                        </span>
+                                        <span style={{ fontWeight: 700 }}>{formatCurrency(p.amount)}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </Card>
+                    {canWrite && (
+                        <Card title="Fechar Caixa" className="border-red-500/20" style={{ marginTop: 'var(--spacing-md)' }}>
                             <div className="p-4 space-y-4">
                                 <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
                                     <div className="flex items-start gap-3">
@@ -1198,7 +1319,6 @@ const CashRegisterPage = () => {
                                         </div>
                                     </div>
                                 </div>
-
                                 <Input
                                     label="Observações de Fechamento"
                                     value={closingNote}
@@ -1206,7 +1326,6 @@ const CashRegisterPage = () => {
                                     placeholder="Ex: Diferença de R$ 2,00 no caixa..."
                                     textarea
                                 />
-
                                 <Button
                                     variant="danger"
                                     fullWidth
@@ -1218,8 +1337,8 @@ const CashRegisterPage = () => {
                                 </Button>
                             </div>
                         </Card>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             <MovementModal
@@ -1262,7 +1381,8 @@ const CashRegisterPage = () => {
                     <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
                         <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo Financeiro</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Vendas</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSales)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Vendas (líquido)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSalesProductsDay)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Taxas de entrega</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalFeesDay)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>Suprimentos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSupplies)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>Sangrias</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalBleeds)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>Trocos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalChange)}</span>
@@ -1271,7 +1391,7 @@ const CashRegisterPage = () => {
                     <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
                         <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Indicadores do Dia</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Receita</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSales)}</span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>Receita (líquida)</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalSalesProductsDay)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>CMV</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(totalCMVDay)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>Lucro</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(profitDay)}</span>
                             <span style={{ color: 'var(--color-text-secondary)' }}>Margem</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{(marginDay * 100).toFixed(1)}%</span>

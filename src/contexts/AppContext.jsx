@@ -38,8 +38,7 @@ export const AppProvider = ({ children }) => {
         try {
             setLoading(true);
 
-            // Load current cash register
-            const cashRegister = await cashRegisterService.getCurrent();
+            const cashRegister = await cashRegisterService.getCurrentForTerminal();
             setCurrentCashRegister(cashRegister);
 
             // Load settings
@@ -147,8 +146,7 @@ export const AppProvider = ({ children }) => {
                 createdBy
             });
 
-            // Reload cash register to update expected balance
-            const updated = await cashRegisterService.getCurrent();
+            const updated = await cashRegisterService.getCurrentForTerminal();
             setCurrentCashRegister(updated);
 
             showNotification('Movimento registrado com sucesso', 'success');

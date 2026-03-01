@@ -211,7 +211,7 @@ const Navbar = ({ onMenuClick }) => {
                                 alignItems: 'center',
                                 display: 'inline-flex'
                             }}
-                            onClick={() => navigate('/tables')}
+                                onClick={() => navigate('/mesas')}
                         >
                             Mesas
                         </Button>
@@ -269,7 +269,7 @@ const Navbar = ({ onMenuClick }) => {
                                 alignItems: 'center',
                                 display: 'inline-flex'
                             }}
-                            onClick={() => navigate('/cash-register')}
+                                onClick={() => navigate('/caixa')}
                         >
                             {isMobile ? 'Caixa' : 'Caixa Aberto'}
                         </Button>
@@ -286,7 +286,7 @@ const Navbar = ({ onMenuClick }) => {
                                 alignItems: 'center',
                                 display: 'inline-flex'
                             }}
-                            onClick={() => navigate('/cash-register')}
+                                onClick={() => navigate('/caixa')}
                         >
                             {isMobile ? 'Caixa' : 'Caixa Fechado'}
                         </Button>

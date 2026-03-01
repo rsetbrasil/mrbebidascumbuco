@@ -116,6 +116,80 @@ const TablesPage = () => {
         return `${hours}h${remainMins > 0 ? ` ${remainMins}min` : ''}`;
     };
 
+    const handleViewTable = (table) => {
+        setViewTable(table);
+        setViewModalOpen(true);
+    };
+
+    const handleAddItems = (table) => {
+        try {
+            loadTable(table);
+            navigate('/vendas');
+        } catch (e) {
+            setNotification({ type: 'error', message: 'Erro ao carregar itens da mesa' });
+        }
+    };
+
+    const handleCloseTable = async (table) => {
+        if (!table?.id) return;
+        if (!window.confirm('Fechar esta mesa?')) return;
+        try {
+            await tablesService.close(table.id, null);
+            appNotify('Mesa fechada com sucesso', 'success');
+        } catch (e) {
+            console.error(e);
+            setNotification({ type: 'error', message: 'Erro ao fechar mesa' });
+        }
+    };
+
+    const handleCancelTable = async (table) => {
+        if (!table?.id) return;
+        if (!window.confirm('Cancelar/Excluir esta mesa?')) return;
+        try {
+            await tablesService.delete(table.id);
+            appNotify('Mesa excluída', 'success');
+        } catch (e) {
+            console.error(e);
+            setNotification({ type: 'error', message: 'Erro ao excluir mesa' });
+        }
+    };
+
+    const handleCreateTable = async () => {
+        if (creating) return;
+        const name = (newTableName || '').trim();
+        if (!name) {
+            setNotification({ type: 'warning', message: 'Informe o nome do cliente' });
+            return;
+        }
+        try {
+            setCreating(true);
+            const created = await tablesService.create({
+                customerName: name,
+                items: [],
+                subtotal: 0,
+                productsTotal: 0,
+                deliveryFeeMode: 'none',
+                deliveryFeeRateId: null,
+                deliveryFeeDescription: '',
+                deliveryFeeValue: 0,
+                total: 0,
+                notes: ''
+            });
+            setNewTableModalOpen(false);
+            setNewTableName('');
+            appNotify('Mesa aberta com sucesso', 'success');
+            const tableObj = created?.id ? { ...created, id: created.id } : created;
+            if (tableObj) {
+                handleAddItems(tableObj);
+            }
+        } catch (e) {
+            console.error(e);
+            setNotification({ type: 'error', message: 'Erro ao abrir mesa' });
+        } finally {
+            setCreating(false);
+        }
+    };
+
     if (loading && !tables.length) return <Loading fullScreen />;
 
     return (

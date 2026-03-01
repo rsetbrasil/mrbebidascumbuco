@@ -46,6 +46,37 @@ export const TABLE_STATUS = {
     CLOSED: 'closed'
 };
 
+export const getTerminalId = () => {
+    try {
+        const key = 'pdv_terminal_id';
+        let id = localStorage.getItem(key);
+        if (!id) {
+            const base = typeof navigator !== 'undefined' ? (navigator.userAgent || 'web') : 'srv';
+            const seed = Math.random().toString(36).slice(2, 9);
+            id = `${base.slice(0, 8)}-${seed}-${Date.now().toString(36)}`;
+            localStorage.setItem(key, id);
+        }
+        return id;
+    } catch {
+        return 'default-terminal';
+    }
+};
+
+export const pickActiveRegisterForTerminal = (list, terminalId) => {
+    const arr = Array.isArray(list) ? list : [];
+    const tid = String(terminalId || '');
+    const onlyOpen = arr.filter(r => (r && r.status) === 'open');
+    const byOpenedDesc = (a, b) => {
+        const av = (a?.openedAt && a.openedAt.toMillis) ? a.openedAt.toMillis() : new Date(a?.openedAt || 0).getTime();
+        const bv = (b?.openedAt && b.openedAt.toMillis) ? b.openedAt.toMillis() : new Date(b?.openedAt || 0).getTime();
+        return bv - av;
+    };
+    const forThis = onlyOpen.filter(r => String(r?.terminalId || '') === tid);
+    if (forThis.length > 0) return forThis.sort(byOpenedDesc)[0] || null;
+    if (onlyOpen.length === 0) return null;
+    return onlyOpen.sort(byOpenedDesc)[0] || null;
+};
+
 // Mock Data Store
 const mockStore = {
     products: [
@@ -924,8 +955,10 @@ export const tablesService = {
 // Cash Register operations
 export const cashRegisterService = {
     async open(data) {
+        const terminalId = data?.terminalId || (typeof window !== 'undefined' ? getTerminalId() : undefined);
         return firestoreService.create(COLLECTIONS.CASH_REGISTER, {
             ...data,
+            terminalId,
             status: 'open',
             openedAt: isDemoMode ? new Date() : Timestamp.now()
         });
@@ -965,6 +998,36 @@ export const cashRegisterService = {
             1
         );
         return results[0] || null;
+    },
+
+    async getCurrentForTerminal(terminalId = (typeof window !== 'undefined' ? getTerminalId() : null)) {
+        if (isDemoMode) {
+            const open = (mockStore.cashRegister || []).filter(r => r && r.status === 'open');
+            return pickActiveRegisterForTerminal(open, terminalId);
+        }
+        try {
+            if (terminalId) {
+                const byTid = await firestoreService.query(
+                    COLLECTIONS.CASH_REGISTER,
+                    [
+                        { field: 'status', operator: '==', value: 'open' },
+                        { field: 'terminalId', operator: '==', value: terminalId }
+                    ],
+                    'openedAt',
+                    'desc',
+                    1
+                );
+                if (byTid && byTid.length > 0) return byTid[0];
+            }
+        } catch {}
+        const fallback = await firestoreService.query(
+            COLLECTIONS.CASH_REGISTER,
+            [{ field: 'status', operator: '==', value: 'open' }],
+            'openedAt',
+            'desc',
+            1
+        );
+        return fallback[0] || null;
     },
 
     async getByDateRange(startDate, endDate) {

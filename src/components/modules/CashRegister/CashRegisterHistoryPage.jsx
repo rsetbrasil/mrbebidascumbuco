@@ -122,23 +122,34 @@ const CashRegisterHistoryPage = () => {
             const totalChange = (movements || [])
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+            // Para fins de caixa/profit, taxas de entrega não entram como receita
+            const totalDeliveryFees = validSales.reduce((sum, s) => sum + Number(s.deliveryFeeValue || 0), 0);
+            const totalSalesProducts = validSales.reduce((sum, s) => {
+                const fee = Number(s.deliveryFeeValue || 0);
+                const products = s.productsTotal !== undefined ? Number(s.productsTotal || 0) : (Number(s.total || 0) - fee);
+                return sum + Math.max(0, products);
+            }, 0);
+            const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
             const totalCost = validSales.reduce((sum, s) => {
                 const items = Array.isArray(s.items) ? s.items : [];
                 const cost = items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
                 return sum + cost;
             }, 0);
-            const totalProfit = Math.max(0, totalSales - totalCost);
+            const totalProfit = totalSalesProducts - totalCost;
             const profitCalc = (() => {
                 let atacado = 0;
                 let mercearia = 0;
                 for (const sale of validSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
+                    const gross = Number(sale.total || 0);
+                    const fee = Number(sale.deliveryFeeValue || 0);
+                    const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
+                    const factor = gross > 0 ? (net / gross) : 1; // distribui desconto de venda proporcionalmente
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
-                        const lucroItem = (unitPrice - unitCost) * qty;
+                        const lucroItem = ((unitPrice - unitCost) * qty) * factor;
                         if (item.isWholesale === true) {
                             atacado += lucroItem;
                         } else {
@@ -154,7 +165,7 @@ const CashRegisterHistoryPage = () => {
                 closedAt: register.closedAt,
                 closedBy: register.closedBy || 'Admin',
                 openingBalance: register.openingBalance,
-                totalSales,
+                totalSales: totalSalesProducts,
                 totalCost,
                 totalProfit,
                 totalSupplies,
