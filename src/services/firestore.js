@@ -343,7 +343,7 @@ export const firestoreService = {
     },
 
     // Real-time listener
-    subscribe(collectionName, callback, conditions = []) {
+    subscribe(collectionName, callback, conditions = [], orderByField = null, orderDirection = 'desc', limitCount = null) {
         if (isDemoMode) {
             const data = mockStore[collectionName] || [];
             callback([...data]);
@@ -363,6 +363,14 @@ export const firestoreService = {
         conditions.forEach(condition => {
             q = query(q, where(condition.field, condition.operator, condition.value));
         });
+
+        if (orderByField) {
+            q = query(q, orderBy(orderByField, orderDirection));
+        }
+
+        if (limitCount) {
+            q = query(q, limit(limitCount));
+        }
 
         return onSnapshot(
             q,
@@ -806,7 +814,14 @@ export const presalesService = {
     },
 
     subscribeAll(callback) {
-        return firestoreService.subscribe(COLLECTIONS.PRESALES, callback, []);
+        return firestoreService.subscribe(
+            COLLECTIONS.PRESALES,
+            callback,
+            [],
+            'createdAt',
+            'desc',
+            300
+        );
     },
     async recomputeReservations() {
         const pendingReserved = await firestoreService.query(
