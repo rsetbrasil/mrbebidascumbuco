@@ -25,6 +25,7 @@ const localDemo = typeof window !== 'undefined' && (() => {
 })();
 const forceDemo = (import.meta.env.VITE_USE_DEMO === 'true') || localDemo;
 const enableAnonAuth = import.meta.env.VITE_ENABLE_ANON_AUTH === 'true';
+const enableAnalytics = import.meta.env.VITE_ENABLE_ANALYTICS === 'true';
 
 export const isDemoMode = forceDemo || !isConfigured;
 
@@ -69,7 +70,7 @@ if (isConfigured && !isDemoMode) {
         if (enableAnonAuth) {
             signInAnonymously(auth).catch(() => {});
         }
-        if (import.meta.env.PROD && firebaseConfig.measurementId && !isLocalhost) {
+        if (import.meta.env.PROD && enableAnalytics && firebaseConfig.measurementId && !isLocalhost) {
             isSupported()
                 .then((supported) => {
                     if (supported) {
