@@ -15,7 +15,15 @@
   <div id="root"></div>
   <script>
     (function(){
-      var patterns=['google.firestore.v1.Firestore/Listen','google.firestore.v1.Firestore/Write','net::ERR_ABORTED','firestore.googleapis.com'];
+      var patterns=[
+        'google.firestore.v1.Firestore/Listen',
+        'google.firestore.v1.Firestore/Write',
+        'firestore.googleapis.com',
+        'googletagmanager.com',
+        'google-analytics.com',
+        'net::ERR_ABORTED',
+        'net::ERR_BLOCKED_BY_CLIENT'
+      ];
       function suppress(args){
         try{ return Array.prototype.some.call(args,function(a){return patterns.some(function(p){return String(a).indexOf(p)!==-1;});}); }catch(e){ return false; }
       }

@@ -27,7 +27,14 @@ import QuickSummaryPage from './components/modules/Financial/QuickSummaryPage';
 
 
 if (typeof window !== 'undefined') {
-  const patterns = ['google.firestore.v1.Firestore/Listen', 'net::ERR_ABORTED', 'firestore.googleapis.com'];
+  const patterns = [
+    'google.firestore.v1.Firestore/Listen',
+    'firestore.googleapis.com',
+    'net::ERR_ABORTED',
+    'net::ERR_BLOCKED_BY_CLIENT',
+    'google-analytics.com',
+    'googletagmanager.com'
+  ];
   const shouldSuppress = (args) => {
     try {
       return args.some(a => patterns.some(p => String(a).includes(p)));
