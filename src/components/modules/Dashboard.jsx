@@ -296,30 +296,6 @@ const Dashboard = () => {
                         </div>
                     </div>
                 </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                Status do Caixa
-                            </p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {currentCashRegister ? 'Aberto' : 'Fechado'}
-                            </h2>
-                        </div>
-                        <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: 'var(--radius-lg)',
-                            background: currentCashRegister ? 'var(--color-success)' : 'var(--color-danger)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <DollarSign size={30} color="white" />
-                        </div>
-                    </div>
-                </Card>
             </div>
 
             {/* Quick Actions */}
