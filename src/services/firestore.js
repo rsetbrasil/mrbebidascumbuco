@@ -814,14 +814,39 @@ export const presalesService = {
     },
 
     subscribeAll(callback) {
-        return firestoreService.subscribe(
+        let allRecent = [];
+        let allPending = [];
+        let recentReady = false;
+        let pendingReady = false;
+
+        const emit = () => {
+            if (recentReady && pendingReady) {
+                const map = new Map();
+                allRecent.forEach(p => map.set(p.id, p));
+                allPending.forEach(p => map.set(p.id, p));
+                callback(Array.from(map.values()));
+            }
+        };
+
+        const unsubRecent = firestoreService.subscribe(
             COLLECTIONS.PRESALES,
-            callback,
+            (data) => { allRecent = data; recentReady = true; emit(); },
             [],
             'createdAt',
             'desc',
             300
         );
+
+        const unsubPending = firestoreService.subscribe(
+            COLLECTIONS.PRESALES,
+            (data) => { allPending = data; pendingReady = true; emit(); },
+            [{ field: 'status', operator: '==', value: 'pending' }]
+        );
+
+        return () => {
+            if (typeof unsubRecent === 'function') unsubRecent();
+            if (typeof unsubPending === 'function') unsubPending();
+        };
     },
     async recomputeReservations() {
         const pendingReserved = await firestoreService.query(
