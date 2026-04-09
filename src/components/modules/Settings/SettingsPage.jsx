@@ -206,7 +206,7 @@ const SettingsPage = () => {
             <form onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Receipt Settings */}
-                    <Card title="Cupom Fiscal" icon={Printer}>
+                    <Card title="Cupom Fiscal" icon={Printer} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <Input
                                 label="Cabeçalho do Cupom"
@@ -232,7 +232,7 @@ const SettingsPage = () => {
                     </Card>
 
                     {/* Company Info */}
-                    <Card title="Dados da Empresa" icon={Building}>
+                    <Card title="Dados da Empresa" icon={Building} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <Input
                                 label="Logo (URL)"
@@ -288,7 +288,7 @@ const SettingsPage = () => {
                     </Card>
 
                     {/* Taxas de Cartão */}
-                    <Card title="Taxas de Pagamento" icon={CreditCard}>
+                    <Card title="Taxas de Pagamento" icon={CreditCard} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
@@ -316,7 +316,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
-                    <Card title="Caixa" icon={Settings}>
+                    <Card title="Caixa" icon={Settings} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Input
@@ -333,7 +333,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
-                    <Card title="Estoque" icon={Settings}>
+                    <Card title="Estoque" icon={Settings} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <label className="flex items-center gap-2">
                                 <input
@@ -374,7 +374,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
-                    <Card title="Menu" icon={Settings}>
+                    <Card title="Menu" icon={Settings} collapsible defaultExpanded={false}>
                         <div className="space-y-2 p-4">
                             {Array.isArray(settings.menu) && settings.menu.map((item, idx) => (
                                 <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -392,7 +392,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
-                    <Card title="Desenvolvimento" icon={AlertTriangle}>
+                    <Card title="Desenvolvimento" icon={AlertTriangle} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <input
@@ -414,7 +414,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
 
-                    <Card title="Produtos: Importação/Exportação" icon={Settings}>
+                    <Card title="Produtos: Importação/Exportação" icon={Settings} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Button
@@ -489,7 +489,7 @@ const SettingsPage = () => {
                     </Card>
 
                     {/* Danger Zone */}
-                    <Card title="Zona de Perigo" icon={AlertTriangle} className="border-red-900/50">
+                    <Card title="Zona de Perigo" icon={AlertTriangle} collapsible defaultExpanded={false} className="border-red-900/50">
                         <div className="space-y-4 p-4">
                             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                                 <h3 className="text-red-400 font-medium mb-2">Excluir Produtos</h3>
@@ -542,7 +542,7 @@ const SettingsPage = () => {
                         </div>
                     </Card>
                     {/* Backup & Data */}
-                    <Card title="Backup & Dados" icon={Save}>
+                    <Card title="Backup & Dados" icon={Save} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <p className="text-gray-400 text-sm">
                                 Faça o download de todos os dados do sistema (produtos, clientes, vendas, etc.) para sua segurança.

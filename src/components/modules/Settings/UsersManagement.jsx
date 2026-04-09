@@ -118,7 +118,7 @@ const UsersManagement = () => {
     };
 
     return (
-        <Card title="Gerenciamento de Usuários" icon={Users}>
+        <Card title="Gerenciamento de Usuários" icon={Users} collapsible defaultExpanded={false}>
             {notification && (
                 <Notification
                     type={notification.type}

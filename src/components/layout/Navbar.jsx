@@ -117,7 +117,9 @@ const Navbar = ({ onMenuClick }) => {
         <nav style={{
             background: 'var(--color-bg-secondary)',
             borderBottom: '1px solid var(--color-border)',
-            padding: 'var(--spacing-md)',
+            height: '72px',
+            display: 'flex',
+            alignItems: 'center',
             position: 'sticky',
             top: 0,
             zIndex: 100,
@@ -127,6 +129,7 @@ const Navbar = ({ onMenuClick }) => {
                 display: 'grid',
                 gridTemplateColumns: isMobile ? 'auto 1fr auto' : '1fr auto 1fr',
                 alignItems: 'center',
+                width: '100%',
                 maxWidth: '1400px',
                 margin: '0 auto',
                 padding: isMobile ? '0 var(--spacing-md)' : '0 var(--spacing-xl)'

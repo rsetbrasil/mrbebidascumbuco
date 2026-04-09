@@ -24,6 +24,7 @@ import LoginPage from './components/modules/Auth/LoginPage';
 import DeliveryFeesPage from './components/modules/DeliveryFees/DeliveryFeesPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import QuickSummaryPage from './components/modules/Financial/QuickSummaryPage';
+import InternalConsumptionPage from './components/modules/InternalConsumption/InternalConsumptionPage';
 
 
 if (typeof window !== 'undefined') {
@@ -113,6 +114,7 @@ function App() {
                 <Route path="/cash-register" element={<Navigate to="/caixa" replace />} />
                 <Route path="/financeiro" element={<PrivateRoute><FinancialPage /></PrivateRoute>} />
                 <Route path="/financial" element={<Navigate to="/financeiro" replace />} />
+                <Route path="/consumo-interno" element={<PrivateRoute><InternalConsumptionPage /></PrivateRoute>} />
                 <Route path="/resumo" element={<PrivateRoute><QuickSummaryPage /></PrivateRoute>} />
                 <Route path="/quick-summary" element={<Navigate to="/resumo" replace />} />
                 <Route path="/produtos" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />

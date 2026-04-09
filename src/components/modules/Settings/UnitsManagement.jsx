@@ -113,7 +113,7 @@ const UnitsManagement = () => {
     };
 
     return (
-        <Card title="Gerenciamento de Unidades" icon={Ruler}>
+        <Card title="Gerenciamento de Unidades" icon={Ruler} collapsible defaultExpanded={false}>
             {notification && (
                 <Notification
                     type={notification.type}

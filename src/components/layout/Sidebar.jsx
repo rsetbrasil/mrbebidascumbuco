@@ -30,6 +30,7 @@ const Sidebar = ({ onClose }) => {
         presales: { path: '/pre-vendas', icon: ClipboardList, label: 'Pré-vendas' },
         tables: { path: '/mesas', icon: Coffee, label: 'Mesas' },
         quickSummary: { path: '/resumo', icon: PieChart, label: 'Resumo' },
+        internalConsumption: { path: '/consumo-interno', icon: Package, label: 'Consumo Interno', restricted: true },
         financial: { path: '/financeiro', icon: BarChart3, label: 'Financeiro', restricted: true },
         cashRegister: { path: '/caixa', icon: Wallet, label: 'Caixa', restricted: true },
         cashAudit: { path: '/auditoria-caixa', icon: ClipboardList, label: 'Auditoria de Caixa', restricted: true },
@@ -54,6 +55,7 @@ const Sidebar = ({ onClose }) => {
         'presales',
         'tables',
         'quickSummary',
+        'internalConsumption',
         'financial',
         'cashRegister',
         'cashAudit',
@@ -82,6 +84,9 @@ const Sidebar = ({ onClose }) => {
         return false;
     });
 
+    const settingsItem = filteredItems.find(i => i.key === 'settings');
+    const navItems = filteredItems.filter(i => i.key !== 'settings');
+
     const handleNavClick = () => {
         if (onClose) onClose();
     };
@@ -100,8 +105,11 @@ const Sidebar = ({ onClose }) => {
         }}>
             {/* Logo/Brand */}
             <div style={{
-                padding: 'var(--spacing-xl)',
+                height: '72px',
+                padding: '0 var(--spacing-xl)',
                 borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
                 flexShrink: 0
             }}>
                 <h2 style={{
@@ -126,7 +134,7 @@ const Sidebar = ({ onClose }) => {
                 overflowY: 'auto',
                 minHeight: 0
             }}>
-                {filteredItems.map((item) => (
+                {navItems.map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
@@ -169,6 +177,39 @@ const Sidebar = ({ onClose }) => {
                 gap: 'var(--spacing-sm)',
                 flexShrink: 0
             }}>
+                {settingsItem && (
+                    <NavLink
+                        to={settingsItem.path}
+                        onClick={handleNavClick}
+                        style={({ isActive }) => ({
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 'var(--spacing-md)',
+                            padding: 'var(--spacing-md)',
+                            borderRadius: 'var(--radius-md)',
+                            color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                            background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                            textDecoration: 'none',
+                            transition: 'all var(--transition-fast)',
+                            fontWeight: isActive ? 600 : 500,
+                            marginBottom: 'var(--spacing-xs)'
+                        })}
+                        onMouseEnter={(e) => {
+                            if (!e.currentTarget.getAttribute('aria-current')) {
+                                e.currentTarget.style.background = 'var(--color-bg-hover)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (!e.currentTarget.getAttribute('aria-current')) {
+                                e.currentTarget.style.background = 'transparent';
+                            }
+                        }}
+                    >
+                        <settingsItem.icon size={20} />
+                        <span>{settingsItem.label}</span>
+                    </NavLink>
+                )}
+
                 <button
                     onClick={toggleTheme}
                     style={{
