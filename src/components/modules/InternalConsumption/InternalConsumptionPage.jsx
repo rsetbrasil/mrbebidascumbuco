@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, FileText } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, FileText, Clock, ArrowLeft, Printer, CreditCard, Edit } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -7,11 +7,16 @@ import Modal from '../../common/Modal';
 import { useApp } from '../../../contexts/AppContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { productService, stockService, firestoreService, COLLECTIONS } from '../../../services/firestore';
-import { formatCurrency } from '../../../utils/formatters';
+import { formatCurrency, formatDateTime } from '../../../utils/formatters';
+import { printReceipt } from '../../../utils/receiptPrinter';
 
 const InternalConsumptionPage = () => {
-    const { showNotification, currentCashRegister } = useApp();
+    const { showNotification, currentCashRegister, settings } = useApp();
     const { user, canWrite } = useAuth();
+
+    const [view, setView] = useState('register'); // 'register' | 'history'
+    const [history, setHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
@@ -142,10 +147,46 @@ const InternalConsumptionPage = () => {
             // Process CMV and Deduct Stock
             let cmvTotal = 0;
             try {
+                if (editingId) {
+                    // Fetch old record to restore stock
+                    const oldRecord = await firestoreService.getById('internalConsumptions', editingId);
+                    if (oldRecord && oldRecord.items) {
+                        for (const it of oldRecord.items) {
+                            const prod = await firestoreService.getById(COLLECTIONS.PRODUCTS, it.productId);
+                            if (prod) {
+                                const payload = {};
+                                if (it.isCold) {
+                                    payload.coldStock = Number(prod.coldStock || 0) + Number(it.quantity);
+                                } else {
+                                    payload.stock = Number(prod.stock || 0) + Number(it.quantity);
+                                }
+                                await firestoreService.update(COLLECTIONS.PRODUCTS, prod.id, payload);
+                            }
+                        }
+                    }
+                }
                 const cmv = await stockService.consumeForItems(items);
                 cmvTotal = Number(cmv.cmvTotal || 0);
+
+                // Deduct actual product stock
+                for (const it of items) {
+                    const prod = await firestoreService.getById(COLLECTIONS.PRODUCTS, it.productId);
+                    if (prod) {
+                        const payload = {};
+                        if (it.isCold) {
+                            payload.coldStock = Math.max(0, Number(prod.coldStock || 0) - Number(it.quantity));
+                        } else {
+                            payload.stock = Math.max(0, Number(prod.stock || 0) - Number(it.quantity));
+                        }
+                        await firestoreService.update(COLLECTIONS.PRODUCTS, prod.id, payload);
+                    }
+                }
+
+                // Refresh product list in UI
+                loadProducts();
+
             } catch (err) {
-                console.error("Erro ao calcular CMV:", err);
+                console.error("Erro ao calcular CMV / atualizar estoque:", err);
             }
 
             const consumptionData = {
@@ -161,16 +202,25 @@ const InternalConsumptionPage = () => {
                 totalCost: cmvTotal,
                 notes: noteInput,
                 createdBy: user?.name || 'Operador',
-                createdAt: new Date()
+                status: 'unpaid',
+                updatedAt: new Date()
             };
 
-            await firestoreService.create('internalConsumptions', consumptionData);
-
-            // Optionally register as an expense in cash movements if we want it to reflect in cash balance
-            // Not doing it unless requested, as internal consumption is usually just a stock reduction
+            if (editingId) {
+                await firestoreService.update('internalConsumptions', editingId, consumptionData);
+                showNotification('Consumo interno atualizado com sucesso!', 'success');
+            } else {
+                consumptionData.createdAt = new Date();
+                const newDoc = await firestoreService.create('internalConsumptions', consumptionData);
+                
+                // Auto print receipt for new consumptions
+                printConsumption({ id: newDoc.id, ...consumptionData });
+                showNotification('Consumo interno registrado com sucesso!', 'success');
+            }
 
             setItems([]);
-            showNotification('Consumo interno registrado com sucesso!', 'success');
+            setEditingId(null);
+            setNoteInput('');
         } catch (error) {
             console.error('Error saving internal consumption:', error);
             showNotification('Erro ao registrar consumo', 'error');
@@ -179,16 +229,335 @@ const InternalConsumptionPage = () => {
         }
     };
 
+    // Payment Modal State
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [recordToPay, setRecordToPay] = useState(null);
+    const [paymentMethod, setPaymentMethod] = useState('money');
+    const [amountReceived, setAmountReceived] = useState('');
+
+    // Editing state
+    const [editingId, setEditingId] = useState(null);
+
+    const loadHistory = async () => {
+        setLoadingHistory(true);
+        try {
+            const data = await firestoreService.query('internalConsumptions', [], 'createdAt', 'desc', 50);
+            setHistory(data);
+        } catch (error) {
+            console.error('Erro ao carregar histórico:', error);
+            showNotification('Erro ao carregar histórico de consumo', 'error');
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const handleViewHistory = () => {
+        loadHistory();
+        setView('history');
+    };
+
+    const handleEdit = (record) => {
+        if (record.status === 'paid') {
+            showNotification('Não é possível editar um consumo já pago.', 'warning');
+            return;
+        }
+        setItems(record.items || []);
+        setNoteInput(record.notes || '');
+        setEditingId(record.id);
+        setView('register');
+    };
+
+    const handlePay = (record) => {
+        if (!currentCashRegister) {
+            showNotification('O caixa precisa estar aberto para registrar pagamentos', 'warning');
+            return;
+        }
+        setRecordToPay(record);
+        setPaymentMethod('money');
+        setAmountReceived('');
+        setPaymentModalOpen(true);
+    };
+
+    const formatDisplayCurrency = (val) => {
+        if (!val) return '';
+        const numberStr = val.toString().padStart(3, '0');
+        const wholePart = numberStr.slice(0, -2);
+        const decimalPart = numberStr.slice(-2);
+        
+        // Add thousands separators
+        const formattedWholePart = wholePart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        
+        return `${formattedWholePart},${decimalPart}`;
+    };
+
+    const handleAmountReceivedChange = (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (!value) {
+            setAmountReceived('');
+            return;
+        }
+        setAmountReceived(value); // Store the raw string of digits
+    };
+
+    const confirmPayment = async () => {
+        if (!recordToPay) return;
+        try {
+            setProcessing(true);
+            
+            const totalToPay = Number(recordToPay.totalCost || 0);
+            let change = 0;
+            let numericReceived = totalToPay;
+
+            if (paymentMethod === 'money') {
+                numericReceived = parseFloat(amountReceived) / 100;
+                if (!isNaN(numericReceived) && numericReceived > totalToPay) {
+                    change = numericReceived - totalToPay;
+                }
+            }
+
+            // Register cash movement
+            await firestoreService.create('cashMovements', {
+                cashRegisterId: currentCashRegister.id,
+                type: 'inflow',
+                amount: totalToPay,
+                description: `Pagamento de Consumo Interno #${recordToPay.id.substring(0, 6)}`,
+                paymentMethod: paymentMethod,
+                timestamp: new Date()
+            });
+
+            // Register change if any
+            if (change > 0) {
+                await firestoreService.create('cashMovements', {
+                    cashRegisterId: currentCashRegister.id,
+                    type: 'change',
+                    amount: change,
+                    description: `Troco Pag. Consumo #${recordToPay.id.substring(0, 6)}`,
+                    paymentMethod: 'money',
+                    timestamp: new Date()
+                });
+            }
+
+            // Update consumption record
+            await firestoreService.update('internalConsumptions', recordToPay.id, {
+                status: 'paid',
+                paymentMethod: paymentMethod,
+                amountReceived: numericReceived,
+                change: change,
+                paidAt: new Date()
+            });
+
+            showNotification('Pagamento registrado com sucesso!', 'success');
+            setPaymentModalOpen(false);
+            loadHistory();
+        } catch (err) {
+            console.error('Error paying:', err);
+            showNotification('Erro ao registrar pagamento', 'error');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const printConsumption = (record) => {
+        const fakeSale = {
+            id: record.id,
+            receiptTitle: 'CONSUMO INTERNO',
+            saleNumber: `CONS-${record.id.substring(0, 6).toUpperCase()}`,
+            createdAt: record.createdAt,
+            total: record.totalCost,
+            discount: 0,
+            paymentMethod: record.paymentMethod || '-',
+            customerName: 'MR Bebidas',
+            notes: record.notes || 'Sem motivo registrado',
+            items: (record.items || []).map(it => ({
+                productName: it.productName,
+                quantity: it.quantity,
+                unitPrice: it.unitCost,
+                total: it.totalCost
+            }))
+        };
+        printReceipt(fakeSale, settings);
+    };
+
     const totalCost = items.reduce((sum, it) => sum + it.totalCost, 0);
+
+    if (view === 'history') {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)', height: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-xs)' }}>Histórico de Consumo Interno</h1>
+                        <p style={{ color: 'var(--color-text-secondary)' }}>Últimos registros de retirada de estoque para consumo.</p>
+                    </div>
+                    <Button variant="secondary" onClick={() => setView('register')} icon={<ArrowLeft size={18} />}>
+                        Voltar para Registro
+                    </Button>
+                </div>
+
+                <Card>
+                    {loadingHistory ? (
+                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Carregando histórico...</div>
+                    ) : history.length === 0 ? (
+                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Nenhum consumo registrado ainda.</div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
+                                        <th style={{ padding: 'var(--spacing-sm)' }}>Data/Hora</th>
+                                        <th style={{ padding: 'var(--spacing-sm)' }}>Operador</th>
+                                        <th style={{ padding: 'var(--spacing-sm)' }}>Itens</th>
+                                        <th style={{ padding: 'var(--spacing-sm)' }}>Motivo/Obs</th>
+                                        <th style={{ padding: 'var(--spacing-sm)' }}>Status</th>
+                                        <th style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>Custo Total</th>
+                                        <th style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.map(record => (
+                                        <tr key={record.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                            <td style={{ padding: 'var(--spacing-sm)' }}>{formatDateTime(record.createdAt)}</td>
+                                            <td style={{ padding: 'var(--spacing-sm)' }}>{record.createdBy || '-'}</td>
+                                            <td style={{ padding: 'var(--spacing-sm)' }}>
+                                                {Array.isArray(record.items) ? record.items.map(it => (
+                                                    <div key={it.productId} style={{ fontSize: 'var(--font-size-xs)' }}>
+                                                        {it.quantity}x {it.productName}
+                                                    </div>
+                                                )) : '-'}
+                                            </td>
+                                            <td style={{ padding: 'var(--spacing-sm)', color: 'var(--color-text-secondary)' }}>{record.notes || '-'}</td>
+                                            <td style={{ padding: 'var(--spacing-sm)' }}>
+                                                <span style={{ 
+                                                    padding: '2px 8px', 
+                                                    borderRadius: '12px', 
+                                                    fontSize: 'var(--font-size-xs)',
+                                                    fontWeight: 600,
+                                                    background: record.status === 'paid' ? 'var(--color-success)' : 'var(--color-warning)',
+                                                    color: 'white'
+                                                }}>
+                                                    {record.status === 'paid' ? 'Pago' : 'Pendente'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: 'var(--spacing-sm)', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(record.totalCost || 0)}</td>
+                                            <td style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                                    {record.status !== 'paid' && (
+                                                        <>
+                                                            <Button variant="primary" size="sm" onClick={() => handlePay(record)} title="Pagar">
+                                                                <CreditCard size={14} /> Pagar
+                                                            </Button>
+                                                            <Button variant="secondary" size="sm" onClick={() => handleEdit(record)} title="Editar">
+                                                                <Edit size={14} />
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                    <Button variant="secondary" size="sm" onClick={() => printConsumption(record)} title="Imprimir Comprovante">
+                                                        <Printer size={14} />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+
+                {/* Payment Modal */}
+                <Modal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Pagar Consumo Interno" size="sm">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <p>Total a pagar: <strong>{formatCurrency(recordToPay?.totalCost || 0)}</strong></p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)' }}>
+                            <label style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>Forma de Pagamento</label>
+                            <select 
+                                value={paymentMethod} 
+                                onChange={(e) => {
+                                    setPaymentMethod(e.target.value);
+                                    if (e.target.value !== 'money') setAmountReceived('');
+                                }}
+                                style={{
+                                    padding: 'var(--spacing-md)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: '1px solid var(--color-border)',
+                                    background: 'var(--color-bg-primary)',
+                                    color: 'var(--color-text-primary)'
+                                }}
+                            >
+                                <option value="money">Dinheiro</option>
+                                <option value="credit">Cartão de Crédito</option>
+                                <option value="debit">Cartão de Débito</option>
+                                <option value="pix">PIX</option>
+                            </select>
+                        </div>
+                        
+                        {paymentMethod === 'money' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                                <Input
+                                    label="Valor Recebido (R$)"
+                                    type="text"
+                                    value={amountReceived ? formatDisplayCurrency(amountReceived) : ''}
+                                    onChange={handleAmountReceivedChange}
+                                    placeholder="Ex: 50,00"
+                                    onKeyDown={(e) => { if (e.key === 'Enter') confirmPayment(); }}
+                                />
+                                {(() => {
+                                    const received = parseFloat(amountReceived) / 100;
+                                    const total = recordToPay?.totalCost || 0;
+                                    if (!isNaN(received) && received > total) {
+                                        return (
+                                            <div style={{ 
+                                                padding: 'var(--spacing-sm)', 
+                                                background: 'var(--color-bg-hover)', 
+                                                borderRadius: 'var(--radius-md)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center'
+                                            }}>
+                                                <span style={{ fontWeight: 600 }}>Troco:</span>
+                                                <span style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: 'var(--font-size-lg)' }}>
+                                                    {formatCurrency(received - total)}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+                            </div>
+                        )}
+
+                        <Button variant="primary" onClick={confirmPayment} disabled={processing} className="w-full justify-center">
+                            {processing ? 'Processando...' : 'Confirmar Pagamento'}
+                        </Button>
+                    </div>
+                </Modal>
+            </div>
+        );
+    }
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)', height: '100%' }}>
-            <div>
-                <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-xs)' }}>Consumo Interno</h1>
-                <p style={{ color: 'var(--color-text-secondary)' }}>Registre a retirada de produtos para consumo interno (baixa de estoque).</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-xs)' }}>
+                        {editingId ? 'Editando Consumo Interno' : 'Consumo Interno'}
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)' }}>
+                        {editingId ? 'Altere os itens e salve para atualizar o registro.' : 'Registre a retirada de produtos para consumo interno (baixa de estoque).'}
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                    {editingId && (
+                        <Button variant="danger" onClick={() => { setItems([]); setEditingId(null); setNoteInput(''); }}>
+                            Cancelar Edição
+                        </Button>
+                    )}
+                    <Button variant="secondary" onClick={handleViewHistory} icon={<Clock size={18} />}>
+                        Ver Histórico
+                    </Button>
+                </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 'var(--spacing-lg)', alignItems: 'start' }}>
+            <div style={{ display: 'flex', gridTemplateColumns: '1fr 380px', gap: 'var(--spacing-lg)', alignItems: 'start' }} className="grid md:grid-cols-[1fr_380px]">
                 {/* Left Column - Products */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                     <Card title="Buscar Produtos" icon={Search}>
@@ -286,7 +655,7 @@ const InternalConsumptionPage = () => {
                                 onClick={handleFinalize}
                                 disabled={processing || items.length === 0}
                             >
-                                Registrar Consumo
+                                {editingId ? 'Atualizar Consumo' : 'Registrar Consumo'}
                             </Button>
                         </div>
                     </Card>

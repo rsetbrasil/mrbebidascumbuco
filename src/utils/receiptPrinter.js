@@ -254,7 +254,7 @@ export const printReceipt = (sale, settings = {}) => {
         </div>
         
         <div class="text-center receipt-title">
-            CUPOM NÃO FISCAL
+            ${sale.receiptTitle || 'CUPOM NÃO FISCAL'}
         </div>
         
         <div class="mb-2 text-sm">
@@ -262,6 +262,7 @@ export const printReceipt = (sale, settings = {}) => {
             <div class="details-row"><span>Cliente:</span><span>${(sale.customerName || 'Consumidor Final').substring(0, 24)}</span></div>
             <div class="details-row"><span>Data:</span><span>${dateStr}</span></div>
             <div class="details-row"><span>Tipo:</span><span>${saleTypeLabel}</span></div>
+            ${sale.notes ? `<div class="details-row" style="margin-top: 4px; font-style: italic;"><span>Motivo:</span><span>${sale.notes}</span></div>` : ''}
         </div>
         
         <div class="border-b mb-2"></div>
