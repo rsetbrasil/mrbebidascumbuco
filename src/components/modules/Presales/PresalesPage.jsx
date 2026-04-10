@@ -9,6 +9,7 @@ import {
     Clock,
     Printer,
     Edit,
+    RefreshCw,
     Eye
 } from 'lucide-react';
 import Card from '../../common/Card';
@@ -252,12 +253,32 @@ const PresalesPage = () => {
                         </div>
                     )}
                     {canWrite && (
-                        <Button
-                            onClick={() => navigate('/vendas')}
-                            icon={<ShoppingCart size={20} />}
-                        >
-                            Novo Pedido (PDV)
-                        </Button>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                            <Button
+                                onClick={async () => {
+                                    if(!window.confirm('Verificar e corrigir todos os estoques reservados? O sistema irá recalcular as quantidades baseando-se apenas nos pedidos pendentes.')) return;
+                                    try {
+                                        // Usa o Notification component indiretamente
+                                        const res = await presalesService.recomputeReservations();
+                                        alert(`Estoque sincronizado! ${res.updated} produtos corrigidos baseados em ${res.pendingPresales} pré-vendas ativas.`);
+                                        window.location.reload();
+                                    } catch(e) {
+                                        console.error(e);
+                                        alert('Erro ao recalcular estoques.');
+                                    }
+                                }}
+                                variant="secondary"
+                                icon={<RefreshCw size={20} />}
+                            >
+                                Sincronizar Reservas
+                            </Button>
+                            <Button
+                                onClick={() => navigate('/vendas')}
+                                icon={<ShoppingCart size={20} />}
+                            >
+                                Novo Pedido (PDV)
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
