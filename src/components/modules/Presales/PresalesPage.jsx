@@ -258,13 +258,12 @@ const PresalesPage = () => {
                                 onClick={async () => {
                                     if(!window.confirm('Verificar e corrigir todos os estoques reservados? O sistema irá recalcular as quantidades baseando-se apenas nos pedidos pendentes.')) return;
                                     try {
-                                        // Usa o Notification component indiretamente
                                         const res = await presalesService.recomputeReservations();
-                                        alert(`Estoque sincronizado! ${res.updated} produtos corrigidos baseados em ${res.pendingPresales} pré-vendas ativas.`);
-                                        window.location.reload();
+                                        showNotification('success', `Estoque sincronizado! ${res.updated} produtos corrigidos em ${res.pendingPresales} pré-vendas ativas.`);
+                                        loadData();
                                     } catch(e) {
                                         console.error(e);
-                                        alert('Erro ao recalcular estoques.');
+                                        showNotification('error', 'Erro ao recalcular estoques. Tente novamente.');
                                     }
                                 }}
                                 variant="secondary"
