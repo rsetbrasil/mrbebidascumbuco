@@ -102,39 +102,18 @@ const PresalesPage = () => {
         if (!window.confirm('Tem certeza que deseja cancelar este pedido?')) return;
 
         try {
-            const id = presale.id;
-            const getDeduction = (it) => {
-                if (it.stockDeductionPerUnit) return it.stockDeductionPerUnit * (Number(it.quantity) || 0);
-                if (it.unit && it.unit.multiplier) return (Number(it.quantity) || 0) * it.unit.multiplier;
-                return Number(it.quantity) || 0;
-            };
-            const items = presale.items || [];
-            const aggregates = new Map();
-            for (const it of items) {
-                const key = `${it.productId}|${it.isCold ? 'cold' : 'wholesale'}`;
-                const curr = aggregates.get(key) || 0;
-                aggregates.set(key, curr + getDeduction(it));
-            }
-            const ops = [];
-            for (const [key, totalDeduction] of aggregates.entries()) {
-                const [productId, type] = key.split('|');
-                ops.push((async () => {
-                    const product = await productService.getById(productId);
-                    if (!product) return;
-                    if (type === 'cold') {
-                        const currentReserved = Number(product.reservedColdStock || 0);
-                        const newReserved = Math.max(0, currentReserved - totalDeduction);
-                        await productService.update(product.id, { reservedColdStock: newReserved });
-                    } else {
-                        const currentReserved = Number(product.reservedStock || 0);
-                        const newReserved = Math.max(0, currentReserved - totalDeduction);
-                        await productService.update(product.id, { reservedStock: newReserved });
-                    }
-                })());
-            }
-            await Promise.all(ops);
+            // 1. Marca a pré-venda como cancelada e libera a flag de reserva
+            await presalesService.update(presale.id, {
+                status: 'cancelled',
+                reserved: false,
+                cancelledAt: new Date()
+            });
 
-            await presalesService.update(id, { status: 'cancelled', reserved: false, cancelledAt: new Date() });
+            // 2. Recalcula TODAS as reservas do zero com base nas pré-vendas ainda pendentes
+            //    Isso garante que o estoque reservado seja sempre consistente,
+            //    independente de multiplicadores de unidade ou dados inconsistentes.
+            await presalesService.recomputeReservations();
+
             showNotification('success', 'Pedido cancelado com sucesso');
             loadData();
         } catch (error) {

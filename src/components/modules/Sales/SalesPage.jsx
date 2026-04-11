@@ -1008,54 +1008,20 @@ const SalesPage = () => {
             // 7. Atualizar Pré-venda se existir (Baixar reservas)
             if (cartData.presaleId) {
                 try {
-                    const originalPresale = await presalesService.getById(cartData.presaleId).catch(() => null);
-                    
-                    if (originalPresale && originalPresale.reserved) {
-                        const originalDeductionsMap = new Map();
-                        const itemsToRelease = originalPresale.items || [];
-                        
-                        for (const item of itemsToRelease) {
-                            const pid = item.productId || item.id;
-                            if (!pid) continue;
-                            const d = getDeduction(item);
-                            const entry = originalDeductionsMap.get(pid) || { cold: 0, warm: 0 };
-                            const isColdItem = item.isCold !== undefined ? !!item.isCold : (originalPresale.priceType === 'cold');
-                            
-                            if (isColdItem) entry.cold += d; else entry.warm += d;
-                            originalDeductionsMap.set(pid, entry);
-                        }
+                    // Marca a pré-venda como FINALIZADA antes de recalcular
+                    await presalesService.update(cartData.presaleId, {
+                        status: PRESALE_STATUS.COMPLETED,
+                        reserved: false,
+                        closedAt: new Date()
+                    });
 
-                        const reservedUpdates = [];
-                        originalDeductionsMap.forEach((entry, id) => {
-                            const product = localById.get(id) || products.find(p => p.id === id);
-                            if (!product) return;
+                    // Recalcula TODAS as reservas do zero com base nas pré-vendas ainda pendentes.
+                    // Como esta pré-venda já foi marcada como COMPLETED (reserved: false),
+                    // ela será excluída do cálculo e o estoque reservado será liberado corretamente.
+                    await presalesService.recomputeReservations();
 
-                            const payload = {};
-                            if (entry.cold > 0) {
-                                const current = Number(product.reservedColdStock || 0);
-                                const next = Math.max(0, current - entry.cold);
-                                payload.reservedColdStock = next;
-                            }
-                            if (entry.warm > 0) {
-                                const current = Number(product.reservedStock || 0);
-                                const next = Math.max(0, current - entry.warm);
-                                payload.reservedStock = next;
-                            }
-
-                            if (Object.keys(payload).length > 0) {
-                                reservedUpdates.push(
-                                    productService.update(id, payload).then(() => {
-                                        setProducts(prev => prev.map(p => {
-                                            if (p.id !== id) return p;
-                                            return { ...p, ...payload };
-                                        }));
-                                    }).catch(e => console.error(`Erro ao baixar reserva do produto ${id}`, e))
-                                );
-                            }
-                        });
-                        await Promise.all(reservedUpdates);
-                    }
-                    await presalesService.update(cartData.presaleId, { status: PRESALE_STATUS.COMPLETED, reserved: false, closedAt: new Date() });
+                    // Recarrega os produtos para refletir os novos reservedStock no estado local
+                    loadProducts().catch(() => {});
                 } catch (e) {
                     console.error("Erro ao finalizar pré-venda:", e);
                 }
