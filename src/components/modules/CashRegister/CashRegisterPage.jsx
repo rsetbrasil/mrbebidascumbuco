@@ -60,7 +60,39 @@ const CashRegisterPage = () => {
     const [historyViewLoading, setHistoryViewLoading] = useState(false);
     const [historyViewData, setHistoryViewData] = useState(null);
     const [historyViewPaymentSummary, setHistoryViewPaymentSummary] = useState([]);
+    const [detailedReportOpen, setDetailedReportOpen] = useState(false);
+    const [detailedReportLoading, setDetailedReportLoading] = useState(false);
+    const [detailedItems, setDetailedItems] = useState([]);
     const [salesFilter, setSalesFilter] = useState('today'); // 'all' | 'today'
+
+    const calculateDetailedItems = (salesList) => {
+        const itemsBreakdown = [];
+        for (const sale of salesList) {
+            const items = Array.isArray(sale.items) ? sale.items : [];
+            for (const item of items) {
+                const unitPrice = Number(item.unitPrice || 0);
+                const unitCost = Number(item.unitCost || 0);
+                const qty = Number(item.quantity || 1);
+                const profitItem = (unitPrice - unitCost) * qty;
+
+                itemsBreakdown.push({
+                    saleId: sale.id,
+                    saleNumber: sale.saleNumber,
+                    createdAt: sale.createdAt,
+                    productName: item.productName || item.name || 'Produto sem nome',
+                    quantity: qty,
+                    unitPrice: unitPrice,
+                    unitCost: unitCost,
+                    totalPrice: unitPrice * qty,
+                    totalCost: unitCost * qty,
+                    profit: profitItem,
+                    isWholesale: !!item.isWholesale,
+                    categoryName: item.isWholesale ? 'Atacado' : 'Mercearia'
+                });
+            }
+        }
+        return itemsBreakdown;
+    };
 
     const isRegisterOpen = !!currentCashRegister;
 
@@ -261,17 +293,19 @@ const CashRegisterPage = () => {
             const profitByType = (() => {
                 let atacado = 0;
                 let mercearia = 0;
+
                 for (const sale of validSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
-                        const lucroItem = (unitPrice - unitCost) * qty;
+                        const profitItem = (unitPrice - unitCost) * qty;
+
                         if (item.isWholesale === true) {
-                            atacado += lucroItem;
+                            atacado += profitItem;
                         } else {
-                            mercearia += lucroItem;
+                            mercearia += profitItem;
                         }
                     }
                 }
@@ -312,6 +346,7 @@ const CashRegisterPage = () => {
                     profitByType
                 }
             });
+            setDetailedItems(calculateDetailedItems(validSales));
         } catch (e) {
             setHistoryViewData({ register, totals: null, metrics: null });
         } finally {
@@ -640,15 +675,99 @@ const CashRegisterPage = () => {
                 }
             }
             setViewPaymentSummary(Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count })));
+            setDetailedItems(calculateDetailedItems(activeSales));
             setViewOpen(true);
         } catch (e) {
             setViewPaymentSummary([]);
+            setDetailedItems([]);
             setViewOpen(true);
         }
     };
 
     const historyModals = (
         <>
+            <Modal
+                isOpen={detailedReportOpen}
+                onClose={() => setDetailedReportOpen(false)}
+                title="Relatório Detalhado de Vendas (Prejuízos)"
+                size="xl"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button variant="secondary" onClick={() => setDetailedReportOpen(false)}>Fechar</Button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                    <div style={{ padding: 'var(--spacing-sm)', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--color-danger)', borderRadius: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger)', fontWeight: 600 }}>
+                            <AlertCircle size={18} />
+                            Atenção aos itens com lucro negativo
+                        </div>
+                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                            Estes produtos estão com custo unitário maior que o preço de venda, gerando prejuízo direto.
+                        </p>
+                    </div>
+
+                    <div className="table-container">
+                        <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                            <thead>
+                                <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'left' }}>PRODUTO</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>QTD</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>PREÇO UN.</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>CUSTO UN.</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>LUCRO TOT.</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>TIPO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {detailedItems.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                            Nenhum item encontrado
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    [...detailedItems]
+                                        .sort((a, b) => a.profit - b.profit) // Show biggest losses first
+                                        .map((item, idx) => (
+                                            <tr key={idx} style={{ background: item.profit < 0 ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(148,163,184,0.06)') }}>
+                                                <td style={{ padding: '12px' }}>
+                                                    <div style={{ fontWeight: 600, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
+                                                        {item.productName}
+                                                    </div>
+                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                        Venda #{item.saleNumber} - {formatDateTime(item.createdAt)}
+                                                    </div>
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center' }}>{item.quantity}</td>
+                                                <td style={{ padding: '12px', textAlign: 'right' }}>{formatCurrency(item.unitPrice)}</td>
+                                                <td style={{ padding: '12px', textAlign: 'right', color: item.unitCost > item.unitPrice ? 'var(--color-danger)' : 'inherit' }}>
+                                                    {formatCurrency(item.unitCost)}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                                    {formatCurrency(item.profit)}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                    <span style={{
+                                                        fontSize: 'var(--font-size-xs)',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        background: item.isWholesale ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                                                        color: item.isWholesale ? 'var(--color-success)' : 'var(--color-primary)'
+                                                    }}>
+                                                        {item.categoryName}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal
                 isOpen={historyOpen}
                 onClose={() => setHistoryOpen(false)}
@@ -761,6 +880,13 @@ const CashRegisterPage = () => {
                 size="md"
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button
+                            variant="primary"
+                            icon={Eye}
+                            onClick={() => setDetailedReportOpen(true)}
+                        >
+                            Ver Relatório Detalhado
+                        </Button>
                         <Button variant="secondary" onClick={() => setHistoryViewOpen(false)}>Fechar</Button>
                     </div>
                 }
@@ -1355,6 +1481,13 @@ const CashRegisterPage = () => {
                 size="md"
                 footer={
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                        <Button
+                            variant="primary"
+                            icon={Eye}
+                            onClick={() => setDetailedReportOpen(true)}
+                        >
+                            Ver Relatório Detalhado
+                        </Button>
                         <Button variant="secondary" onClick={() => setViewOpen(false)}>Fechar</Button>
                     </div>
                 }
