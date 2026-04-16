@@ -684,6 +684,8 @@ const CashRegisterPage = () => {
         }
     };
 
+    const historyModals = (
+        <div style={{ position: 'relative', zIndex: 10 }}>
             <Modal
                 isOpen={historyOpen}
                 onClose={() => setHistoryOpen(false)}
@@ -889,88 +891,92 @@ const CashRegisterPage = () => {
                 )}
             </Modal>
 
-            <Modal
-                isOpen={detailedReportOpen}
-                onClose={() => setDetailedReportOpen(false)}
-                title="Relatório Detalhado de Vendas (Prejuízos)"
-                size="xl"
-                footer={
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                        <Button variant="secondary" onClick={() => setDetailedReportOpen(false)}>Fechar</Button>
-                    </div>
-                }
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                    <div style={{ padding: 'var(--spacing-sm)', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--color-danger)', borderRadius: '4px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger)', fontWeight: 600 }}>
-                            <AlertCircle size={18} />
-                            Atenção aos itens com lucro negativo
-                        </div>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                            Estes produtos estão com custo unitário maior que o preço de venda, gerando prejuízo direto.
-                        </p>
-                    </div>
+            {detailedReportOpen && (
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-md)', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}>
+                    <Modal
+                        isOpen={true}
+                        onClose={() => setDetailedReportOpen(false)}
+                        title="Relatório Detalhado de Vendas (Prejuízos)"
+                        size="xl"
+                        footer={
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
+                                <Button variant="secondary" onClick={() => setDetailedReportOpen(false)}>Fechar</Button>
+                            </div>
+                        }
+                    >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                            <div style={{ padding: 'var(--spacing-sm)', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid var(--color-danger)', borderRadius: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger)', fontWeight: 600 }}>
+                                    <AlertCircle size={18} />
+                                    Atenção aos itens com lucro negativo
+                                </div>
+                                <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                    Estes produtos estão com custo unitário maior que o preço de venda, gerando prejuízo direto.
+                                </p>
+                            </div>
 
-                    <div className="table-container">
-                        <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
-                            <thead>
-                                <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'left' }}>PRODUTO</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>QTD</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>PREÇO UN.</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>CUSTO UN.</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>LUCRO TOT.</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>TIPO</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {detailedItems.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                            Nenhum item encontrado
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    [...detailedItems]
-                                        .sort((a, b) => a.profit - b.profit) // Show biggest losses first
-                                        .map((item, idx) => (
-                                            <tr key={idx} style={{ background: item.profit < 0 ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(148,163,184,0.06)') }}>
-                                                <td style={{ padding: '12px' }}>
-                                                    <div style={{ fontWeight: 600, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
-                                                        {item.productName}
-                                                    </div>
-                                                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                                                        Venda #{item.saleNumber} - {formatDateTime(item.createdAt)}
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '12px', textAlign: 'center' }}>{item.quantity}</td>
-                                                <td style={{ padding: '12px', textAlign: 'right' }}>{formatCurrency(item.unitPrice)}</td>
-                                                <td style={{ padding: '12px', textAlign: 'right', color: item.unitCost > item.unitPrice ? 'var(--color-danger)' : 'inherit' }}>
-                                                    {formatCurrency(item.unitCost)}
-                                                </td>
-                                                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                                                    {formatCurrency(item.profit)}
-                                                </td>
-                                                <td style={{ padding: '12px', textAlign: 'center' }}>
-                                                    <span style={{
-                                                        fontSize: 'var(--font-size-xs)',
-                                                        padding: '2px 6px',
-                                                        borderRadius: '4px',
-                                                        background: item.isWholesale ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                                                        color: item.isWholesale ? 'var(--color-success)' : 'var(--color-primary)'
-                                                    }}>
-                                                        {item.categoryName}
-                                                    </span>
+                            <div className="table-container">
+                                <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                                    <thead>
+                                        <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'left' }}>PRODUTO</th>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>QTD</th>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>PREÇO UN.</th>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>CUSTO UN.</th>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>LUCRO TOT.</th>
+                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>TIPO</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {detailedItems.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                                    Nenhum item encontrado
                                                 </td>
                                             </tr>
-                                        ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                        ) : (
+                                            [...detailedItems]
+                                                .sort((a, b) => a.profit - b.profit) // Show biggest losses first
+                                                .map((item, idx) => (
+                                                    <tr key={idx} style={{ background: item.profit < 0 ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'transparent' : 'rgba(148,163,184,0.06)') }}>
+                                                        <td style={{ padding: '12px' }}>
+                                                            <div style={{ fontWeight: 600, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
+                                                                {item.productName}
+                                                            </div>
+                                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                                                                Venda #{item.saleNumber} - {formatDateTime(item.createdAt)}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '12px', textAlign: 'center' }}>{item.quantity}</td>
+                                                        <td style={{ padding: '12px', textAlign: 'right' }}>{formatCurrency(item.unitPrice)}</td>
+                                                        <td style={{ padding: '12px', textAlign: 'right', color: item.unitCost > item.unitPrice ? 'var(--color-danger)' : 'inherit' }}>
+                                                            {formatCurrency(item.unitCost)}
+                                                        </td>
+                                                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700, color: item.profit < 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                                                            {formatCurrency(item.profit)}
+                                                        </td>
+                                                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                                                            <span style={{
+                                                                fontSize: 'var(--font-size-xs)',
+                                                                padding: '2px 6px',
+                                                                borderRadius: '4px',
+                                                                background: item.isWholesale ? 'rgba(34, 197, 94, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                                                                color: item.isWholesale ? 'var(--color-success)' : 'var(--color-primary)'
+                                                            }}>
+                                                                {item.categoryName}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </Modal>
                 </div>
-            </Modal>
-        </>
+            )}
+        </div>
     );
 
     if (contextLoading) return <Loading fullScreen />;

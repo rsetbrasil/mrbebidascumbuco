@@ -67,7 +67,7 @@ const Modal = ({
         : { maxHeight: 'calc(90vh - 180px)', overflowY: 'auto' };
 
     return (
-        <div className="modal-overlay" onClick={handleOverlayClick}>
+        <div className="modal-overlay" onClick={handleOverlayClick} style={isOpen ? { display: 'flex' } : {}}>
             <div className="modal" style={modalStyle}>
                 <div className="modal-header">
                     <h3 className="modal-title">{title}</h3>
