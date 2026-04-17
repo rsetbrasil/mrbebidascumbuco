@@ -12,7 +12,13 @@ import {
     Printer,
     Eye,
     RotateCcw,
-    Trash2
+    Trash2,
+    TrendingUp,
+    TrendingDown,
+    Plus,
+    Minus,
+    Clock,
+    RefreshCw
 } from 'lucide-react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -67,6 +73,9 @@ const CashRegisterPage = () => {
     const [closeRegisterModalOpen, setCloseRegisterModalOpen] = useState(false);
     const [isClosingMode, setIsClosingMode] = useState(false);
     const [closingBalances, setClosingBalances] = useState({});
+    const [movementDescription, setMovementDescription] = useState('');
+    const [movementAmount, setMovementAmount] = useState('');
+    const [movementType, setMovementType] = useState('supply');
 
     const calculateDetailedItems = (salesList) => {
         const itemsBreakdown = [];
@@ -642,6 +651,29 @@ const CashRegisterPage = () => {
         } catch (error) {
             console.error('Error printing open register snapshot:', error);
             showNotification('error', 'Erro ao imprimir resumo do caixa');
+        }
+    };
+
+    const handleQuickMovement = async (e) => {
+        e.preventDefault();
+        if (!movementAmount || !movementDescription) {
+            showNotification('error', 'Informe a descrição e o valor');
+            return;
+        }
+        
+        setLoading(true);
+        try {
+            const amount = parseCurrency(movementAmount);
+            await addCashMovement(movementType, amount, movementDescription, user?.name || 'Operador');
+            showNotification('success', 'Movimentação registrada');
+            setMovementAmount('');
+            setMovementDescription('');
+            loadMovements();
+        } catch (error) {
+            console.error('Error in quick movement:', error);
+            showNotification('error', 'Erro ao registrar movimentação');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -1284,7 +1316,7 @@ const CashRegisterPage = () => {
     })();
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20">
+        <div className="space-y-6 animate-fade-in pb-20 max-w-7xl mx-auto px-4">
             {notification && (
                 <Notification
                     type={notification.type}
@@ -1376,188 +1408,200 @@ const CashRegisterPage = () => {
                 </div>
             )}
 
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-800/40 p-6 rounded-3xl border border-slate-700/40 backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-primary-500/10 rounded-2xl flex items-center justify-center text-primary-400 border border-primary-500/20">
-                        <Wallet size={32} />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight mb-0 flex items-center gap-3">
-                            Controle de Caixa
-                        </h1>
-                        <p className="text-gray-400 text-sm font-medium flex items-center gap-2 mb-0">
-                            <span className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></span>
-                            Aberto em {formatDateTime(currentCashRegister.openedAt)}
-                        </p>
-                    </div>
+            <div className="flex justify-between items-start mb-8">
+                <div>
+                    <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-1">Caixa Aberto</h1>
+                    <p className="text-slate-500 text-sm font-medium">Aberto em {formatDateTime(currentCashRegister.openedAt).replace(' ', ' às ')}</p>
                 </div>
-                
-                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                    <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 mr-2">
-                        <button
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                                salesFilter === 'today' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-gray-400 hover:text-white'
-                            }`}
-                            onClick={() => setSalesFilter('today')}
-                        >
-                            HOJE
-                        </button>
-                        <button
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                                salesFilter === 'all' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-gray-400 hover:text-white'
-                            }`}
-                            onClick={() => setSalesFilter('all')}
-                        >
-                            TUDO
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={openHistoryModal}
-                            icon={History}
-                        >
-                            Histórico
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleViewOpen}
-                            icon={Eye}
-                        >
-                            Ver Caixa
-                        </Button>
-                        <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handlePrintOpenRegister}
-                            icon={Printer}
-                        >
-                            Imprimir
-                        </Button>
-                        <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={handleInitCloseRegister}
-                            icon={Lock}
-                            className="font-bold px-6"
-                        >
-                            Fechar Caixa
-                        </Button>
-                    </div>
+                <div className="flex gap-3">
+                    <Button
+                        variant="secondary"
+                        onClick={handleInitCloseRegister}
+                        icon={Lock}
+                        className="font-bold bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm"
+                        style={{ backgroundColor: 'white', color: '#334155', border: '1px solid #e2e8f0' }}
+                    >
+                        Fechar Caixa
+                    </Button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-emerald-500/10 border-emerald-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
-                    <ArrowUpCircle size={100} className="absolute right-[-20px] bottom-[-20px] text-emerald-500/10" />
-                    <div className="p-6 relative z-10">
-                        <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <ArrowUpCircle size={18} /> Entradas
-                        </p>
-                        <h3 className="text-4xl font-black text-emerald-400 tracking-tight">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Entradas Card */}
+                <div className="bg-[#f0fdf4] rounded-3xl p-8 border border-[#dcfce7] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
+                        <TrendingUp size={140} className="text-[#16a34a]" />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-[#16a34a]/10 rounded-xl flex items-center justify-center text-[#16a34a]">
+                                <TrendingUp size={20} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#15803d]">Entradas</span>
+                        </div>
+                        <h3 className="text-4xl font-black text-[#15803d] tracking-tighter">
                             {formatCurrency(totalSalesProductsDay + totalSupplies)}
                         </h3>
                     </div>
-                </Card>
+                </div>
 
-                <Card className="bg-red-500/10 border-red-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
-                    <ArrowDownCircle size={100} className="absolute right-[-20px] bottom-[-20px] text-red-500/10" />
-                    <div className="p-6 relative z-10">
-                        <p className="text-red-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <ArrowDownCircle size={18} /> Saídas
-                        </p>
-                        <h3 className="text-4xl font-black text-red-400 tracking-tight">
+                {/* Saídas Card */}
+                <div className="bg-[#fef2f2] rounded-3xl p-8 border border-[#fee2e2] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
+                        <TrendingDown size={140} className="text-[#dc2626]" />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-[#dc2626]/10 rounded-xl flex items-center justify-center text-[#dc2626]">
+                                <TrendingDown size={20} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#b91c1c]">Saídas</span>
+                        </div>
+                        <h3 className="text-4xl font-black text-[#b91c1c] tracking-tighter">
                             {formatCurrency(totalBleeds)}
                         </h3>
                     </div>
-                </Card>
+                </div>
 
-                <Card className="bg-blue-500/10 border-blue-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
-                    <DollarSign size={100} className="absolute right-[-20px] bottom-[-20px] text-blue-500/10" />
-                    <div className="p-6 relative z-10">
-                        <p className="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <DollarSign size={18} /> Saldo
-                        </p>
-                        <h3 className="text-4xl font-black text-blue-400 tracking-tight">
+                {/* Saldo Card */}
+                <div className="bg-[#eff6ff] rounded-3xl p-8 border border-[#dbeafe] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
+                        <DollarSign size={140} className="text-[#2563eb]" />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="w-10 h-10 bg-[#2563eb]/10 rounded-xl flex items-center justify-center text-[#2563eb]">
+                                <DollarSign size={20} />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[#1d4ed8]">Total em Caixa</span>
+                        </div>
+                        <h3 className="text-4xl font-black text-[#1d4ed8] tracking-tighter mb-1">
                             {formatCurrency(currentBalance)}
                         </h3>
+                        <p className="text-[10px] font-bold text-[#3b82f6]">Inclui {formatCurrency(currentCashRegister.openingBalance)} de troco inicial</p>
                     </div>
-                </Card>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-1">
-                    <Card title="Nova Movimentação" icon={DollarSign}>
-                        <div className="p-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                    variant="success"
-                                    fullWidth
-                                    onClick={() => setModalType('supply')}
-                                    icon={ArrowUpCircle}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Left Column: Novo Lançamento */}
+                <div className="lg:col-span-4">
+                    <Card title="Novo Lançamento" icon={RefreshCw} className="rounded-3xl shadow-sm border-slate-100 h-full">
+                        <form onSubmit={handleQuickMovement} className="p-4 space-y-6">
+                            <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                                <button
+                                    type="button"
+                                    onClick={() => setMovementType('supply')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                                        movementType === 'supply' 
+                                        ? 'bg-success-500 text-white shadow-lg shadow-success-500/30' 
+                                        : 'bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100'
+                                    }`}
                                 >
-                                    Entrada
-                                </Button>
-                                <Button
-                                    variant="danger"
-                                    fullWidth
-                                    onClick={() => setModalType('bleed')}
-                                    icon={ArrowDownCircle}
+                                    <Plus size={18} /> Entrada
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setMovementType('bleed')}
+                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                                        movementType === 'bleed' 
+                                        ? 'bg-danger-500 text-white shadow-lg shadow-danger-500/30' 
+                                        : 'bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100'
+                                    }`}
                                 >
-                                    Saída
-                                </Button>
+                                    <Minus size={18} /> Saída
+                                </button>
                             </div>
-                            <div className="text-xs text-gray-500 text-center">
-                                Registre suprimentos (entradas) ou sangrias (saídas) avulsas no caixa.
-                            </div>
-                        </div>
+
+                            <Input
+                                label="Descrição"
+                                value={movementDescription}
+                                onChange={(e) => setMovementDescription(e.target.value)}
+                                placeholder="Ex: Pagamento Fornecedor"
+                                className="rounded-2xl bg-slate-50 border-slate-100 focus:bg-white transition-all"
+                            />
+
+                            <CurrencyInput
+                                label="Valor (R$)"
+                                value={movementAmount}
+                                onChange={(e) => setMovementAmount(e.target.value)}
+                                placeholder="0,00"
+                                className="rounded-2xl bg-slate-50 border-slate-100 focus:bg-white transition-all"
+                            />
+
+                            <Button
+                                type="submit"
+                                variant="primary"
+                                fullWidth
+                                loading={loading}
+                                className="bg-slate-900 hover:bg-black text-white rounded-2xl py-4 font-bold transition-all mt-4"
+                                style={{ backgroundColor: '#0f172a' }}
+                            >
+                                Registrar Lançamento
+                            </Button>
+                        </form>
                     </Card>
                 </div>
 
-                <div className="md:col-span-2">
-                    <Card title="Movimentações Recentes" icon={History}>
-                        <div className="table-container max-h-[400px] overflow-y-auto">
-                            <table className="table">
-                                <thead>
-                                    <tr>
-                                        <th>Hora</th>
-                                        <th>Tipo</th>
-                                        <th>Descrição</th>
-                                        <th className="text-right">Valor</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {activeMovementsView.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="4" className="text-center py-8 text-gray-500">
-                                                Nenhuma movimentação hoje
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        activeMovementsView.map((mov) => (
-                                            <tr key={mov.id}>
-                                                <td className="text-xs">{formatDateTime(mov.createdAt).split(' ')[1]}</td>
-                                                <td>
-                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                                                        mov.type === 'supply' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                                                    }`}>
-                                                        {mov.type === 'supply' ? 'Entrada' : 'Saída'}
-                                                    </span>
-                                                </td>
-                                                <td className="text-sm text-gray-300">{mov.description}</td>
-                                                <td className={`text-right font-bold ${
-                                                    mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
+                {/* Right Column: Movimentações do Caixa */}
+                <div className="lg:col-span-8">
+                    <Card title="Movimentações do Caixa" icon={Clock} className="rounded-3xl shadow-sm border-slate-100 h-full min-h-[500px]">
+                        <div className="p-4">
+                            {activeMovementsView.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-32 text-slate-300">
+                                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                                        <Clock size={40} className="text-slate-200" />
+                                    </div>
+                                    <p className="font-bold text-slate-400">Nenhum movimento registrado neste caixa.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {activeMovementsView.map((mov) => (
+                                        <div key={mov.id} className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100 group hover:bg-white hover:shadow-md transition-all duration-300">
+                                            <div className="flex items-center gap-5">
+                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                                                    mov.type === 'supply' ? 'bg-success-100 text-success-600' : 'bg-danger-100 text-danger-600'
                                                 }`}>
-                                                    {formatCurrency(mov.amount)}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                                    {mov.type === 'supply' ? <Plus size={20} /> : <Minus size={20} />}
+                                                </div>
+                                                <div>
+                                                    <div className="text-slate-800 font-bold mb-0.5">{mov.description}</div>
+                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                        <Clock size={12} /> {formatDateTime(mov.createdAt).split(' ')[1]}
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                        {mov.type === 'supply' ? 'Entrada' : 'Saída'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-6">
+                                                <div className={`text-xl font-black ${
+                                                    mov.type === 'supply' ? 'text-success-600' : 'text-danger-600'
+                                                }`}>
+                                                    {mov.type === 'supply' ? '+' : '-'} {formatCurrency(mov.amount)}
+                                                </div>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        icon={RotateCcw} 
+                                                        onClick={() => handleRevertMovement(mov)}
+                                                        className="text-slate-400 hover:text-primary-500 hover:bg-primary-50"
+                                                    />
+                                                    {isManager && (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm" 
+                                                            icon={Trash2} 
+                                                            onClick={() => handleDeleteMovement(mov)}
+                                                            className="text-slate-400 hover:text-danger-500 hover:bg-danger-50"
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </Card>
                 </div>
@@ -1652,44 +1696,6 @@ const CashRegisterPage = () => {
                 </div>
             </Modal>
             {historyModals}
-
-            {/* Closing Register Modal */}
-            <Modal
-                isOpen={closeRegisterModalOpen}
-                onClose={() => setCloseRegisterModalOpen(false)}
-                title="Fechar Caixa"
-            >
-                <div className="space-y-4">
-                    <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
-                            <div>
-                                <h4 className="font-medium text-red-400 mb-1">Atenção</h4>
-                                <p className="text-sm text-red-300/80">
-                                    Ao fechar o caixa, você não poderá mais registrar vendas ou movimentações nesta sessão.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <Input
-                        label="Observações de Fechamento"
-                        value={closingNote}
-                        onChange={(e) => setClosingNote(e.target.value)}
-                        placeholder="Ex: Diferença de R$ 2,00 no caixa..."
-                        textarea
-                    />
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button variant="ghost" onClick={() => setCloseRegisterModalOpen(false)}>Cancelar</Button>
-                        <Button
-                            variant="danger"
-                            onClick={handleConfirmCloseRegister}
-                            icon={Lock}
-                        >
-                            Prosseguir
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
 
             {/* Manager Approval Modal for Cashier Closing */}
             <Modal
