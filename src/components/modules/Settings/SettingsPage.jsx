@@ -30,6 +30,7 @@ const SettingsPage = () => {
         brandLogoUrl: '',
         socialInstagram: '',
         whatsapp: '',
+        enableCashRegisterAutoClose: false,
         cashRegisterAutoCloseTime: '22:00',
         allowSaleWithoutStock: true,
         creditCardFee: '3.5',
@@ -319,13 +320,27 @@ const SettingsPage = () => {
                     <Card title="Caixa" icon={Settings} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <Input
-                                    label="Fechamento automático do caixa"
-                                    name="cashRegisterAutoCloseTime"
-                                    type="time"
-                                    value={settings.cashRegisterAutoCloseTime || '22:00'}
-                                    onChange={handleChange}
-                                />
+                                <label className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        name="enableCashRegisterAutoClose"
+                                        checked={!!settings.enableCashRegisterAutoClose}
+                                        onChange={(e) => {
+                                            const { checked } = e.target;
+                                            setSettings(prev => ({ ...prev, enableCashRegisterAutoClose: checked }));
+                                        }}
+                                    />
+                                    <span>Ativar fechamento automático</span>
+                                </label>
+                                {settings.enableCashRegisterAutoClose && (
+                                    <Input
+                                        label="Horário do Fechamento"
+                                        name="cashRegisterAutoCloseTime"
+                                        type="time"
+                                        value={settings.cashRegisterAutoCloseTime || '22:00'}
+                                        onChange={handleChange}
+                                    />
+                                )}
                             </div>
                             <p className="text-sm text-gray-400">
                                 Se o caixa estiver aberto, será fechado automaticamente no horário configurado.

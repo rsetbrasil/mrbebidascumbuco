@@ -182,6 +182,8 @@ export const AppProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        if (!settings?.enableCashRegisterAutoClose) return;
+
         const cutoffStr = String(settings?.cashRegisterAutoCloseTime || '22:00');
         const parseCutoff = () => {
             try {
@@ -200,7 +202,18 @@ export const AppProvider = ({ children }) => {
             const now = new Date();
             const cutoff = new Date();
             cutoff.setHours(h, m, 0, 0);
-            if (now >= cutoff) {
+
+            // Apenas fechar se o caixa foi aberto ANTES do horario de corte de hoje
+            let openedAtDate;
+            if (currentCashRegister.openedAt?.seconds) {
+                openedAtDate = new Date(currentCashRegister.openedAt.seconds * 1000);
+            } else if (currentCashRegister.openedAt) {
+                openedAtDate = new Date(currentCashRegister.openedAt);
+            } else {
+                openedAtDate = now;
+            }
+
+            if (now >= cutoff && openedAtDate < cutoff) {
                 try {
                     const closingBalance = await computeClosingBalance(currentCashRegister);
                     const difference = closingBalance - (Number(currentCashRegister.expectedBalance || 0));
