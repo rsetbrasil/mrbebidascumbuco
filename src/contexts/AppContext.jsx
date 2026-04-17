@@ -94,7 +94,7 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    const closeCashRegister = async (closingBalance, closedBy, notes = '') => {
+    const closeCashRegister = async (closingBalance, closedBy, notes = '', extraData = {}) => {
         try {
             if (!currentCashRegister) {
                 throw new Error('Nenhum caixa aberto');
@@ -105,9 +105,12 @@ export const AppProvider = ({ children }) => {
                 throw new Error('Erro: ID do caixa não encontrado. Por favor, recarregue a página.');
             }
 
-            const difference = closingBalance - (currentCashRegister.expectedBalance || 0);
+            const difference = extraData.difference !== undefined 
+                ? extraData.difference 
+                : (closingBalance - (currentCashRegister.expectedBalance || 0));
 
             await cashRegisterService.close(currentCashRegister.id, {
+                ...extraData,
                 closingBalance,
                 closedBy,
                 difference,

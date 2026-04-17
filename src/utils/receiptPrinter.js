@@ -59,35 +59,63 @@ export const printHtml = (htmlContent, paperWidthMm = 80) => {
                 <title>Imprimir Comprovante</title>
                 <style>
                     @media print {
-                        @page { margin: 0 !important; }
-                        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: auto; }
+                        @page { 
+                            margin: 0 !important; 
+                            size: auto;
+                        }
+                        html, body { 
+                            margin: 0 !important; 
+                            padding: 0 !important; 
+                            width: 100% !important; 
+                        }
                     }
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; line-height: 1.2; }
+                    * { 
+                        margin: 0; 
+                        padding: 0; 
+                        box-sizing: border-box; 
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    body { 
+                        font-family: 'Arial', 'Helvetica', sans-serif; 
+                        font-size: 12px; 
+                        color: #000 !important; 
+                        line-height: 1.1; 
+                        font-weight: 500;
+                        width: 100%;
+                        padding: 0 5mm !important; /* Margem de segurança lateral de 5mm */
+                        -webkit-font-smoothing: antialiased;
+                    }
                     .text-center { text-align: center; }
                     .text-right { text-align: right; }
-                    .font-bold { font-weight: bold; }
+                    .font-bold { font-weight: 900 !important; }
                     .text-sm { font-size: 11px; }
                     .text-xs { font-size: 10px; }
-                    .mb-1 { margin-bottom: 2px; }
-                    .mb-2 { margin-bottom: 4px; }
-                    .border-b { border-bottom: 1px dashed #000; }
-                    .border-t { border-top: 1px dashed #000; }
-                    .py-1 { padding-top: 1px; padding-bottom: 1px; }
-                    .flex { display: flex; justify-content: space-between; }
+                    .mb-1 { margin-bottom: 3px; }
+                    .mb-2 { margin-bottom: 6px; }
+                    .border-b { border-bottom: 1.5px solid #000 !important; }
+                    .border-t { border-top: 1.5px solid #000 !important; }
+                    .py-1 { padding-top: 2px; padding-bottom: 2px; }
+                    .flex { display: flex; justify-content: space-between; align-items: flex-end; width: 100%; }
                     .w-full { width: 100%; }
-                    .header { margin-bottom: 5px; }
-                    .company-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
-                    .receipt-title { font-size: 13px; font-weight: bold; margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; }
-                    .details-row { display: flex; justify-content: space-between; margin-bottom: 1px; }
-                    .items-section { margin-bottom: 5px; }
-                    .item-name { font-weight: bold; }
+                    .header { margin-bottom: 8px; }
+                    .company-name { font-size: 14px; font-weight: 900; margin-bottom: 3px; text-transform: uppercase; }
+                    .receipt-title { font-size: 13px; font-weight: 900; margin: 8px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; text-transform: uppercase; }
+                    .details-row { display: flex; justify-content: space-between; margin-bottom: 2px; width: 100%; }
+                    .items-section { margin-bottom: 8px; width: 100%; }
+                    .item-name { font-weight: 800; }
                     .item-meta { font-size: 11px; }
-                    .item-total { font-weight: bold; }
-                    .totals-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-                    .final-total { margin-top: 5px; border-top: 1px solid #000; padding-top: 5px; }
-                    .payment-section { margin-top: 5px; border-top: 1px dashed #000; padding-top: 5px; }
-                    .footer { margin-top: 10px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 5px; }
+                    .item-total { font-weight: 900; }
+                    .totals-section { margin-top: 8px; border-top: 1.5px solid #000; padding-top: 6px; width: 100%; }
+                    .final-total { margin-top: 8px; border-top: 2px solid #000; padding-top: 6px; font-size: 14px; width: 100%; }
+                    .payment-section { margin-top: 8px; border-top: 1.5px solid #000; padding-top: 6px; width: 100%; }
+                    .footer { margin-top: 15px; text-align: center; font-size: 11px; border-top: 1.5px solid #000; padding-top: 8px; font-weight: 700; width: 100%; padding-bottom: 20mm; /* Espaço para o corte manual */ }
+                    
+                    /* Melhora a nitidez de textos pequenos em impressoras térmicas */
+                    span, div, p {
+                        color: #000 !important;
+                        text-rendering: optimizeLegibility;
+                    }
                 </style>
             </head>
             <body>
@@ -330,20 +358,42 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const profitSectionHtml = `
         <div class="payment-section">
             <div class="font-bold text-sm mb-1 text-center border-b border-t py-1">ANÁLISE DE VENDAS</div>
-            <div class="flex text-sm">
-                <span>VAREJO:</span>
-                <span>${formatCurrency(data.profitMercearia || 0)}</span>
+            <div class="flex text-xs font-bold" style="border-bottom: 1.5px solid #000; padding-bottom: 2px; margin-bottom: 4px;">
+                <span style="width: 25%; text-align: left;">TIPO</span>
+                <span style="width: 35%; text-align: right;">VENDA</span>
+                <span style="width: 40%; text-align: right;">LUCRO</span>
+            </div>
+            <div class="flex text-sm" style="margin-bottom: 2px;">
+                <span style="width: 25%; text-align: left;">VAREJO:</span>
+                <span style="width: 35%; text-align: right;">${formatCurrency(data.totalVarejo || 0)}</span>
+                <span style="width: 40%; text-align: right;">${formatCurrency(data.profitMercearia || 0)}</span>
             </div>
             <div class="flex text-sm">
-                <span>ATACADO:</span>
-                <span>${formatCurrency(data.profitAtacado || 0)}</span>
-            </div>
-            <div class="flex text-sm">
-                <span>FARDO:</span>
-                <span>${formatCurrency(data.profitFardo || 0)}</span>
+                <span style="width: 25%; text-align: left;">ATACADO:</span>
+                <span style="width: 35%; text-align: right;">${formatCurrency(data.totalAtacado || 0)}</span>
+                <span style="width: 40%; text-align: right;">${formatCurrency(data.profitAtacado || 0)}</span>
             </div>
         </div>
     `;
+
+    const movementsHtml = Array.isArray(data.movements) && data.movements.length > 0
+        ? data.movements.map(m => `
+            <div class="mb-1">
+                <div class="flex text-xs">
+                    <span style="font-weight: 700; text-transform: uppercase;">${m.type === 'supply' ? 'ENTRADA' : 'SAÍDA'}:</span>
+                    <span class="font-bold">${m.type === 'supply' ? '+' : '-'} ${formatCurrency(m.amount)}</span>
+                </div>
+                <div class="text-xs" style="margin-left: 10px; font-style: italic; color: #333;">
+                    ${m.description || 'Sem descrição'}
+                </div>
+            </div>
+        `).join('')
+        : `
+            <div class="flex text-sm">
+                <span>SEM MOVIMENTAÇÕES</span>
+                <span>${formatCurrency(0)}</span>
+            </div>
+        `;
 
     const html = `
         <div class="text-center mb-2">
@@ -377,13 +427,16 @@ export const printCashRegisterReport = (data, settings = {}) => {
 
         <div class="payment-section">
             <div class="font-bold text-sm mb-1 text-center border-b border-t py-1">ENTRADAS E SAÍDAS</div>
-            <div class="flex text-sm">
-                <span>TOTAL ENTRADAS:</span>
-                <span>+ ${formatCurrency(data.totalSupplies)}</span>
-            </div>
-            <div class="flex text-sm">
-                <span>TOTAL SAÍDAS:</span>
-                <span>- ${formatCurrency(data.totalBleeds)}</span>
+            ${movementsHtml}
+            <div class="border-t mt-1 pt-1">
+                <div class="flex text-xs font-bold">
+                    <span>TOTAL ENTRADAS:</span>
+                    <span>+ ${formatCurrency(data.totalSupplies)}</span>
+                </div>
+                <div class="flex text-xs font-bold">
+                    <span>TOTAL SAÍDAS:</span>
+                    <span>- ${formatCurrency(data.totalBleeds)}</span>
+                </div>
             </div>
         </div>
 
@@ -397,6 +450,53 @@ export const printCashRegisterReport = (data, settings = {}) => {
         <div class="text-center text-xs mt-10">
             <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
                 ASSINATURA DO RESPONSÁVEL
+            </div>
+        </div>
+    `;
+
+    printHtml(html, paperWidthMm);
+};
+
+export const printCashMovementReceipt = (movement, settings = {}) => {
+    const companyName = settings.companyName || 'MR BEBIDAS DISTRIBUIDORA';
+    const paperWidthMm = Number(settings.paperWidthMm) || 80;
+
+    const createdAt = movement.createdAt && typeof movement.createdAt.toDate === 'function' 
+        ? movement.createdAt.toDate() 
+        : new Date(movement.createdAt || new Date());
+
+    const title = movement.type === 'supply' ? 'COMPROVANTE DE ENTRADA' : 'COMPROVANTE DE SAÍDA';
+    const amountLabel = movement.type === 'supply' ? 'VALOR DA ENTRADA:' : 'VALOR DA SAÍDA:';
+
+    const html = `
+        <div class="text-center mb-2">
+            <div class="company-name">${companyName}</div>
+            <div class="receipt-title">${title}</div>
+        </div>
+
+        <div class="mb-4 text-sm">
+            <div class="flex"><span>DATA:</span><span>${formatDateTime(createdAt).split(' ')[0]}</span></div>
+            <div class="flex"><span>HORA:</span><span>${formatDateTime(createdAt).split(' ')[1]}</span></div>
+            <div class="flex"><span>OPERADOR:</span><span>${movement.createdBy || 'Sistema'}</span></div>
+        </div>
+
+        <div class="border-t border-b py-2 mb-4">
+            <div class="flex font-bold" style="font-size: 14px;">
+                <span>${amountLabel}</span>
+                <span>${formatCurrency(movement.amount)}</span>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <div class="font-bold text-xs mb-1">MOTIVO / DESCRIÇÃO:</div>
+            <div class="text-sm" style="background: #f9f9f9; padding: 5px; border: 1px solid #eee;">
+                ${movement.description || 'Não informada'}
+            </div>
+        </div>
+
+        <div class="text-center text-xs mt-10">
+            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
+                ASSINATURA
             </div>
         </div>
     `;

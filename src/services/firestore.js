@@ -1029,6 +1029,15 @@ export const cashRegisterService = {
         }
     },
 
+    async delete(id) {
+        if (isDemoMode) {
+            const idx = mockStore.cashRegister.findIndex(r => r.id === id);
+            if (idx !== -1) mockStore.cashRegister.splice(idx, 1);
+            return id;
+        }
+        return firestoreService.delete(COLLECTIONS.CASH_REGISTER, id);
+    },
+
     async getCurrent() {
         const results = await firestoreService.query(
             COLLECTIONS.CASH_REGISTER,

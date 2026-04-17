@@ -32,7 +32,9 @@ import { useApp } from '../../../contexts/AppContext';
 import { cashRegisterService, salesService, userService, firestoreService, COLLECTIONS, productService, presalesService } from '../../../services/firestore';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatCurrency, formatDateTime, parseCurrency } from '../../../utils/formatters';
-import { printCashRegisterReport } from '../../../utils/receiptPrinter';
+import { printCashRegisterReport,
+    printCashMovementReceipt
+} from '../../../utils/receiptPrinter';
 
 const CashRegisterPage = () => {
     const navigate = useNavigate();
@@ -120,7 +122,26 @@ const CashRegisterPage = () => {
     const loadRecentHistory = async () => {
         try {
             const list = await cashRegisterService.getHistory();
-            setHistoryItems(list?.slice(0, 5) || []);
+            const top5 = list?.slice(0, 5) || [];
+            setHistoryItems(top5);
+
+            // Enrich background
+            const enrichedPart = await Promise.all(top5.map(async (reg) => {
+                if (reg.totalSales !== undefined) return reg;
+                try {
+                    const sales = await salesService.getByCashRegister(reg.id);
+                    const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
+                    const totalSales = validSales.reduce((sum, s) => {
+                        const fee = Number(s.deliveryFeeValue || 0);
+                        const products = s.productsTotal !== undefined ? Number(s.productsTotal || 0) : (Number(s.total || 0) - fee);
+                        return sum + Math.max(0, products);
+                    }, 0);
+                    return { ...reg, totalSales };
+                } catch {
+                    return reg;
+                }
+            }));
+            setHistoryItems(enrichedPart);
         } catch (e) {
             console.error('Error loading recent history:', e);
         }
@@ -128,15 +149,13 @@ const CashRegisterPage = () => {
 
     const normalizePayments = (sale) => {
         if (Array.isArray(sale.payments) && sale.payments.length > 0) {
-            return sale.payments.map(p => ({
-                method: p.method,
-                amount: Number(p.amount || 0)
-            }));
+            return sale.payments
+                .map(p => ({ method: String(p.method || 'Dinheiro'), amount: Number(p.amount || 0) }))
+                .filter(p => p.amount > 0);
         }
-        return [{
-            method: sale.paymentMethod || 'Dinheiro',
-            amount: Number(sale.total || 0)
-        }];
+        const method = String(sale.paymentMethod || 'Dinheiro');
+        const paid = Number(sale.totalPaid || sale.total || 0);
+        return paid > 0 ? [{ method, amount: paid }] : [{ method, amount: Number(sale.total || 0) }];
     };
 
     const enrichSalesCosts = async (salesList) => {
@@ -213,6 +232,35 @@ const CashRegisterPage = () => {
             const list = await cashRegisterService.getHistory();
             setHistoryItems(list || []);
             setHistoryOpen(true);
+
+            // Enrich ONLY the first 10 items (most recent) to keep it fast
+            // The others will be enriched when clicking "Ver" or "Imprimir"
+            const topItems = (list || []).slice(0, 10);
+            const enrichedPart = await Promise.all(topItems.map(async (reg) => {
+                if (reg.totalSales !== undefined) return reg;
+                try {
+                    const sales = await salesService.getByCashRegister(reg.id);
+                    const validSales = (sales || []).filter(s => s && s.status !== 'cancelled');
+                    const totalSales = validSales.reduce((sum, s) => {
+                        const fee = Number(s.deliveryFeeValue || 0);
+                        const products = s.productsTotal !== undefined ? Number(s.productsTotal || 0) : (Number(s.total || 0) - fee);
+                        return sum + Math.max(0, products);
+                    }, 0);
+                    return { ...reg, totalSales };
+                } catch {
+                    return reg;
+                }
+            }));
+
+            // Update the list with enriched items without blocking the UI
+            setHistoryItems(prev => {
+                const newList = [...prev];
+                enrichedPart.forEach(enriched => {
+                    const idx = newList.findIndex(item => item.id === enriched.id);
+                    if (idx !== -1) newList[idx] = enriched;
+                });
+                return newList;
+            });
         } catch (e) {
             showNotification('error', 'Erro ao carregar histórico');
         } finally {
@@ -232,23 +280,33 @@ const CashRegisterPage = () => {
                 return sum + Math.max(0, products);
             }, 0);
             const profitCalc = (() => {
-                let atacado = 0;
-                let mercearia = 0;
+                let totalVarejo = 0;
+                let totalAtacado = 0;
+                let atacadoProfit = 0;
+                let merceariaProfit = 0;
                 for (const sale of validSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
+                        const itemTotal = unitPrice * qty;
                         const lucroItem = (unitPrice - unitCost) * qty;
                         if (item.isWholesale === true) {
-                            atacado += lucroItem;
+                            totalAtacado += itemTotal;
+                            atacadoProfit += lucroItem;
                         } else {
-                            mercearia += lucroItem;
+                            totalVarejo += itemTotal;
+                            merceariaProfit += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, total: atacado + mercearia };
+                return { 
+                    totalVarejo, totalAtacado,
+                    atacado: atacadoProfit, 
+                    mercearia: merceariaProfit, 
+                    total: atacadoProfit + merceariaProfit 
+                };
             })();
             const movements = await cashRegisterService.getMovements(register.id);
             const totalSupplies = (movements || [])
@@ -275,9 +333,12 @@ const CashRegisterPage = () => {
                 finalBalance,
                 difference: register.difference,
                 notes: register.notes,
+                totalVarejo: profitCalc.totalVarejo,
+                totalAtacado: profitCalc.totalAtacado,
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
-                profitTotal: profitCalc.total
+                profitTotal: profitCalc.total,
+                movements: (movements || []).filter(m => m.type === 'supply' || m.type === 'bleed')
             }, settings || {});
         } catch (error) {
             showNotification('error', 'Erro ao gerar relatório');
@@ -306,33 +367,41 @@ const CashRegisterPage = () => {
             const totalChange = (movements || []).filter(m => m.type === 'change').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
 
-            const totalCMV = validSales.reduce((sum, s) => {
-                const items = Array.isArray(s.items) ? s.items : [];
-                return sum + items.reduce((acc, it) => acc + (Number(it.unitCost || 0) * Number(it.quantity || 0)), 0);
-            }, 0);
-            const profitTotal = totalSalesProducts - totalCMV;
-            const margin = totalSalesProducts > 0 ? (profitTotal / totalSalesProducts) : 0;
-
-            const profitByType = (() => {
-                let atacado = 0;
-                let mercearia = 0;
-
+            const metrics = (() => {
+                let totalVarejo = 0;
+                let totalAtacado = 0;
+                let atacadoProfit = 0;
+                let merceariaProfit = 0;
                 for (const sale of validSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
-                        const profitItem = (unitPrice - unitCost) * qty;
-
+                        const itemTotal = unitPrice * qty;
+                        const lucroItem = (unitPrice - unitCost) * qty;
                         if (item.isWholesale === true) {
-                            atacado += profitItem;
+                            totalAtacado += itemTotal;
+                            atacadoProfit += lucroItem;
                         } else {
-                            mercearia += profitItem;
+                            totalVarejo += itemTotal;
+                            merceariaProfit += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, total: atacado + mercearia };
+                const profitTotal = atacadoProfit + merceariaProfit;
+                const margin = totalSalesProducts > 0 ? (profitTotal / totalSalesProducts) : 0;
+                return {
+                    totalVarejo,
+                    totalAtacado,
+                    profitByType: {
+                        atacado: atacadoProfit,
+                        mercearia: merceariaProfit,
+                        total: profitTotal
+                    },
+                    profitTotal,
+                    margin
+                };
             })();
 
             const paymentsMap = new Map();
@@ -362,12 +431,7 @@ const CashRegisterPage = () => {
                     totalChange,
                     finalBalance
                 },
-                metrics: {
-                    totalCMV,
-                    profitTotal,
-                    margin,
-                    profitByType
-                }
+                metrics
             });
             setDetailedItems(calculateDetailedItems(validSales));
         } catch (e) {
@@ -391,6 +455,10 @@ const CashRegisterPage = () => {
     const showNotification = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification(null), 3000);
+    };
+
+    const handlePrintMovement = (mov) => {
+        printCashMovementReceipt(mov, settings || {});
     };
 
     const handleOpenRegister = async (e) => {
@@ -421,16 +489,8 @@ const CashRegisterPage = () => {
     const proceedClose = async (approvedByManagerName = null) => {
         setLoading(true);
         try {
-            const start = new Date(); start.setHours(0, 0, 0, 0);
-            const end = new Date(); end.setHours(23, 59, 59, 999);
             const activeSales = sales
-                .filter(s => s.status !== 'cancelled')
-                .filter(s => {
-                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
-                        ? s.createdAt.toDate()
-                        : new Date(s.createdAt || 0);
-                    return d >= start && d <= end;
-                });
+                .filter(s => s.status !== 'cancelled');
             const totalSalesGross = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
             const totalDeliveryFees = activeSales.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
             const totalSalesNet = activeSales.reduce((acc, sale) => {
@@ -438,12 +498,7 @@ const CashRegisterPage = () => {
                 const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
                 return acc + Math.max(0, products);
             }, 0);
-            const activeMovements = movements.filter(m => {
-                const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
-                    ? m.createdAt.toDate()
-                    : new Date(m.createdAt || 0);
-                return d >= start && d <= end;
-            });
+            const activeMovements = movements;
             const totalSupplies = activeMovements
                 .filter(m => m.type === 'supply')
                 .reduce((acc, m) => acc + m.amount, 0);
@@ -481,33 +536,58 @@ const CashRegisterPage = () => {
             const presalesCancelResult = await presalesService.cancelAll();
             const cancelledPresales = Number(presalesCancelResult?.cancelled || 0);
 
+            // Calculate physical balance if available
+            const totalReported = Object.values(closingBalances).reduce((sum, val) => sum + (parseCurrency(val) || 0), 0);
+            const difference = totalReported - finalBalance;
+
             // Use physical balance if available (isClosingMode was active), otherwise use expected
             const closingBalanceToSave = isClosingMode ? totalReported : finalBalance;
 
-            await closeCashRegister(closingBalanceToSave, closedByLabel, closingNote);
+            await closeCashRegister(closingBalanceToSave, closedByLabel, closingNote, {
+                totalSales: totalSalesNet,
+                totalSupplies,
+                totalBleeds,
+                totalChange,
+                difference: isClosingMode ? difference : 0
+            });
 
             // Print closing report
             const profitCalc = (() => {
-                let atacado = 0;
-                let mercearia = 0;
-                let fardo = 0;
+                let totalVarejo = 0;
+                let totalAtacado = 0;
+                let totalFardo = 0;
+                let atacadoProfit = 0;
+                let merceariaProfit = 0;
+                let fardoProfit = 0;
+                
                 for (const sale of activeSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
+                        const itemTotal = unitPrice * qty;
                         const lucroItem = (unitPrice - unitCost) * qty;
+                        
                         if (item.isWholesale === true) {
-                            atacado += lucroItem;
+                            totalAtacado += itemTotal;
+                            atacadoProfit += lucroItem;
                         } else if (item.categoryName?.toLowerCase().includes('fardo') || item.name?.toLowerCase().includes('fardo')) {
-                            fardo += lucroItem;
+                            totalFardo += itemTotal;
+                            fardoProfit += lucroItem;
                         } else {
-                            mercearia += lucroItem;
+                            totalVarejo += itemTotal;
+                            merceariaProfit += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, fardo, total: atacado + mercearia + fardo };
+                return { 
+                    totalVarejo, totalAtacado, totalFardo,
+                    atacado: atacadoProfit, 
+                    mercearia: merceariaProfit, 
+                    fardo: fardoProfit, 
+                    total: atacadoProfit + merceariaProfit + fardoProfit 
+                };
             })();
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
@@ -525,10 +605,14 @@ const CashRegisterPage = () => {
                 paymentSummary: isClosingMode ? 
                     Object.entries(closingBalances).map(([method, val]) => ({ method, amount: parseCurrency(val) || 0 })) : 
                     paymentSummary,
+                totalVarejo: profitCalc.totalVarejo,
+                totalAtacado: profitCalc.totalAtacado,
+                totalFardo: profitCalc.totalFardo,
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
                 profitFardo: profitCalc.fardo,
-                profitTotal: profitCalc.total
+                profitTotal: profitCalc.total,
+                movements: activeMovements.filter(m => m.type === 'supply' || m.type === 'bleed')
             }, settings || {});
             showNotification('success', `Caixa fechado com sucesso. Pré-vendas reservadas zeradas: ${cancelledPresales}.`);
             setClosingNote('');
@@ -559,23 +643,10 @@ const CashRegisterPage = () => {
 
     const handlePrintOpenRegister = () => {
         try {
-            const start = new Date(); start.setHours(0, 0, 0, 0);
-            const end = new Date(); end.setHours(23, 59, 59, 999);
             const activeSales = sales
-                .filter(s => s.status !== 'cancelled')
-                .filter(s => {
-                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
-                        ? s.createdAt.toDate()
-                        : new Date(s.createdAt || 0);
-                    return d >= start && d <= end;
-                });
+                .filter(s => s.status !== 'cancelled');
             const totalSalesGross = activeSales.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
-            const activeMovements = movements.filter(m => {
-                const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
-                    ? m.createdAt.toDate()
-                    : new Date(m.createdAt || 0);
-                return d >= start && d <= end;
-            });
+            const activeMovements = movements;
             const totalSupplies = activeMovements
                 .filter(m => m.type === 'supply')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
@@ -606,27 +677,45 @@ const CashRegisterPage = () => {
             const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
 
             const profitCalc = (() => {
-                let atacado = 0;
-                let mercearia = 0;
-                let fardo = 0;
+                let totalVarejo = 0;
+                let totalAtacado = 0;
+                let totalFardo = 0;
+                let atacadoProfit = 0;
+                let merceariaProfit = 0;
+                let fardoProfit = 0;
+                
                 for (const sale of activeSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
                         const unitPrice = Number(item.unitPrice || 0);
                         const unitCost = Number(item.unitCost || 0);
                         const qty = Number(item.quantity || 1);
+                        const itemTotal = unitPrice * qty;
                         const lucroItem = (unitPrice - unitCost) * qty;
+                        
                         if (item.isWholesale === true) {
-                            atacado += lucroItem;
+                            totalAtacado += itemTotal;
+                            atacadoProfit += lucroItem;
                         } else if (item.categoryName?.toLowerCase().includes('fardo') || item.name?.toLowerCase().includes('fardo')) {
-                            fardo += lucroItem;
+                            totalFardo += itemTotal;
+                            fardoProfit += lucroItem;
                         } else {
-                            mercearia += lucroItem;
+                            totalVarejo += itemTotal;
+                            merceariaProfit += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, fardo, total: atacado + mercearia + fardo };
+                return { 
+                    totalVarejo, totalAtacado, totalFardo,
+                    atacado: atacadoProfit, 
+                    mercearia: merceariaProfit, 
+                    fardo: fardoProfit, 
+                    total: atacadoProfit + merceariaProfit + fardoProfit 
+                };
             })();
+            const totalReported = Object.values(closingBalances).reduce((sum, val) => sum + (parseCurrency(val) || 0), 0);
+            const difference = totalReported - finalBalance;
+
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
                 closedAt: new Date(),
@@ -637,16 +726,20 @@ const CashRegisterPage = () => {
                 totalSupplies,
                 totalBleeds,
                 totalChange,
-                finalBalance: isClosingMode ? totalReported : currentBalance,
+                finalBalance: isClosingMode ? totalReported : finalBalance,
                 difference: isClosingMode ? difference : 0,
                 notes: isClosingMode ? 'Conferência de Fechamento' : 'Relatório parcial (caixa aberto)',
                 paymentSummary: isClosingMode ? 
                     Object.entries(closingBalances).map(([method, val]) => ({ method, amount: parseCurrency(val) || 0 })) : 
                     paymentSummary,
+                totalVarejo: profitCalc.totalVarejo,
+                totalAtacado: profitCalc.totalAtacado,
+                totalFardo: profitCalc.totalFardo,
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
                 profitFardo: profitCalc.fardo,
-                profitTotal: profitCalc.total
+                profitTotal: profitCalc.total,
+                movements: activeMovements.filter(m => m.type === 'supply' || m.type === 'bleed')
             }, settings || {});
         } catch (error) {
             console.error('Error printing open register snapshot:', error);
@@ -739,16 +832,8 @@ const CashRegisterPage = () => {
 
     const handleViewOpen = () => {
         try {
-            const start = new Date(); start.setHours(0, 0, 0, 0);
-            const end = new Date(); end.setHours(23, 59, 59, 999);
             const activeSales = sales
-                .filter(s => s.status !== 'cancelled')
-                .filter(s => {
-                    const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
-                        ? s.createdAt.toDate()
-                        : new Date(s.createdAt || 0);
-                    return d >= start && d <= end;
-                });
+                .filter(s => s.status !== 'cancelled');
             const paymentsMap = new Map();
             for (const sale of activeSales) {
                 const gross = Number(sale.total || 0);
@@ -799,6 +884,7 @@ const CashRegisterPage = () => {
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>FECHAMENTO</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>OPERADOR</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO INICIAL</th>
+                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>TOTAL VENDIDO</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO FINAL</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>DIFERENÇA</th>
                                     <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right', minWidth: 220, whiteSpace: 'nowrap' }}>AÇÃO</th>
@@ -807,7 +893,7 @@ const CashRegisterPage = () => {
                             <tbody>
                                 {historyItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                             Nenhum registro encontrado
                                         </td>
                                     </tr>
@@ -827,6 +913,9 @@ const CashRegisterPage = () => {
                                             </td>
                                             <td style={{ padding: '12px', color: 'var(--color-text-secondary)' }}>
                                                 {formatCurrency(register.openingBalance)}
+                                            </td>
+                                            <td style={{ padding: '12px', fontWeight: 600, color: 'var(--color-primary)' }}>
+                                                {formatCurrency(register.totalSales || 0)}
                                             </td>
                                             <td style={{ padding: '12px', fontWeight: 600, color: 'var(--color-success)' }}>
                                                 {formatCurrency(register.closingBalance)}
@@ -912,73 +1001,95 @@ const CashRegisterPage = () => {
                         Carregando...
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 'var(--spacing-sm)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                        {/* Header Info */}
+                        <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: '1fr 1fr', 
+                            gap: 'var(--spacing-md)',
+                            background: 'var(--color-bg-tertiary)',
+                            padding: 'var(--spacing-md)',
+                            borderRadius: 'var(--radius-md)'
+                        }}>
                             <div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Aberto em</div>
-                                <div style={{ fontWeight: 600 }}>{formatDateTime(historyViewData.register.openedAt)}</div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>PERÍODO</div>
+                                <div style={{ fontSize: '13px', fontWeight: 600 }}>{formatDateTime(historyViewData.register.openedAt)}</div>
+                                <div style={{ fontSize: '13px', fontWeight: 600 }}>{formatDateTime(historyViewData.register.closedAt)}</div>
                             </div>
                             <div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Fechado em</div>
-                                <div style={{ fontWeight: 600 }}>{formatDateTime(historyViewData.register.closedAt)}</div>
-                            </div>
-                            <div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Operador</div>
-                                <div style={{ fontWeight: 600 }}>{historyViewData.register.closedBy || '-'}</div>
-                            </div>
-                            <div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Inicial</div>
-                                <div style={{ fontWeight: 700 }}>{formatCurrency(historyViewData.register.openingBalance)}</div>
-                            </div>
-                            <div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Saldo Final</div>
-                                <div style={{ fontWeight: 700 }}>{formatCurrency(historyViewData.register.closingBalance)}</div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>OPERADOR</div>
+                                <div style={{ fontSize: '14px', fontWeight: 700 }}>{historyViewData.register.closedBy || '-'}</div>
                             </div>
                         </div>
 
-                        {historyViewData.totals && (
-                            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo Financeiro</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Vendas</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalSales)}</span>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Suprimentos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalSupplies)}</span>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Sangrias</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalBleeds)}</span>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Trocos</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.totals.totalChange)}</span>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Saldo Calculado</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(historyViewData.totals.finalBalance)}</span>
+                        {/* Main Cards */}
+                        <div className="grid grid-3">
+                            <div style={{ textAlign: 'center', padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>VENDAS</div>
+                                <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-primary)' }}>{formatCurrency(historyViewData.totals?.totalSales || 0)}</div>
+                            </div>
+                            <div style={{ textAlign: 'center', padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>LUCRO</div>
+                                <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-success)' }}>{formatCurrency(historyViewData.metrics?.profitTotal || 0)}</div>
+                            </div>
+                            <div style={{ textAlign: 'center', padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>DIFERENÇA</div>
+                                <div style={{ fontSize: '16px', fontWeight: 800, color: (historyViewData.register.difference || 0) < 0 ? 'var(--color-danger)' : 'var(--color-text-primary)' }}>
+                                    {formatCurrency(historyViewData.register.difference || 0)}
                                 </div>
                             </div>
-                        )}
+                        </div>
 
-                        {historyViewData.metrics && (
-                            <>
-                                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                                    <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Indicadores</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>CMV</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.metrics.totalCMV)}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>Lucro</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(historyViewData.metrics.profitTotal)}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>Margem</span><span style={{ textAlign: 'right', fontWeight: 600 }}>{(historyViewData.metrics.margin * 100).toFixed(1)}%</span>
-                                    </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-lg)' }}>
+                            {/* Balances */}
+                            <div style={{ padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ fontWeight: 700, fontSize: '12px', marginBottom: 'var(--spacing-sm)', borderBottom: '1px solid var(--color-divider)', paddingBottom: '4px' }}>MOVIMENTAÇÕES</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Saldo Inicial:</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(historyViewData.register.openingBalance)}</span>
                                 </div>
-                                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                                    <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Lucro por Tipo</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-xs)' }}>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>Atacado</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-success)' }}>{formatCurrency(historyViewData.metrics.profitByType.atacado)}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia</span><span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--color-primary)' }}>{formatCurrency(historyViewData.metrics.profitByType.mercearia)}</span>
-                                        <span style={{ color: 'var(--color-text-secondary)' }}>Total</span><span style={{ textAlign: 'right', fontWeight: 700 }}>{formatCurrency(historyViewData.metrics.profitByType.total)}</span>
-                                    </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Suprimentos (+):</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(historyViewData.totals?.totalSupplies || 0)}</span>
                                 </div>
-                            </>
-                        )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Sangrias (-):</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(historyViewData.totals?.totalBleeds || 0)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderTop: '1px solid var(--color-divider)', paddingTop: '4px', marginTop: '4px' }}>
+                                    <span style={{ fontWeight: 700 }}>Saldo Final:</span>
+                                    <span style={{ fontWeight: 800, color: 'var(--color-success)' }}>{formatCurrency(historyViewData.register.closingBalance)}</span>
+                                </div>
+                            </div>
 
-                        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--spacing-sm)' }}>
-                            <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-xs)' }}>Resumo de Pagamentos</div>
+                            {/* Sales by Type */}
+                            <div style={{ padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                                <div style={{ fontWeight: 700, fontSize: '12px', marginBottom: 'var(--spacing-sm)', borderBottom: '1px solid var(--color-divider)', paddingBottom: '4px' }}>ANÁLISE DE VENDAS</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Mercearia:</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(historyViewData.metrics?.profitByType.mercearia || 0)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--color-text-secondary)' }}>Atacado:</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(historyViewData.metrics?.profitByType.atacado || 0)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', borderTop: '1px solid var(--color-divider)', paddingTop: '4px', marginTop: '4px' }}>
+                                    <span style={{ fontWeight: 700 }}>Margem:</span>
+                                    <span style={{ fontWeight: 800 }}>{(historyViewData.metrics?.margin * 100 || 0).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Payment Summary */}
+                        <div style={{ padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ fontWeight: 700, fontSize: '12px', marginBottom: 'var(--spacing-sm)', borderBottom: '1px solid var(--color-divider)', paddingBottom: '4px' }}>RESUMO DE PAGAMENTOS</div>
                             {historyViewPaymentSummary.length === 0 ? (
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>-</div>
+                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', textAlign: 'center' }}>Nenhuma venda registrada</div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
                                     {historyViewPaymentSummary.map((p, idx) => (
-                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>{p.method}{p.count > 0 ? ` (${p.count})` : ''}</span>
+                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                            <span style={{ color: 'var(--color-text-secondary)', textTransform: 'capitalize' }}>{p.method}:</span>
                                             <span style={{ fontWeight: 600 }}>{formatCurrency(p.amount)}</span>
                                         </div>
                                     ))}
@@ -1148,28 +1259,12 @@ const CashRegisterPage = () => {
     }
 
     const activeSalesView = sales
-        .filter(s => s.status !== 'cancelled')
-        .filter(s => {
-            if (salesFilter !== 'today') return true;
-            const start = new Date();
-            start.setHours(0, 0, 0, 0);
-            const end = new Date();
-            end.setHours(23, 59, 59, 999);
-            const d = (s.createdAt && typeof s.createdAt.toDate === 'function')
-                ? s.createdAt.toDate()
-                : new Date(s.createdAt || 0);
-            return d >= start && d <= end;
-        });
+        .filter(s => s.status !== 'cancelled');
+
     const totalSales = activeSalesView.reduce((acc, sale) => acc + sale.total, 0);
-    const activeMovementsView = movements
-        .filter(m => {
-            const start = new Date(); start.setHours(0, 0, 0, 0);
-            const end = new Date(); end.setHours(23, 59, 59, 999);
-            const d = (m.createdAt && typeof m.createdAt.toDate === 'function')
-                ? m.createdAt.toDate()
-                : new Date(m.createdAt || 0);
-            return d >= start && d <= end;
-        });
+
+    const activeMovementsView = movements;
+
     const totalSupplies = activeMovementsView
         .filter(m => m.type === 'supply')
         .reduce((acc, m) => acc + m.amount, 0);
@@ -1192,6 +1287,51 @@ const CashRegisterPage = () => {
     const currentBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesProductsDay + totalSupplies - totalBleeds;
     const profitDay = totalSalesProductsDay - totalCMVDay;
     const marginDay = totalSalesProductsDay > 0 ? (profitDay / totalSalesProductsDay) : 0;
+
+    const totalGeneral = currentBalance;
+
+    const salesAnalysis = (() => {
+        let varejo = { total: 0, profit: 0 };
+        let atacado = { total: 0, profit: 0 };
+
+        for (const sale of activeSalesView) {
+            const items = Array.isArray(sale.items) ? sale.items : [];
+            for (const item of items) {
+                const qty = Number(item.quantity || 1);
+                const price = Number(item.unitPrice || 0) * qty;
+                const cost = Number(item.unitCost || 0) * qty;
+                const profit = price - cost;
+
+                if (item.isWholesale === true) {
+                    atacado.total += price;
+                    atacado.profit += profit;
+                } else {
+                    varejo.total += price;
+                    varejo.profit += profit;
+                }
+            }
+        }
+        return { varejo, atacado };
+    })();
+
+    const paymentTotals = (() => {
+        let pix = 0;
+        let card = 0;
+        let cash = 0;
+
+        for (const sale of activeSalesView) {
+            const list = normalizePayments(sale);
+            for (const p of list) {
+                const method = String(p.method || '').toLowerCase();
+                if (method.includes('pix')) pix += p.amount;
+                else if (method.includes('cartão') || method.includes('debito') || method.includes('credito') || method.includes('cartao')) card += p.amount;
+                else if (method.includes('dinheiro')) cash += p.amount;
+            }
+        }
+        // For cash, we also add supplies and subtract bleeds
+        const totalCashInDrawer = Number(currentCashRegister.openingBalance || 0) + cash + totalSupplies - totalBleeds;
+        return { pix, card, cash: totalCashInDrawer };
+    })();
 
     const handleClosingBalanceChange = (method, value) => {
         setClosingBalances(prev => ({
@@ -1253,85 +1393,102 @@ const CashRegisterPage = () => {
             )}
 
             {isClosingMode && (
-                <div className="card" style={{ marginBottom: 'var(--spacing-xl)', border: '2px solid var(--color-danger)', background: 'var(--color-bg-secondary)' }}>
-                    <div className="card-header">
-                        <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                            <Lock className="text-danger" />
-                            Conferência de Fechamento
-                        </h2>
-                        <Button variant="ghost" onClick={() => setIsClosingMode(false)}>Cancelar</Button>
+                <div className="card" style={{ 
+                    marginBottom: 'var(--spacing-xl)', 
+                    border: '1px solid #fee2e2', 
+                    background: '#fff5f5',
+                    borderRadius: '24px',
+                    padding: 'var(--spacing-xl)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+                        <div style={{ 
+                            width: '48px', 
+                            height: '48px', 
+                            background: '#fee2e2', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            color: '#ef4444'
+                        }}>
+                            <AlertCircle size={24} />
+                        </div>
+                        <div>
+                            <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, margin: 0, color: '#991b1b' }}>Confirmação de Fechamento</h2>
+                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: '#b91c1c' }}>
+                                Confira os valores antes de fechar o caixa. Esta ação não pode ser desfeita.
+                            </p>
+                        </div>
                     </div>
 
-                    <div className="grid grid-4" style={{ marginBottom: 'var(--spacing-lg)' }}>
-                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TROCO INICIAL</div>
-                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(currentCashRegister.openingBalance)}</div>
+                    <div className="grid grid-4" style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>DINHEIRO (GAVETA)</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(paymentTotals.cash)}</div>
+                            <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>Inclui troco inicial</div>
                         </div>
-                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TOTAL VENDAS</div>
-                            <div className="text-success" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(totalSalesProductsDay)}</div>
+                        <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL PIX</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#3b82f6' }}>{formatCurrency(paymentTotals.pix)}</div>
                         </div>
-                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TOTAL SAÍDAS</div>
-                            <div className="text-danger" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(totalBleeds)}</div>
+                        <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL CARTÃO</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#8b5cf6' }}>{formatCurrency(paymentTotals.card)}</div>
                         </div>
-                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
-                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>SALDO ESPERADO</div>
-                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, color: 'var(--color-primary)' }}>{formatCurrency(currentBalance)}</div>
+                        <div style={{ padding: 'var(--spacing-lg)', background: '#ef4444', borderRadius: '16px', border: 'none', color: 'white' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL GERAL</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 900 }}>{formatCurrency(totalGeneral)}</div>
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-xl)' }}>
-                        <div className="grid grid-3">
-                            {['Dinheiro', 'Pix', 'Cartão Crédito', 'Cartão Débito', 'Outros'].map((method) => (
-                                <div key={method} className="input-group">
-                                    <label className="input-label" style={{ textTransform: 'uppercase', fontSize: '10px' }}>{method}</label>
-                                    <CurrencyInput
-                                        value={closingBalances[method] || ''}
-                                        onChange={(e) => handleClosingBalanceChange(method, e.target.value)}
-                                        placeholder="0,00"
-                                    />
-                                </div>
-                            ))}
+                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', marginBottom: 'var(--spacing-md)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Análise de Vendas (Este Caixa)
                         </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                            <div className="card" style={{ 
-                                textAlign: 'center', 
-                                border: '2px solid ' + (Math.abs(difference) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)'),
-                                background: (Math.abs(difference) < 0.01 ? 'var(--color-success-light)' : 'rgba(239, 68, 68, 0.1)')
-                            }}>
-                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>DIFERENÇA</div>
-                                <div style={{ 
-                                    fontSize: 'var(--font-size-2xl)', 
-                                    fontWeight: 900, 
-                                    color: (Math.abs(difference) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)') 
-                                }}>
-                                    {formatCurrency(difference)}
+                        <div className="grid grid-2">
+                            {/* Varejo */}
+                            <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '12px', textTransform: 'uppercase' }}>VAREJO / UNID.</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>Venda:</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(salesAnalysis.varejo.total)}</span>
                                 </div>
-                                <div style={{ fontSize: '10px', marginTop: 'var(--spacing-sm)', color: 'var(--color-text-muted)' }}>
-                                    {difference === 0 ? 'Tudo certo!' : difference > 0 ? 'Sobra de caixa' : 'Falta de caixa'}
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>Lucro:</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#10b981' }}>{formatCurrency(salesAnalysis.varejo.profit)}</span>
                                 </div>
                             </div>
-                            
-                            <Button 
-                                variant="secondary" 
-                                icon={Printer} 
-                                fullWidth
-                                onClick={handlePrintOpenRegister}
-                            >
-                                Imprimir Comprovante
-                            </Button>
-                            <Button 
-                                variant="danger" 
-                                icon={Lock} 
-                                fullWidth
-                                onClick={handleConfirmCloseRegister}
-                                loading={loading}
-                            >
-                                Fechar Caixa
-                            </Button>
+                            {/* Atacado */}
+                            <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#3b82f6', marginBottom: '12px', textTransform: 'uppercase' }}>ATACADO</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>Venda:</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(salesAnalysis.atacado.total)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '12px', color: '#64748b' }}>Lucro:</span>
+                                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#10b981' }}>{formatCurrency(salesAnalysis.atacado.profit)}</span>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-md)' }}>
+                        <Button 
+                            variant="secondary" 
+                            onClick={() => setIsClosingMode(false)}
+                            style={{ borderRadius: '12px', padding: '12px 24px', fontWeight: 700, border: '1px solid #e2e8f0', color: '#64748b' }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            variant="danger" 
+                            onClick={handleConfirmCloseRegister}
+                            loading={loading}
+                            style={{ borderRadius: '12px', padding: '12px 32px', fontWeight: 800, background: '#ef4444', color: 'white', border: 'none' }}
+                        >
+                            Confirmar Fechamento
+                        </Button>
                     </div>
                 </div>
             )}
@@ -1560,6 +1717,13 @@ const CashRegisterPage = () => {
                                                 <Button 
                                                     variant="ghost" 
                                                     size="sm" 
+                                                    icon={Printer} 
+                                                    onClick={() => handlePrintMovement(mov)}
+                                                    style={{ padding: '4px' }}
+                                                />
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
                                                     icon={RotateCcw} 
                                                     onClick={() => handleRevertMovement(mov)}
                                                     style={{ padding: '4px' }}
@@ -1680,20 +1844,14 @@ const CashRegisterPage = () => {
                 title="Aprovação do Gerente"
             >
                 <div className="space-y-4">
-                    <p className="text-gray-400 text-sm">Informe usuário e senha do gerente para fechar o caixa.</p>
+                    <p className="text-gray-400 text-sm">Informe a senha do administrador ou gerente para fechar o caixa.</p>
                     <Input
-                        label="Usuário do Gerente"
-                        value={managerUsername}
-                        onChange={(e) => setManagerUsername(e.target.value)}
-                        placeholder="ex: admin"
-                        autoFocus
-                    />
-                    <Input
-                        label="Senha do Gerente"
+                        label="Senha Admin / Gerente"
                         type="password"
                         value={managerPassword}
                         onChange={(e) => setManagerPassword(e.target.value)}
                         placeholder="••••"
+                        autoFocus
                     />
                     {managerError && (
                         <div className="text-red-400 text-sm">{managerError}</div>
@@ -1705,25 +1863,20 @@ const CashRegisterPage = () => {
                             onClick={async () => {
                                 setManagerError('');
                                 try {
-                                    const mgr = await userService.getByUsername(managerUsername);
-                                    if (!mgr) {
-                                        setManagerError('Gerente não encontrado');
+                                    // Get all users and filter managers
+                                    const allUsers = await userService.getAll();
+                                    const managers = allUsers.filter(u => u.role === 'manager' && u.active);
+                                    
+                                    // Find a manager with the provided password
+                                    const authorizedMgr = managers.find(m => m.password === managerPassword);
+                                    
+                                    if (!authorizedMgr) {
+                                        setManagerError('Senha incorreta ou usuário sem permissão');
                                         return;
                                     }
-                                    if (mgr.role !== 'manager') {
-                                        setManagerError('Usuário informado não é gerente');
-                                        return;
-                                    }
-                                    if (!mgr.active) {
-                                        setManagerError('Gerente inativo');
-                                        return;
-                                    }
-                                    if (mgr.password !== managerPassword) {
-                                        setManagerError('Senha incorreta');
-                                        return;
-                                    }
+                                    
                                     setManagerModalOpen(false);
-                                    await proceedClose(mgr.name || mgr.username);
+                                    await proceedClose(authorizedMgr.name || authorizedMgr.username);
                                 } catch (e) {
                                     setManagerError(e.message || 'Erro ao validar gerente');
                                 }
