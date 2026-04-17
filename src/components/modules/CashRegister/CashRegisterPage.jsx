@@ -520,7 +520,14 @@ const CashRegisterPage = () => {
             }
             const paymentSummary = Array.from(paymentsMap.entries()).map(([method, v]) => ({ method, amount: v.amount, count: v.count }));
 
-            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
+            // Calcula o saldo esperado total (Dinheiro + PIX + Cartão)
+            // Para o dinheiro, consideramos: Saldo Inicial + Vendas em Dinheiro + Suprimentos - Sangrias
+            const expectedCash = Number(currentCashRegister.openingBalance || 0) + 
+                                (paymentTotals.cash - Number(currentCashRegister.openingBalance || 0)) + 
+                                totalSupplies - totalBleeds;
+            
+            // O finalBalance para fins de cálculo de diferença deve ser a soma de tudo o que é esperado
+            const finalBalanceTotal = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
 
             const cents = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100);
             if (cents(totalSalesGross) - cents(totalDeliveryFees) !== cents(totalSalesNet)) {
@@ -536,19 +543,22 @@ const CashRegisterPage = () => {
             const presalesCancelResult = await presalesService.cancelAll();
             const cancelledPresales = Number(presalesCancelResult?.cancelled || 0);
 
-            // Calculate physical balance if available
+            // Calcula o total informado pelo usuário
             const totalReported = Object.values(closingBalances).reduce((sum, val) => sum + (parseCurrency(val) || 0), 0);
-            const difference = totalReported - finalBalance;
+            
+            // A diferença é o que foi informado vs o que era esperado (total)
+            // Se o usuário não informou nada (isClosingMode falso ou campos vazios), a diferença é 0
+            const difference = isClosingMode && totalReported > 0 ? (totalReported - finalBalanceTotal) : 0;
 
-            // Use physical balance if available (isClosingMode was active), otherwise use expected
-            const closingBalanceToSave = isClosingMode ? totalReported : finalBalance;
+            // O saldo final salvo deve ser o que foi informado, ou o esperado se não houve conferência
+            const closingBalanceToSave = (isClosingMode && totalReported > 0) ? totalReported : finalBalanceTotal;
 
             await closeCashRegister(closingBalanceToSave, closedByLabel, closingNote, {
                 totalSales: totalSalesNet,
                 totalSupplies,
                 totalBleeds,
                 totalChange,
-                difference: isClosingMode ? difference : 0
+                difference: difference
             });
 
             // Print closing report
@@ -639,6 +649,28 @@ const CashRegisterPage = () => {
         setManagerPassword('');
         setManagerError('');
         setManagerModalOpen(true);
+    };
+
+    const handleManagerApproval = async () => {
+        setManagerError('');
+        try {
+            // Get all users and filter managers
+            const allUsers = await userService.getAll();
+            const managers = allUsers.filter(u => u.role === 'manager' && u.active);
+            
+            // Find a manager with the provided password
+            const authorizedMgr = managers.find(m => m.password === managerPassword);
+            
+            if (!authorizedMgr) {
+                setManagerError('Senha incorreta ou usuário sem permissão');
+                return;
+            }
+            
+            setManagerModalOpen(false);
+            await proceedClose(authorizedMgr.name || authorizedMgr.username);
+        } catch (e) {
+            setManagerError(e.message || 'Erro ao validar gerente');
+        }
     };
 
     const handlePrintOpenRegister = () => {
@@ -1426,18 +1458,48 @@ const CashRegisterPage = () => {
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>DINHEIRO (GAVETA)</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(paymentTotals.cash)}</div>
                             <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>Inclui troco inicial</div>
+                            <div style={{ marginTop: 'var(--spacing-md)' }}>
+                                <CurrencyInput
+                                    label="Informar Valor em Dinheiro"
+                                    value={closingBalances.dinheiro || ''}
+                                    onChange={(e) => handleClosingBalanceChange('dinheiro', e.target.value)}
+                                    placeholder="0,00"
+                                    size="sm"
+                                />
+                            </div>
                         </div>
                         <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL PIX</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#3b82f6' }}>{formatCurrency(paymentTotals.pix)}</div>
+                            <div style={{ marginTop: 'var(--spacing-md)' }}>
+                                <CurrencyInput
+                                    label="Informar Valor PIX"
+                                    value={closingBalances.pix || ''}
+                                    onChange={(e) => handleClosingBalanceChange('pix', e.target.value)}
+                                    placeholder="0,00"
+                                    size="sm"
+                                />
+                            </div>
                         </div>
                         <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL CARTÃO</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#8b5cf6' }}>{formatCurrency(paymentTotals.card)}</div>
+                            <div style={{ marginTop: 'var(--spacing-md)' }}>
+                                <CurrencyInput
+                                    label="Informar Valor Cartão"
+                                    value={closingBalances.cartao || ''}
+                                    onChange={(e) => handleClosingBalanceChange('cartao', e.target.value)}
+                                    placeholder="0,00"
+                                    size="sm"
+                                />
+                            </div>
                         </div>
-                        <div style={{ padding: 'var(--spacing-lg)', background: '#ef4444', borderRadius: '16px', border: 'none', color: 'white' }}>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL GERAL</div>
-                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 900 }}>{formatCurrency(totalGeneral)}</div>
+                        <div style={{ padding: 'var(--spacing-lg)', background: difference < 0 ? '#ef4444' : difference > 0 ? '#10b981' : '#1e293b', borderRadius: '16px', border: 'none', color: 'white', transition: 'all 0.3s' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: '8px', textTransform: 'uppercase' }}>{difference === 0 ? 'TOTAL GERAL' : difference > 0 ? 'SOBRA' : 'FALTA'}</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 900 }}>{formatCurrency(difference === 0 ? totalGeneral : Math.abs(difference))}</div>
+                            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
+                                Informado: {formatCurrency(totalReported)}
+                            </div>
                         </div>
                     </div>
 
@@ -1852,6 +1914,12 @@ const CashRegisterPage = () => {
                         onChange={(e) => setManagerPassword(e.target.value)}
                         placeholder="••••"
                         autoFocus
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleManagerApproval();
+                            }
+                        }}
                     />
                     {managerError && (
                         <div className="text-red-400 text-sm">{managerError}</div>
@@ -1860,27 +1928,7 @@ const CashRegisterPage = () => {
                         <Button variant="ghost" onClick={() => setManagerModalOpen(false)}>Cancelar</Button>
                         <Button
                             variant="primary"
-                            onClick={async () => {
-                                setManagerError('');
-                                try {
-                                    // Get all users and filter managers
-                                    const allUsers = await userService.getAll();
-                                    const managers = allUsers.filter(u => u.role === 'manager' && u.active);
-                                    
-                                    // Find a manager with the provided password
-                                    const authorizedMgr = managers.find(m => m.password === managerPassword);
-                                    
-                                    if (!authorizedMgr) {
-                                        setManagerError('Senha incorreta ou usuário sem permissão');
-                                        return;
-                                    }
-                                    
-                                    setManagerModalOpen(false);
-                                    await proceedClose(authorizedMgr.name || authorizedMgr.username);
-                                } catch (e) {
-                                    setManagerError(e.message || 'Erro ao validar gerente');
-                                }
-                            }}
+                            onClick={handleManagerApproval}
                         >
                             Validar e Fechar
                         </Button>

@@ -219,16 +219,12 @@ export const AppProvider = ({ children }) => {
             if (now >= cutoff && openedAtDate < cutoff) {
                 try {
                     const closingBalance = await computeClosingBalance(currentCashRegister);
-                    const difference = closingBalance - (Number(currentCashRegister.expectedBalance || 0));
-                    await cashRegisterService.close(currentCashRegister.id, {
-                        closingBalance,
-                        closedBy: 'Sistema',
-                        difference,
-                        notes: `Fechamento automático às ${cutoffStr}`
+                    // No auto-fechamento, a diferença deve ser 0 pois o sistema usa o esperado
+                    const difference = 0;
+                    await closeCashRegister(closingBalance, 'Sistema', `Fechamento automático às ${cutoffStr}`, {
+                        difference
                     });
                     autoClosedRef.current.add(currentCashRegister.id);
-                    setCurrentCashRegister(null);
-                    showNotification(`Caixa fechado automaticamente às ${cutoffStr}`, 'warning');
                 } catch (error) {
                     console.error('Auto close cash register failed:', error);
                 }
