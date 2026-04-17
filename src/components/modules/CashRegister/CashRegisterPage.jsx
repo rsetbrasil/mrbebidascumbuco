@@ -318,7 +318,7 @@ const CashRegisterPage = () => {
             const totalChange = (movements || [])
                 .filter(m => m.type === 'change')
                 .reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
+            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
 
             printCashRegisterReport({
                 openedAt: register.openedAt,
@@ -330,7 +330,7 @@ const CashRegisterPage = () => {
                 totalSupplies,
                 totalBleeds,
                 totalChange,
-                finalBalance,
+                finalBalance: register.closingBalance !== undefined ? register.closingBalance : finalBalance,
                 difference: register.difference,
                 notes: register.notes,
                 totalVarejo: profitCalc.totalVarejo,
@@ -365,7 +365,7 @@ const CashRegisterPage = () => {
             const totalSupplies = (movements || []).filter(m => m.type === 'supply').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalBleeds = (movements || []).filter(m => m.type === 'bleed').reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalChange = (movements || []).filter(m => m.type === 'change').reduce((acc, m) => acc + Number(m.amount || 0), 0);
-            const finalBalance = Number(register.openingBalance || 0) + totalSalesProducts + totalSupplies - totalBleeds;
+            const finalBalance = Number(register.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
 
             const metrics = (() => {
                 let totalVarejo = 0;
@@ -526,8 +526,8 @@ const CashRegisterPage = () => {
                                 (paymentTotals.cash - Number(currentCashRegister.openingBalance || 0)) + 
                                 totalSupplies - totalBleeds;
             
-            // O finalBalance para fins de cálculo de diferença deve ser a soma de tudo o que é esperado
-            const finalBalanceTotal = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
+            // O finalBalance para fins de cálculo de diferença deve ser a soma de tudo o que é esperado (bruto)
+            const finalBalanceTotal = Number(currentCashRegister.openingBalance || 0) + totalSalesGross + totalSupplies - totalBleeds;
 
             const cents = (n) => Math.round((Number(n || 0) + Number.EPSILON) * 100);
             if (cents(totalSalesGross) - cents(totalDeliveryFees) !== cents(totalSalesNet)) {
@@ -610,11 +610,9 @@ const CashRegisterPage = () => {
                 totalBleeds,
                 totalChange,
                 finalBalance: closingBalanceToSave,
-                difference: isClosingMode ? difference : 0,
+                difference: 0,
                 notes: closingNote,
-                paymentSummary: isClosingMode ? 
-                    Object.entries(closingBalances).map(([method, val]) => ({ method, amount: parseCurrency(val) || 0 })) : 
-                    paymentSummary,
+                paymentSummary: paymentSummary,
                 totalVarejo: profitCalc.totalVarejo,
                 totalAtacado: profitCalc.totalAtacado,
                 totalFardo: profitCalc.totalFardo,
@@ -706,7 +704,7 @@ const CashRegisterPage = () => {
                 const products = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (Number(sale.total || 0) - fee);
                 return acc + Math.max(0, products);
             }, 0);
-            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesNet + totalSupplies - totalBleeds;
+            const finalBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesGross + totalSupplies - totalBleeds;
 
             const profitCalc = (() => {
                 let totalVarejo = 0;
@@ -1316,7 +1314,10 @@ const CashRegisterPage = () => {
         return acc + Math.max(0, products);
     }, 0);
     const totalCMVDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.cmvTotal || 0), 0);
-    const currentBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesProductsDay + totalSupplies - totalBleeds;
+    
+    // currentBalance deve usar o total bruto das vendas (totalSales) pois os pagamentos incluem a taxa de entrega
+    const currentBalance = Number(currentCashRegister.openingBalance || 0) + totalSales + totalSupplies - totalBleeds;
+    
     const profitDay = totalSalesProductsDay - totalCMVDay;
     const marginDay = totalSalesProductsDay > 0 ? (profitDay / totalSalesProductsDay) : 0;
 
@@ -1360,8 +1361,8 @@ const CashRegisterPage = () => {
                 else if (method.includes('dinheiro')) cash += p.amount;
             }
         }
-        // For cash, we also add supplies and subtract bleeds
-        const totalCashInDrawer = Number(currentCashRegister.openingBalance || 0) + cash + totalSupplies - totalBleeds;
+        // For cash, we also add supplies and subtract bleeds and change given
+        const totalCashInDrawer = Number(currentCashRegister.openingBalance || 0) + cash + totalSupplies - totalBleeds - totalChange;
         return { pix, card, cash: totalCashInDrawer };
     })();
 
@@ -1458,47 +1459,20 @@ const CashRegisterPage = () => {
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>DINHEIRO (GAVETA)</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(paymentTotals.cash)}</div>
                             <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '4px' }}>Inclui troco inicial</div>
-                            <div style={{ marginTop: 'var(--spacing-md)' }}>
-                                <CurrencyInput
-                                    label="Informar Valor em Dinheiro"
-                                    value={closingBalances.dinheiro || ''}
-                                    onChange={(e) => handleClosingBalanceChange('dinheiro', e.target.value)}
-                                    placeholder="0,00"
-                                    size="sm"
-                                />
-                            </div>
                         </div>
                         <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL PIX</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#3b82f6' }}>{formatCurrency(paymentTotals.pix)}</div>
-                            <div style={{ marginTop: 'var(--spacing-md)' }}>
-                                <CurrencyInput
-                                    label="Informar Valor PIX"
-                                    value={closingBalances.pix || ''}
-                                    onChange={(e) => handleClosingBalanceChange('pix', e.target.value)}
-                                    placeholder="0,00"
-                                    size="sm"
-                                />
-                            </div>
                         </div>
                         <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL CARTÃO</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#8b5cf6' }}>{formatCurrency(paymentTotals.card)}</div>
-                            <div style={{ marginTop: 'var(--spacing-md)' }}>
-                                <CurrencyInput
-                                    label="Informar Valor Cartão"
-                                    value={closingBalances.cartao || ''}
-                                    onChange={(e) => handleClosingBalanceChange('cartao', e.target.value)}
-                                    placeholder="0,00"
-                                    size="sm"
-                                />
-                            </div>
                         </div>
-                        <div style={{ padding: 'var(--spacing-lg)', background: difference < 0 ? '#ef4444' : difference > 0 ? '#10b981' : '#1e293b', borderRadius: '16px', border: 'none', color: 'white', transition: 'all 0.3s' }}>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: '8px', textTransform: 'uppercase' }}>{difference === 0 ? 'TOTAL GERAL' : difference > 0 ? 'SOBRA' : 'FALTA'}</div>
-                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 900 }}>{formatCurrency(difference === 0 ? totalGeneral : Math.abs(difference))}</div>
+                        <div style={{ padding: 'var(--spacing-lg)', background: '#1e293b', borderRadius: '16px', border: 'none', color: 'white', transition: 'all 0.3s' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: '8px', textTransform: 'uppercase' }}>TOTAL ESPERADO</div>
+                            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 900 }}>{formatCurrency(currentBalance)}</div>
                             <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', marginTop: '4px' }}>
-                                Informado: {formatCurrency(totalReported)}
+                                Valor que deve estar no caixa
                             </div>
                         </div>
                     </div>
