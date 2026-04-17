@@ -65,6 +65,8 @@ const CashRegisterPage = () => {
     const [detailedItems, setDetailedItems] = useState([]);
     const [salesFilter, setSalesFilter] = useState('today'); // 'all' | 'today'
     const [closeRegisterModalOpen, setCloseRegisterModalOpen] = useState(false);
+    const [isClosingMode, setIsClosingMode] = useState(false);
+    const [closingBalances, setClosingBalances] = useState({});
 
     const calculateDetailedItems = (salesList) => {
         const itemsBreakdown = [];
@@ -101,8 +103,19 @@ const CashRegisterPage = () => {
         if (isRegisterOpen && currentCashRegister) {
             loadMovements();
             loadSales();
+        } else {
+            loadRecentHistory();
         }
     }, [isRegisterOpen, currentCashRegister]);
+
+    const loadRecentHistory = async () => {
+        try {
+            const list = await cashRegisterService.getHistory();
+            setHistoryItems(list?.slice(0, 5) || []);
+        } catch (e) {
+            console.error('Error loading recent history:', e);
+        }
+    };
 
     const normalizePayments = (sale) => {
         if (Array.isArray(sale.payments) && sale.payments.length > 0) {
@@ -459,12 +472,16 @@ const CashRegisterPage = () => {
             const presalesCancelResult = await presalesService.cancelAll();
             const cancelledPresales = Number(presalesCancelResult?.cancelled || 0);
 
-            await closeCashRegister(finalBalance, closedByLabel, closingNote);
+            // Use physical balance if available (isClosingMode was active), otherwise use expected
+            const closingBalanceToSave = isClosingMode ? totalReported : finalBalance;
+
+            await closeCashRegister(closingBalanceToSave, closedByLabel, closingNote);
 
             // Print closing report
             const profitCalc = (() => {
                 let atacado = 0;
                 let mercearia = 0;
+                let fardo = 0;
                 for (const sale of activeSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
@@ -474,12 +491,14 @@ const CashRegisterPage = () => {
                         const lucroItem = (unitPrice - unitCost) * qty;
                         if (item.isWholesale === true) {
                             atacado += lucroItem;
+                        } else if (item.categoryName?.toLowerCase().includes('fardo') || item.name?.toLowerCase().includes('fardo')) {
+                            fardo += lucroItem;
                         } else {
                             mercearia += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, total: atacado + mercearia };
+                return { atacado, mercearia, fardo, total: atacado + mercearia + fardo };
             })();
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
@@ -491,11 +510,15 @@ const CashRegisterPage = () => {
                 totalSupplies,
                 totalBleeds,
                 totalChange,
-                finalBalance,
+                finalBalance: closingBalanceToSave,
+                difference: isClosingMode ? difference : 0,
                 notes: closingNote,
-                paymentSummary,
+                paymentSummary: isClosingMode ? 
+                    Object.entries(closingBalances).map(([method, val]) => ({ method, amount: parseCurrency(val) || 0 })) : 
+                    paymentSummary,
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
+                profitFardo: profitCalc.fardo,
                 profitTotal: profitCalc.total
             }, settings || {});
             showNotification('success', `Caixa fechado com sucesso. Pré-vendas reservadas zeradas: ${cancelledPresales}.`);
@@ -512,7 +535,9 @@ const CashRegisterPage = () => {
     };
 
     const handleInitCloseRegister = () => {
-        setCloseRegisterModalOpen(true);
+        setIsClosingMode(true);
+        // Scroll to top to see the expansion
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleConfirmCloseRegister = async () => {
@@ -574,6 +599,7 @@ const CashRegisterPage = () => {
             const profitCalc = (() => {
                 let atacado = 0;
                 let mercearia = 0;
+                let fardo = 0;
                 for (const sale of activeSales) {
                     const items = Array.isArray(sale.items) ? sale.items : [];
                     for (const item of items) {
@@ -583,12 +609,14 @@ const CashRegisterPage = () => {
                         const lucroItem = (unitPrice - unitCost) * qty;
                         if (item.isWholesale === true) {
                             atacado += lucroItem;
+                        } else if (item.categoryName?.toLowerCase().includes('fardo') || item.name?.toLowerCase().includes('fardo')) {
+                            fardo += lucroItem;
                         } else {
                             mercearia += lucroItem;
                         }
                     }
                 }
-                return { atacado, mercearia, total: atacado + mercearia };
+                return { atacado, mercearia, fardo, total: atacado + mercearia + fardo };
             })();
             printCashRegisterReport({
                 openedAt: currentCashRegister.openedAt,
@@ -600,11 +628,15 @@ const CashRegisterPage = () => {
                 totalSupplies,
                 totalBleeds,
                 totalChange,
-                finalBalance,
-                notes: 'Relatório parcial (caixa aberto)',
-                paymentSummary,
+                finalBalance: isClosingMode ? totalReported : currentBalance,
+                difference: isClosingMode ? difference : 0,
+                notes: isClosingMode ? 'Conferência de Fechamento' : 'Relatório parcial (caixa aberto)',
+                paymentSummary: isClosingMode ? 
+                    Object.entries(closingBalances).map(([method, val]) => ({ method, amount: parseCurrency(val) || 0 })) : 
+                    paymentSummary,
                 profitAtacado: profitCalc.atacado,
                 profitMercearia: profitCalc.mercearia,
+                profitFardo: profitCalc.fardo,
                 profitTotal: profitCalc.total
             }, settings || {});
         } catch (error) {
@@ -988,7 +1020,7 @@ const CashRegisterPage = () => {
 
     if (!isRegisterOpen) {
         return (
-            <div className="max-w-md mx-auto mt-10 animate-fade-in">
+            <div className="max-w-4xl mx-auto mt-10 space-y-8 animate-fade-in">
                 {notification && (
                     <Notification
                         type={notification.type}
@@ -997,59 +1029,109 @@ const CashRegisterPage = () => {
                     />
                 )}
 
-                <Card>
-                    <div className="p-8 text-center">
-                        <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Lock size={40} className="text-gray-400" />
-                        </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Caixa Fechado</h2>
-                        <p className="text-gray-400 mb-8">
-                            O caixa está fechado. Informe o valor inicial para iniciar as operações.
-                        </p>
-
-                        <form onSubmit={handleOpenRegister} className="space-y-6">
-                            {canWrite && (
-                                <CurrencyInput
-                                    label="Valor Inicial (R$)"
-                                    value={openingBalance}
-                                    onChange={(e) => setOpeningBalance(e.target.value)}
-                                    placeholder="0,00"
-                                    className="text-center text-lg"
-                                    autoFocus
-                                />
-                            )}
-
-                            <div
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: canWrite ? 'repeat(2, minmax(160px, 1fr))' : '1fr',
-                                    gap: 'var(--spacing-sm)'
-                                }}
-                            >
-                                {canWrite && (
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        size="lg"
-                                        loading={loading}
-                                        icon={Unlock}
-                                    >
-                                        Abrir Caixa
-                                    </Button>
-                                )}
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    size="lg"
-                                    icon={History}
-                                    onClick={openHistoryModal}
-                                >
-                                    Ver Histórico
-                                </Button>
+                <div className="max-w-md mx-auto">
+                    <Card>
+                        <div className="p-8 text-center">
+                            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Lock size={40} className="text-gray-400" />
                             </div>
-                        </form>
+                            <h2 className="text-2xl font-bold text-white mb-2">Caixa Fechado</h2>
+                            <p className="text-gray-400 mb-8">
+                                O caixa está fechado. Informe o valor inicial para iniciar as operações.
+                            </p>
+
+                            <form onSubmit={handleOpenRegister} className="space-y-6">
+                                {canWrite && (
+                                    <CurrencyInput
+                                        label="Valor Inicial (R$)"
+                                        value={openingBalance}
+                                        onChange={(e) => setOpeningBalance(e.target.value)}
+                                        placeholder="0,00"
+                                        className="text-center text-lg"
+                                        autoFocus
+                                    />
+                                )}
+
+                                <div className="grid grid-cols-1 gap-3">
+                                    {canWrite && (
+                                        <Button
+                                            type="submit"
+                                            variant="success"
+                                            size="lg"
+                                            loading={loading}
+                                            icon={Unlock}
+                                            fullWidth
+                                        >
+                                            Abrir Caixa
+                                        </Button>
+                                    )}
+                                </div>
+                            </form>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Últimos Fechamentos Section */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <History size={20} className="text-primary-500" />
+                        Últimos Fechamentos
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 gap-3">
+                        {historyItems.length === 0 ? (
+                            <div className="p-8 text-center bg-slate-800/50 rounded-lg border border-slate-700/50 text-gray-400">
+                                Nenhum fechamento recente
+                            </div>
+                        ) : (
+                            historyItems.map((reg) => (
+                                <div 
+                                    key={reg.id} 
+                                    className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/50 flex items-center justify-between hover:bg-slate-800 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-gray-400">
+                                            <Lock size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="text-white font-medium">{formatDateTime(reg.closedAt)}</div>
+                                            <div className="text-xs text-gray-400">Operador: {reg.closedBy}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-success-400 font-bold">{formatCurrency(reg.closingBalance)}</div>
+                                        <div className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-block mt-1 ${
+                                            Number(reg.difference || 0) === 0 ? 'bg-slate-700 text-gray-400' :
+                                            Number(reg.difference || 0) > 0 ? 'bg-success-500/10 text-success-400' :
+                                            'bg-danger-500/10 text-danger-400'
+                                        }`}>
+                                            {Number(reg.difference || 0) === 0 ? 'Sem diferença' : 
+                                             Number(reg.difference || 0) > 0 ? `Sobra: ${formatCurrency(reg.difference)}` : 
+                                             `Falta: ${formatCurrency(Math.abs(reg.difference))}`}
+                                        </div>
+                                    </div>
+                                    <div className="ml-4">
+                                        <Button 
+                                            variant="secondary" 
+                                            size="sm" 
+                                            icon={Eye} 
+                                            onClick={() => handleViewHistory(reg)}
+                                        />
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                        <Button 
+                            variant="secondary" 
+                            fullWidth 
+                            onClick={openHistoryModal}
+                            icon={History}
+                        >
+                            Ver Todo Histórico
+                        </Button>
                     </div>
-                </Card>
+                </div>
+
                 {historyModals}
             </div>
         );
@@ -1100,6 +1182,17 @@ const CashRegisterPage = () => {
     const currentBalance = Number(currentCashRegister.openingBalance || 0) + totalSalesProductsDay + totalSupplies - totalBleeds;
     const profitDay = totalSalesProductsDay - totalCMVDay;
     const marginDay = totalSalesProductsDay > 0 ? (profitDay / totalSalesProductsDay) : 0;
+
+    const handleClosingBalanceChange = (method, value) => {
+        setClosingBalances(prev => ({
+            ...prev,
+            [method]: value
+        }));
+    };
+
+    const totalReported = Object.values(closingBalances).reduce((sum, val) => sum + (parseCurrency(val) || 0), 0);
+    const difference = totalReported - currentBalance;
+
     const profitByType = (() => {
         let atacado = 0;
         let mercearia = 0;
@@ -1119,6 +1212,7 @@ const CashRegisterPage = () => {
         }
         return { atacado, mercearia, total: atacado + mercearia };
     })();
+
     const paymentsSummaryDay = (() => {
         const map = new Map();
         for (const sale of activeSalesView) {
@@ -1139,13 +1233,96 @@ const CashRegisterPage = () => {
     })();
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6 animate-fade-in pb-20">
             {notification && (
                 <Notification
                     type={notification.type}
                     message={notification.message}
                     onClose={() => setNotification(null)}
                 />
+            )}
+
+            {isClosingMode && (
+                <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 space-y-6 mb-8 animate-slide-down">
+                    <div className="flex justify-between items-center border-b border-slate-700 pb-4">
+                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <Lock className="text-danger-500" />
+                            Conferência de Fechamento
+                        </h2>
+                        <Button variant="ghost" onClick={() => setIsClosingMode(false)}>Cancelar</Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                            <div className="text-xs text-gray-400 mb-1">TROCO INICIAL</div>
+                            <div className="text-lg font-bold text-white">{formatCurrency(currentCashRegister.openingBalance)}</div>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                            <div className="text-xs text-gray-400 mb-1">TOTAL VENDAS</div>
+                            <div className="text-lg font-bold text-success-400">{formatCurrency(totalSalesProductsDay)}</div>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                            <div className="text-xs text-gray-400 mb-1">TOTAL SAÍDAS</div>
+                            <div className="text-lg font-bold text-danger-400">{formatCurrency(totalBleeds)}</div>
+                        </div>
+                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
+                            <div className="text-xs text-gray-400 mb-1">SALDO ESPERADO</div>
+                            <div className="text-lg font-bold text-primary-400">{formatCurrency(currentBalance)}</div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {['Dinheiro', 'Pix', 'Cartão Crédito', 'Cartão Débito', 'Outros'].map((method) => (
+                                <div key={method} className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/50">
+                                    <div className="text-[10px] text-gray-400 font-bold uppercase mb-2">{method}</div>
+                                    <CurrencyInput
+                                        value={closingBalances[method] || ''}
+                                        onChange={(e) => handleClosingBalanceChange(method, e.target.value)}
+                                        placeholder="0,00"
+                                        className="text-sm bg-slate-800 border-slate-700"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex flex-col gap-4">
+                            <div className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center text-center ${
+                                Math.abs(difference) < 0.01 ? 'bg-success-500/10 border-success-500/20' : 'bg-danger-500/10 border-danger-500/20'
+                            }`}>
+                                <div className="text-xs font-bold text-gray-400 uppercase mb-2">DIFERENÇA</div>
+                                <div className={`text-3xl font-black ${
+                                    Math.abs(difference) < 0.01 ? 'text-success-400' : 'text-danger-400'
+                                }`}>
+                                    {formatCurrency(difference)}
+                                </div>
+                                <div className="text-[10px] text-gray-500 mt-2 font-medium">
+                                    {difference === 0 ? 'Tudo certo!' : difference > 0 ? 'Sobra de caixa' : 'Falta de caixa'}
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-col gap-2">
+                                <Button 
+                                    variant="secondary" 
+                                    icon={Printer} 
+                                    fullWidth
+                                    onClick={handlePrintOpenRegister}
+                                >
+                                    Imprimir Comprovante
+                                </Button>
+                                <Button 
+                                    variant="danger" 
+                                    icon={Lock} 
+                                    fullWidth
+                                    onClick={handleConfirmCloseRegister}
+                                    disabled={loading}
+                                >
+                                    Fechar Caixa
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1239,209 +1416,113 @@ const CashRegisterPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-blue-500 relative overflow-hidden">
-                    <Unlock size={80} className="absolute right-[-10px] bottom-[-20px] text-blue-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Unlock size={16} className="text-blue-400" /> Saldo Inicial</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
-                            {formatCurrency(currentCashRegister.openingBalance)}
-                        </h3>
-                    </div>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-green-500 relative overflow-hidden">
-                    <DollarSign size={80} className="absolute right-[-10px] bottom-[-20px] text-green-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-green-400" /> Vendas Líquidas</p>
-                        <h3 className="text-3xl font-bold text-green-400 tracking-tight">
-                            {formatCurrency(totalSalesProductsDay)}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">Bruto: {formatCurrency(totalSales)} • {sales.length} venda(s)</p>
-                    </div>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-emerald-500 relative overflow-hidden">
+                <Card className="bg-emerald-500/10 border-emerald-500/20 relative overflow-hidden">
                     <ArrowUpCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-emerald-500/10" />
                     <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1">Suprimentos</p>
+                        <p className="text-emerald-400 text-sm mb-1 flex items-center gap-2">
+                            <ArrowUpCircle size={16} /> Entradas
+                        </p>
                         <h3 className="text-3xl font-bold text-emerald-400 tracking-tight">
-                            {formatCurrency(totalSupplies)}
+                            {formatCurrency(totalSalesProductsDay + totalSupplies)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-red-500 relative overflow-hidden">
+                <Card className="bg-red-500/10 border-red-500/20 relative overflow-hidden">
                     <ArrowDownCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-red-500/10" />
                     <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1">Sangrias</p>
+                        <p className="text-red-400 text-sm mb-1 flex items-center gap-2">
+                            <ArrowDownCircle size={16} /> Saídas
+                        </p>
                         <h3 className="text-3xl font-bold text-red-400 tracking-tight">
                             {formatCurrency(totalBleeds)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-orange-500 relative overflow-hidden">
-                    <RotateCcw size={80} className="absolute right-[-10px] bottom-[-20px] text-orange-500/10" />
+                <Card className="bg-blue-500/10 border-blue-500/20 relative overflow-hidden">
+                    <DollarSign size={80} className="absolute right-[-10px] bottom-[-20px] text-blue-500/10" />
                     <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1">Trocos</p>
-                        <h3 className="text-3xl font-bold text-orange-400 tracking-tight">
-                            {formatCurrency(totalChange)}
-                        </h3>
-                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
-                    </div>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-primary-500 relative overflow-hidden">
-                    <Wallet size={80} className="absolute right-[-10px] bottom-[-20px] text-primary-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Wallet size={16} className="text-primary-400" /> Saldo Atual</p>
-                        <h3 className="text-3xl font-bold text-primary-400 tracking-tight">
+                        <p className="text-blue-400 text-sm mb-1 flex items-center gap-2">
+                            <DollarSign size={16} /> Saldo
+                        </p>
+                        <h3 className="text-3xl font-bold text-blue-400 tracking-tight">
                             {formatCurrency(currentBalance)}
                         </h3>
                     </div>
                 </Card>
             </div>
 
-            {/* BREAKDOWN DE PAGAMENTOS ROW */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {paymentsSummaryDay.length === 0 ? (
-                    <div className="col-span-full p-4 rounded-lg bg-slate-800/50 border border-slate-700 text-center text-gray-400 text-sm">
-                        Nenhuma venda registrada
-                    </div>
-                ) : (
-                    paymentsSummaryDay.map((p, idx) => (
-                        <div key={idx} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700/50 flex flex-col justify-center items-center shadow-sm">
-                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                {p.method}
-                            </span>
-                            <span className="text-lg font-bold text-white mb-0.5">{formatCurrency(p.amount)}</span>
-                            <span className="text-[10px] px-2 py-0.5 bg-slate-700/50 text-gray-400 rounded-full">{p.count} transação(ões)</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-1">
+                    <Card title="Nova Movimentação" icon={DollarSign}>
+                        <div className="p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="success"
+                                    fullWidth
+                                    onClick={() => setModalType('supply')}
+                                    icon={ArrowUpCircle}
+                                >
+                                    Entrada
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    fullWidth
+                                    onClick={() => setModalType('bleed')}
+                                    icon={ArrowDownCircle}
+                                >
+                                    Saída
+                                </Button>
+                            </div>
+                            <div className="text-xs text-gray-500 text-center">
+                                Registre suprimentos (entradas) ou sangrias (saídas) avulsas no caixa.
+                            </div>
                         </div>
-                    ))
-                )}
-            </div>
+                    </Card>
+                </div>
 
-            <div className="grid grid-cols-1 gap-6">
-                <div>
-                    <Card title="Histórico de Movimentações" icon={History}>
-                        <div className="space-y-6">
-                            <div>
-                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)' }}>Vendas do Dia</div>
-                                <div className="table-container">
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Hora</th>
-                                                <th>Nº</th>
-                                                <th>Cliente</th>
-                                                <th style={{ textAlign: 'right' }}>Total</th>
-                                                <th style={{ textAlign: 'right' }}>Produtos</th>
-                                                <th style={{ textAlign: 'right' }}>Entrega</th>
+                <div className="md:col-span-2">
+                    <Card title="Movimentações Recentes" icon={History}>
+                        <div className="table-container max-h-[400px] overflow-y-auto">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Descrição</th>
+                                        <th className="text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {activeMovementsView.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="4" className="text-center py-8 text-gray-500">
+                                                Nenhuma movimentação hoje
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        activeMovementsView.map((mov) => (
+                                            <tr key={mov.id}>
+                                                <td className="text-xs">{formatDateTime(mov.createdAt).split(' ')[1]}</td>
+                                                <td>
+                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                                                        mov.type === 'supply' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                                    }`}>
+                                                        {mov.type === 'supply' ? 'Entrada' : 'Saída'}
+                                                    </span>
+                                                </td>
+                                                <td className="text-sm text-gray-300">{mov.description}</td>
+                                                <td className={`text-right font-bold ${
+                                                    mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
+                                                }`}>
+                                                    {formatCurrency(mov.amount)}
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {activeSalesView.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                                        Nenhuma venda registrada hoje
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                activeSalesView.map((sale) => {
-                                                    const gross = Number(sale.total || 0);
-                                                    const fee = Number(sale.deliveryFeeValue || 0);
-                                                    const net = sale.productsTotal !== undefined ? Number(sale.productsTotal || 0) : (gross - fee);
-                                                    const time = formatDateTime(sale.createdAt).split(' ')[1];
-                                                    return (
-                                                        <tr key={sale.id || sale.saleNumber}>
-                                                            <td>{time}</td>
-                                                            <td>{sale.saleNumber || '-'}</td>
-                                                            <td>{sale.customer?.name || 'Cliente não informado'}</td>
-                                                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(gross)}</td>
-                                                            <td style={{ textAlign: 'right' }}>{formatCurrency(net)}</td>
-                                                            <td style={{ textAlign: 'right' }}>{fee > 0 ? formatCurrency(fee) : '-'}</td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div>
-                                <div style={{ fontWeight: 600, marginBottom: 'var(--spacing-sm)' }}>Movimentações do Dia</div>
-                                <div className="table-container">
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Hora</th>
-                                                <th>Tipo</th>
-                                                <th>Descrição</th>
-                                                <th style={{ textAlign: 'right' }}>Valor</th>
-                                                <th style={{ textAlign: 'right' }}>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {activeMovementsView.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="5" style={{ padding: 'var(--spacing-lg)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                                        Nenhuma movimentação registrada hoje
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                activeMovementsView.map((mov) => (
-                                                    <tr key={mov.id}>
-                                                        <td>
-                                                            {formatDateTime(mov.createdAt).split(' ')[1]}
-                                                        </td>
-                                                        <td>
-                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${mov.type === 'supply'
-                                                                ? 'bg-emerald-500/10 text-emerald-400'
-                                                                : mov.type === 'bleed'
-                                                                ? 'bg-red-500/10 text-red-400'
-                                                                : 'bg-gray-500/10 text-gray-300'
-                                                                }`}>
-                                                                {mov.type === 'supply' ? 'Suprimento' : mov.type === 'bleed' ? 'Sangria' : mov.type}
-                                                            </span>
-                                                        </td>
-                                                        <td>{mov.description}</td>
-                                                        <td className={`text-right font-medium ${mov.type === 'supply' ? 'text-emerald-400' : 'text-red-400'
-                                                            }`}>
-                                                            {mov.type === 'supply' ? '+' : '-'}{formatCurrency(mov.amount)}
-                                                        </td>
-                                                        <td style={{ textAlign: 'right' }}>
-                                                            {(mov.type === 'supply' || mov.type === 'bleed') && canWrite ? (
-                                                                <div style={{ display: 'inline-flex', gap: '8px' }}>
-                                                                    <Button
-                                                                        variant="secondary"
-                                                                        size="sm"
-                                                                        icon={RotateCcw}
-                                                                        onClick={() => handleRevertMovement(mov)}
-                                                                    >
-                                                                        Estornar
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="danger"
-                                                                        size="sm"
-                                                                        icon={Trash2}
-                                                                        onClick={() => handleDeleteMovement(mov)}
-                                                                    >
-                                                                        Excluir
-                                                                    </Button>
-                                                                </div>
-                                                            ) : (
-                                                                <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>-</span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </Card>
                 </div>

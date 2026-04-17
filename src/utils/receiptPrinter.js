@@ -316,134 +316,88 @@ export const printCashRegisterReport = (data, settings = {}) => {
     const paymentSummaryHtml = Array.isArray(data.paymentSummary) && data.paymentSummary.length > 0
         ? data.paymentSummary.map(p => `
             <div class="flex text-sm">
-                <span>${p.method}</span>
-                <span>${formatCurrency(p.amount)}${p.count ? ` (${p.count})` : ''}</span>
+                <span style="text-transform: uppercase;">${p.method} TOTAL:</span>
+                <span class="font-bold">${formatCurrency(p.amount)}</span>
             </div>
         `).join('')
         : `
             <div class="flex text-sm">
-                <span>-</span>
+                <span>SEM MOVIMENTAÇÃO</span>
                 <span>${formatCurrency(0)}</span>
             </div>
         `;
 
-    const profitSectionHtml = (profitAtacado > 0 || profitMercearia > 0 || profitTotal > 0 || totalProfitFallback > 0)
-        ? `
+    const profitSectionHtml = `
         <div class="payment-section">
-            <div class="font-bold text-sm mb-1">LUCRO</div>
-            ${profitTotal > 0 || profitAtacado > 0 || profitMercearia > 0 ? `
-                <div class="flex text-sm">
-                    <span>Atacado:</span>
-                    <span>${formatCurrency(profitAtacado)}</span>
-                </div>
-                <div class="flex text-sm">
-                    <span>Mercearia:</span>
-                    <span>${formatCurrency(profitMercearia)}</span>
-                </div>
-                <div class="flex font-bold text-sm">
-                    <span>Total:</span>
-                    <span>${formatCurrency(profitTotal)}</span>
-                </div>
-            ` : `
-                <div class="flex font-bold text-sm">
-                    <span>Total:</span>
-                    <span>${formatCurrency(totalProfitFallback)}</span>
-                </div>
-            `}
+            <div class="font-bold text-sm mb-1 text-center border-b border-t py-1">ANÁLISE DE VENDAS</div>
+            <div class="flex text-sm">
+                <span>VAREJO:</span>
+                <span>${formatCurrency(data.profitMercearia || 0)}</span>
+            </div>
+            <div class="flex text-sm">
+                <span>ATACADO:</span>
+                <span>${formatCurrency(data.profitAtacado || 0)}</span>
+            </div>
+            <div class="flex text-sm">
+                <span>FARDO:</span>
+                <span>${formatCurrency(data.profitFardo || 0)}</span>
+            </div>
         </div>
-        `
-        : '';
-
-    const headerDetailsHtml = isGenericReport && periodStr
-        ? `
-        <div class="mb-2 text-sm">
-            <div class="details-row"><span>Período:</span><span>${periodStr}</span></div>
-            <div class="details-row"><span>Emissão:</span><span>${formatDateTime(new Date())}</span></div>
-        </div>
-        `
-        : `
-        <div class="mb-2 text-sm">
-            <div class="font-bold text-center mb-1">DADOS DO FECHAMENTO</div>
-            <div class="details-row"><span>Abertura:</span><span>${openedAtStr}</span></div>
-            <div class="details-row"><span>Fechamento:</span><span>${closedAtStr}</span></div>
-            <div class="details-row"><span>Operador:</span><span class="text">${operatorStr}</span></div>
-        </div>
-        `;
+    `;
 
     const html = `
         <div class="text-center mb-2">
-            <div class="font-bold">${companyName}</div>
-            <div class="font-bold mt-1">${reportTitle}</div>
+            <div class="font-bold" style="font-size: 16px;">${reportTitle}</div>
+            <div class="text-xs uppercase">${companyName}</div>
         </div>
 
-        <div class="border-b mb-2"></div>
+        <div class="mb-2 text-sm border-t border-b py-2">
+            <div class="flex"><span>ABERTURA:</span><span>${openedAtStr}</span></div>
+            <div class="flex"><span>FECHAMENTO:</span><span>${closedAtStr}</span></div>
+        </div>
 
-        ${headerDetailsHtml}
-
-        <div class="border-b mb-2"></div>
-
-        <div class="font-bold text-center mb-1">RESUMO FINANCEIRO</div>
+        <div class="font-bold text-sm mb-1 text-center border-b py-1">SITUAÇÃO FINANCEIRA</div>
         
         <div class="mb-2 text-sm">
             <div class="flex">
-                <span>Saldo Inicial:</span>
+                <span>TROCO INICIAL:</span>
                 <span>${formatCurrency(data.openingBalance)}</span>
             </div>
-            <div class="flex">
-                <span>Total Vendas (+):</span>
-                <span>${formatCurrency(data.totalSales)}</span>
-            </div>
-            ${Number(data.totalDeliveryFees || 0) > 0 ? `
-                <div class="flex">
-                    <span>Taxas Entrega (+):</span>
-                    <span>${formatCurrency(data.totalDeliveryFees)}</span>
-                </div>
-            ` : ''}
-            <div class="flex">
-                <span>Suprimentos (+):</span>
-                <span>${formatCurrency(data.totalSupplies)}</span>
-            </div>
-            <div class="flex">
-                <span>Sangrias (-):</span>
-                <span>${formatCurrency(data.totalBleeds)}</span>
-            </div>
-            <div class="flex">
-                <span>Trocos (-):</span>
-                <span>${formatCurrency(data.totalChange)}</span>
-            </div>
+            ${paymentSummaryHtml}
         </div>
 
-        <div class="border-t border-b py-2 mb-2">
-            <div class="flex font-bold text-lg">
-                <span>SALDO FINAL:</span>
+        <div class="border-t py-1 mb-2">
+            <div class="flex font-bold text-md">
+                <span>TOTAL GERAL:</span>
                 <span>${formatCurrency(data.finalBalance)}</span>
             </div>
-            ${data.difference ? `
-                <div class="flex font-bold text-sm mt-1">
-                    <span>Diferença:</span>
-                    <span>${formatCurrency(data.difference)}</span>
-                </div>
-            ` : ''}
-        </div>
-
-        <div class="payment-section">
-            <div class="font-bold text-sm mb-1">VENDAS POR FORMA DE PAGAMENTO</div>
-            ${paymentSummaryHtml}
         </div>
 
         ${profitSectionHtml}
 
-        ${data.notes ? `
-            <div class="mb-2 text-sm">
-                <div class="font-bold">Observações:</div>
-                <div>${data.notes}</div>
+        <div class="payment-section">
+            <div class="font-bold text-sm mb-1 text-center border-b border-t py-1">ENTRADAS E SAÍDAS</div>
+            <div class="flex text-sm">
+                <span>TOTAL ENTRADAS:</span>
+                <span>+ ${formatCurrency(data.totalSupplies)}</span>
             </div>
-            <div class="border-b mb-2"></div>
+            <div class="flex text-sm">
+                <span>TOTAL SAÍDAS:</span>
+                <span>- ${formatCurrency(data.totalBleeds)}</span>
+            </div>
+        </div>
+
+        ${data.notes ? `
+            <div class="mb-2 text-sm mt-2 border-t pt-2">
+                <div class="font-bold">OBSERVAÇÕES:</div>
+                <div class="text-xs">${data.notes}</div>
+            </div>
         ` : ''}
 
-        <div class="text-center text-xs mt-4">
-            ____________________________<br/>
-            Conferido por
+        <div class="text-center text-xs mt-10">
+            <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
+                ASSINATURA DO RESPONSÁVEL
+            </div>
         </div>
     `;
 
