@@ -1316,7 +1316,7 @@ const CashRegisterPage = () => {
     })();
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20 max-w-7xl mx-auto px-4">
+        <div className="fade-in" style={{ paddingBottom: 'var(--spacing-2xl)', maxWidth: '1200px', margin: '0 auto' }}>
             {notification && (
                 <Notification
                     type={notification.type}
@@ -1326,190 +1326,229 @@ const CashRegisterPage = () => {
             )}
 
             {isClosingMode && (
-                <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6 space-y-6 mb-8 animate-slide-down">
-                    <div className="flex justify-between items-center border-b border-slate-700 pb-4">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Lock className="text-danger-500" />
+                <div className="card" style={{ marginBottom: 'var(--spacing-xl)', border: '2px solid var(--color-danger)', background: 'var(--color-bg-secondary)' }}>
+                    <div className="card-header">
+                        <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                            <Lock className="text-danger" />
                             Conferência de Fechamento
                         </h2>
                         <Button variant="ghost" onClick={() => setIsClosingMode(false)}>Cancelar</Button>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
-                            <div className="text-xs text-gray-400 mb-1">TROCO INICIAL</div>
-                            <div className="text-lg font-bold text-white">{formatCurrency(currentCashRegister.openingBalance)}</div>
+                    <div className="grid grid-4" style={{ marginBottom: 'var(--spacing-lg)' }}>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TROCO INICIAL</div>
+                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(currentCashRegister.openingBalance)}</div>
                         </div>
-                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
-                            <div className="text-xs text-gray-400 mb-1">TOTAL VENDAS</div>
-                            <div className="text-lg font-bold text-success-400">{formatCurrency(totalSalesProductsDay)}</div>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TOTAL VENDAS</div>
+                            <div className="text-success" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(totalSalesProductsDay)}</div>
                         </div>
-                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
-                            <div className="text-xs text-gray-400 mb-1">TOTAL SAÍDAS</div>
-                            <div className="text-lg font-bold text-danger-400">{formatCurrency(totalBleeds)}</div>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>TOTAL SAÍDAS</div>
+                            <div className="text-danger" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{formatCurrency(totalBleeds)}</div>
                         </div>
-                        <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/30">
-                            <div className="text-xs text-gray-400 mb-1">SALDO ESPERADO</div>
-                            <div className="text-lg font-bold text-primary-400">{formatCurrency(currentBalance)}</div>
+                        <div style={{ padding: 'var(--spacing-md)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>SALDO ESPERADO</div>
+                            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, color: 'var(--color-primary)' }}>{formatCurrency(currentBalance)}</div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-xl)' }}>
+                        <div className="grid grid-3">
                             {['Dinheiro', 'Pix', 'Cartão Crédito', 'Cartão Débito', 'Outros'].map((method) => (
-                                <div key={method} className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/50">
-                                    <div className="text-[10px] text-gray-400 font-bold uppercase mb-2">{method}</div>
+                                <div key={method} className="input-group">
+                                    <label className="input-label" style={{ textTransform: 'uppercase', fontSize: '10px' }}>{method}</label>
                                     <CurrencyInput
                                         value={closingBalances[method] || ''}
                                         onChange={(e) => handleClosingBalanceChange(method, e.target.value)}
                                         placeholder="0,00"
-                                        className="text-sm bg-slate-800 border-slate-700"
                                     />
                                 </div>
                             ))}
                         </div>
 
-                        <div className="flex flex-col gap-4">
-                            <div className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center text-center ${
-                                Math.abs(difference) < 0.01 ? 'bg-success-500/10 border-success-500/20' : 'bg-danger-500/10 border-danger-500/20'
-                            }`}>
-                                <div className="text-xs font-bold text-gray-400 uppercase mb-2">DIFERENÇA</div>
-                                <div className={`text-3xl font-black ${
-                                    Math.abs(difference) < 0.01 ? 'text-success-400' : 'text-danger-400'
-                                }`}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                            <div className="card" style={{ 
+                                textAlign: 'center', 
+                                border: '2px solid ' + (Math.abs(difference) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)'),
+                                background: (Math.abs(difference) < 0.01 ? 'var(--color-success-light)' : 'rgba(239, 68, 68, 0.1)')
+                            }}>
+                                <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-sm)' }}>DIFERENÇA</div>
+                                <div style={{ 
+                                    fontSize: 'var(--font-size-2xl)', 
+                                    fontWeight: 900, 
+                                    color: (Math.abs(difference) < 0.01 ? 'var(--color-success)' : 'var(--color-danger)') 
+                                }}>
                                     {formatCurrency(difference)}
                                 </div>
-                                <div className="text-[10px] text-gray-500 mt-2 font-medium">
+                                <div style={{ fontSize: '10px', marginTop: 'var(--spacing-sm)', color: 'var(--color-text-muted)' }}>
                                     {difference === 0 ? 'Tudo certo!' : difference > 0 ? 'Sobra de caixa' : 'Falta de caixa'}
                                 </div>
                             </div>
                             
-                            <div className="flex flex-col gap-2">
-                                <Button 
-                                    variant="secondary" 
-                                    icon={Printer} 
-                                    fullWidth
-                                    onClick={handlePrintOpenRegister}
-                                >
-                                    Imprimir Comprovante
-                                </Button>
-                                <Button 
-                                    variant="danger" 
-                                    icon={Lock} 
-                                    fullWidth
-                                    onClick={handleConfirmCloseRegister}
-                                    disabled={loading}
-                                >
-                                    Fechar Caixa
-                                </Button>
-                            </div>
+                            <Button 
+                                variant="secondary" 
+                                icon={Printer} 
+                                fullWidth
+                                onClick={handlePrintOpenRegister}
+                            >
+                                Imprimir Comprovante
+                            </Button>
+                            <Button 
+                                variant="danger" 
+                                icon={Lock} 
+                                fullWidth
+                                onClick={handleConfirmCloseRegister}
+                                loading={loading}
+                            >
+                                Fechar Caixa
+                            </Button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="flex justify-between items-start mb-8">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-xl)' }}>
                 <div>
-                    <h1 className="text-4xl font-black text-slate-800 tracking-tight mb-1">Caixa Aberto</h1>
-                    <p className="text-slate-500 text-sm font-medium">Aberto em {formatDateTime(currentCashRegister.openedAt).replace(' ', ' às ')}</p>
+                    <h1 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 900, margin: 0, color: 'var(--color-text-primary)' }}>Caixa Aberto</h1>
+                    <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                        Aberto em {formatDateTime(currentCashRegister.openedAt).replace(' ', ' às ')}
+                    </p>
                 </div>
-                <div className="flex gap-3">
-                    <Button
-                        variant="secondary"
-                        onClick={handleInitCloseRegister}
-                        icon={Lock}
-                        className="font-bold bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm"
-                        style={{ backgroundColor: 'white', color: '#334155', border: '1px solid #e2e8f0' }}
-                    >
-                        Fechar Caixa
-                    </Button>
-                </div>
+                <Button
+                    variant="secondary"
+                    onClick={handleInitCloseRegister}
+                    icon={Lock}
+                    style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)' }}
+                >
+                    Fechar Caixa
+                </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-3" style={{ marginBottom: 'var(--spacing-xl)' }}>
                 {/* Entradas Card */}
-                <div className="bg-[#f0fdf4] rounded-3xl p-8 border border-[#dcfce7] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
-                        <TrendingUp size={140} className="text-[#16a34a]" />
-                    </div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-[#16a34a]/10 rounded-xl flex items-center justify-center text-[#16a34a]">
+                <div style={{ 
+                    background: 'rgba(16, 185, 129, 0.05)', 
+                    borderRadius: 'var(--radius-xl)', 
+                    padding: 'var(--spacing-xl)', 
+                    border: '1px solid rgba(16, 185, 129, 0.1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    <TrendingUp size={120} style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05, color: 'var(--color-success)' }} />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{ width: '40px', height: '40px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', color: 'var(--color-success)' }}>
                                 <TrendingUp size={20} />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[#15803d]">Entradas</span>
+                            <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-success)' }}>Entradas</span>
                         </div>
-                        <h3 className="text-4xl font-black text-[#15803d] tracking-tighter">
+                        <h3 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 900, margin: 0, color: 'var(--color-success)', letterSpacing: '-0.02em' }}>
                             {formatCurrency(totalSalesProductsDay + totalSupplies)}
                         </h3>
                     </div>
                 </div>
 
                 {/* Saídas Card */}
-                <div className="bg-[#fef2f2] rounded-3xl p-8 border border-[#fee2e2] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
-                        <TrendingDown size={140} className="text-[#dc2626]" />
-                    </div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-[#dc2626]/10 rounded-xl flex items-center justify-center text-[#dc2626]">
+                <div style={{ 
+                    background: 'rgba(239, 68, 68, 0.05)', 
+                    borderRadius: 'var(--radius-xl)', 
+                    padding: 'var(--spacing-xl)', 
+                    border: '1px solid rgba(239, 68, 68, 0.1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    <TrendingDown size={120} style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05, color: 'var(--color-danger)' }} />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{ width: '40px', height: '40px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-danger)' }}>
                                 <TrendingDown size={20} />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[#b91c1c]">Saídas</span>
+                            <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-danger)' }}>Saídas</span>
                         </div>
-                        <h3 className="text-4xl font-black text-[#b91c1c] tracking-tighter">
+                        <h3 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 900, margin: 0, color: 'var(--color-danger)', letterSpacing: '-0.02em' }}>
                             {formatCurrency(totalBleeds)}
                         </h3>
                     </div>
                 </div>
 
                 {/* Saldo Card */}
-                <div className="bg-[#eff6ff] rounded-3xl p-8 border border-[#dbeafe] relative overflow-hidden group hover:shadow-xl transition-all duration-300">
-                    <div className="absolute right-[-10px] top-[-10px] opacity-10 group-hover:scale-110 transition-transform duration-500">
-                        <DollarSign size={140} className="text-[#2563eb]" />
-                    </div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-[#2563eb]/10 rounded-xl flex items-center justify-center text-[#2563eb]">
+                <div style={{ 
+                    background: 'rgba(99, 102, 241, 0.05)', 
+                    borderRadius: 'var(--radius-xl)', 
+                    padding: 'var(--spacing-xl)', 
+                    border: '1px solid rgba(99, 102, 241, 0.1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    <DollarSign size={120} style={{ position: 'absolute', right: '-10px', top: '-10px', opacity: 0.05, color: 'var(--color-primary)' }} />
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{ width: '40px', height: '40px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
                                 <DollarSign size={20} />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[#1d4ed8]">Total em Caixa</span>
+                            <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--color-primary)' }}>Total em Caixa</span>
                         </div>
-                        <h3 className="text-4xl font-black text-[#1d4ed8] tracking-tighter mb-1">
+                        <h3 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 900, margin: 0, color: 'var(--color-primary)', letterSpacing: '-0.02em' }}>
                             {formatCurrency(currentBalance)}
                         </h3>
-                        <p className="text-[10px] font-bold text-[#3b82f6]">Inclui {formatCurrency(currentCashRegister.openingBalance)} de troco inicial</p>
+                        <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-muted)', marginTop: '4px', marginBottom: 0 }}>
+                            Inclui {formatCurrency(currentCashRegister.openingBalance)} de troco inicial
+                        </p>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-xl)' }}>
                 {/* Left Column: Novo Lançamento */}
-                <div className="lg:col-span-4">
-                    <Card title="Novo Lançamento" icon={RefreshCw} className="rounded-3xl shadow-sm border-slate-100 h-full">
-                        <form onSubmit={handleQuickMovement} className="p-4 space-y-6">
-                            <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                <div>
+                    <Card title="Novo Lançamento" icon={RefreshCw} style={{ height: '100%' }}>
+                        <form onSubmit={handleQuickMovement} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                            <div style={{ display: 'flex', background: 'var(--color-bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                                 <button
                                     type="button"
                                     onClick={() => setMovementType('supply')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-                                        movementType === 'supply' 
-                                        ? 'bg-success-500 text-white shadow-lg shadow-success-500/30' 
-                                        : 'bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100'
-                                    }`}
+                                    style={{
+                                        flex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        padding: '10px',
+                                        border: 'none',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: movementType === 'supply' ? 'var(--color-success)' : 'transparent',
+                                        color: movementType === 'supply' ? 'white' : 'var(--color-text-secondary)'
+                                    }}
                                 >
-                                    <Plus size={18} /> Entrada
+                                    <Plus size={16} /> Entrada
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setMovementType('bleed')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
-                                        movementType === 'bleed' 
-                                        ? 'bg-danger-500 text-white shadow-lg shadow-danger-500/30' 
-                                        : 'bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100'
-                                    }`}
+                                    style={{
+                                        flex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        padding: '10px',
+                                        border: 'none',
+                                        borderRadius: 'var(--radius-sm)',
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: movementType === 'bleed' ? 'var(--color-danger)' : 'transparent',
+                                        color: movementType === 'bleed' ? 'white' : 'var(--color-text-secondary)'
+                                    }}
                                 >
-                                    <Minus size={18} /> Saída
+                                    <Minus size={16} /> Saída
                                 </button>
                             </div>
 
@@ -1518,7 +1557,6 @@ const CashRegisterPage = () => {
                                 value={movementDescription}
                                 onChange={(e) => setMovementDescription(e.target.value)}
                                 placeholder="Ex: Pagamento Fornecedor"
-                                className="rounded-2xl bg-slate-50 border-slate-100 focus:bg-white transition-all"
                             />
 
                             <CurrencyInput
@@ -1526,7 +1564,6 @@ const CashRegisterPage = () => {
                                 value={movementAmount}
                                 onChange={(e) => setMovementAmount(e.target.value)}
                                 placeholder="0,00"
-                                className="rounded-2xl bg-slate-50 border-slate-100 focus:bg-white transition-all"
                             />
 
                             <Button
@@ -1534,8 +1571,7 @@ const CashRegisterPage = () => {
                                 variant="primary"
                                 fullWidth
                                 loading={loading}
-                                className="bg-slate-900 hover:bg-black text-white rounded-2xl py-4 font-bold transition-all mt-4"
-                                style={{ backgroundColor: '#0f172a' }}
+                                style={{ background: '#1e293b', border: 'none', height: '50px', fontSize: 'var(--font-size-md)' }}
                             >
                                 Registrar Lançamento
                             </Button>
@@ -1544,65 +1580,78 @@ const CashRegisterPage = () => {
                 </div>
 
                 {/* Right Column: Movimentações do Caixa */}
-                <div className="lg:col-span-8">
-                    <Card title="Movimentações do Caixa" icon={Clock} className="rounded-3xl shadow-sm border-slate-100 h-full min-h-[500px]">
-                        <div className="p-4">
-                            {activeMovementsView.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-32 text-slate-300">
-                                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
-                                        <Clock size={40} className="text-slate-200" />
-                                    </div>
-                                    <p className="font-bold text-slate-400">Nenhum movimento registrado neste caixa.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {activeMovementsView.map((mov) => (
-                                        <div key={mov.id} className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 border border-slate-100 group hover:bg-white hover:shadow-md transition-all duration-300">
-                                            <div className="flex items-center gap-5">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                                                    mov.type === 'supply' ? 'bg-success-100 text-success-600' : 'bg-danger-100 text-danger-600'
-                                                }`}>
-                                                    {mov.type === 'supply' ? <Plus size={20} /> : <Minus size={20} />}
-                                                </div>
-                                                <div>
-                                                    <div className="text-slate-800 font-bold mb-0.5">{mov.description}</div>
-                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                        <Clock size={12} /> {formatDateTime(mov.createdAt).split(' ')[1]}
-                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                        {mov.type === 'supply' ? 'Entrada' : 'Saída'}
-                                                    </div>
-                                                </div>
+                <div>
+                    <Card title="Movimentações do Caixa" icon={Clock} style={{ height: '100%', minHeight: '400px' }}>
+                        {activeMovementsView.length === 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-2xl)', color: 'var(--color-text-muted)' }}>
+                                <Clock size={48} style={{ opacity: 0.2, marginBottom: 'var(--spacing-md)' }} />
+                                <p style={{ fontWeight: 600 }}>Nenhum movimento registrado neste caixa.</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+                                {activeMovementsView.map((mov) => (
+                                    <div key={mov.id} style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'space-between', 
+                                        padding: 'var(--spacing-md)', 
+                                        background: 'var(--color-bg-secondary)', 
+                                        borderRadius: 'var(--radius-md)',
+                                        border: '1px solid var(--color-divider)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                                            <div style={{ 
+                                                width: '36px', 
+                                                height: '36px', 
+                                                borderRadius: '50%', 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                justifyContent: 'center',
+                                                background: mov.type === 'supply' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                color: mov.type === 'supply' ? 'var(--color-success)' : 'var(--color-danger)'
+                                            }}>
+                                                {mov.type === 'supply' ? <Plus size={18} /> : <Minus size={18} />}
                                             </div>
-                                            <div className="flex items-center gap-6">
-                                                <div className={`text-xl font-black ${
-                                                    mov.type === 'supply' ? 'text-success-600' : 'text-danger-600'
-                                                }`}>
-                                                    {mov.type === 'supply' ? '+' : '-'} {formatCurrency(mov.amount)}
-                                                </div>
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="sm" 
-                                                        icon={RotateCcw} 
-                                                        onClick={() => handleRevertMovement(mov)}
-                                                        className="text-slate-400 hover:text-primary-500 hover:bg-primary-50"
-                                                    />
-                                                    {isManager && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="sm" 
-                                                            icon={Trash2} 
-                                                            onClick={() => handleDeleteMovement(mov)}
-                                                            className="text-slate-400 hover:text-danger-500 hover:bg-danger-50"
-                                                        />
-                                                    )}
+                                            <div>
+                                                <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{mov.description}</div>
+                                                <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <Clock size={10} /> {formatDateTime(mov.createdAt).split(' ')[1]}
+                                                    <span style={{ width: '3px', height: '3px', background: 'currentColor', borderRadius: '50%' }}></span>
+                                                    {mov.type === 'supply' ? 'Entrada' : 'Saída'}
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-lg)' }}>
+                                            <div style={{ 
+                                                fontSize: 'var(--font-size-lg)', 
+                                                fontWeight: 800,
+                                                color: mov.type === 'supply' ? 'var(--color-success)' : 'var(--color-danger)'
+                                            }}>
+                                                {mov.type === 'supply' ? '+' : '-'} {formatCurrency(mov.amount)}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    icon={RotateCcw} 
+                                                    onClick={() => handleRevertMovement(mov)}
+                                                    style={{ padding: '4px' }}
+                                                />
+                                                {isManager && (
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="sm" 
+                                                        icon={Trash2} 
+                                                        onClick={() => handleDeleteMovement(mov)}
+                                                        style={{ padding: '4px' }}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </Card>
                 </div>
             </div>
