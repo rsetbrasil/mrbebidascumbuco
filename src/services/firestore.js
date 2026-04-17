@@ -1157,6 +1157,10 @@ export const cashRegisterService = {
             COLLECTIONS.CASH_MOVEMENTS,
             [{ field: 'cashRegisterId', operator: '==', value: cashRegisterId }]
         );
+    },
+
+    async delete(id) {
+        return firestoreService.delete(COLLECTIONS.CASH_REGISTER, id);
     }
 };
 

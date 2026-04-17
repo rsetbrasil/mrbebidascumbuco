@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Printer, Calendar, User, DollarSign } from 'lucide-react';
+import { ArrowLeft, Printer, Calendar, User, DollarSign, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
@@ -9,10 +9,12 @@ import { cashRegisterService, salesService, productService } from '../../../serv
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
 import { printCashRegisterReport } from '../../../utils/receiptPrinter';
 import { useApp } from '../../../contexts/AppContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const CashRegisterHistoryPage = () => {
     const navigate = useNavigate();
     const { showNotification, settings } = useApp();
+    const { isManager } = useAuth();
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterDate, setFilterDate] = useState('');
@@ -188,6 +190,20 @@ const CashRegisterHistoryPage = () => {
         navigate(`/cash-register-details/${registerId}`);
     };
 
+    const handleDelete = async (registerId) => {
+        if (!window.confirm('Certeza que deseja apagar este caixa? Essa ação não pode ser desfeita.')) return;
+        setLoading(true);
+        try {
+            await cashRegisterService.delete(registerId);
+            showNotification('Caixa apagado com sucesso', 'success');
+            await loadHistory();
+        } catch (error) {
+            console.error('Error deleting register:', error);
+            showNotification('Erro ao apagar caixa', 'error');
+            setLoading(false);
+        }
+    };
+
     if (loading) return <Loading fullScreen />;
 
     return (
@@ -287,6 +303,16 @@ const CashRegisterHistoryPage = () => {
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {isManager && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                                                        icon={Trash2}
+                                                        onClick={() => handleDelete(register.id)}
+                                                        title="Apagar Caixa"
+                                                    />
+                                                )}
                                                 <Button
                                                     variant="secondary"
                                                     size="sm"

@@ -64,6 +64,7 @@ const CashRegisterPage = () => {
     const [detailedReportLoading, setDetailedReportLoading] = useState(false);
     const [detailedItems, setDetailedItems] = useState([]);
     const [salesFilter, setSalesFilter] = useState('today'); // 'all' | 'today'
+    const [closeRegisterModalOpen, setCloseRegisterModalOpen] = useState(false);
 
     const calculateDetailedItems = (salesList) => {
         const itemsBreakdown = [];
@@ -510,8 +511,12 @@ const CashRegisterPage = () => {
         }
     };
 
-    const handleCloseRegister = async () => {
-        if (!window.confirm('Tem certeza que deseja fechar o caixa?')) return;
+    const handleInitCloseRegister = () => {
+        setCloseRegisterModalOpen(true);
+    };
+
+    const handleConfirmCloseRegister = async () => {
+        setCloseRegisterModalOpen(false);
         setManagerUsername(isManager ? (user?.username || '') : '');
         setManagerPassword('');
         setManagerError('');
@@ -1223,7 +1228,7 @@ const CashRegisterPage = () => {
                             <Button
                                 variant="danger"
                                 size="sm"
-                                onClick={handleCloseRegister}
+                                onClick={handleInitCloseRegister}
                                 icon={Lock}
                             >
                                 Fechar Caixa
@@ -1234,67 +1239,92 @@ const CashRegisterPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-blue-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-blue-500 relative overflow-hidden">
+                    <Unlock size={80} className="absolute right-[-10px] bottom-[-20px] text-blue-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Unlock size={16} className="text-blue-400" /> Saldo Inicial</p>
-                        <h3 className="text-2xl font-bold text-white">
+                        <h3 className="text-3xl font-bold text-white tracking-tight">
                             {formatCurrency(currentCashRegister.openingBalance)}
                         </h3>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-green-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-green-500 relative overflow-hidden">
+                    <DollarSign size={80} className="absolute right-[-10px] bottom-[-20px] text-green-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><DollarSign size={16} className="text-green-400" /> Vendas Líquidas</p>
-                        <h3 className="text-2xl font-bold text-green-400">
+                        <h3 className="text-3xl font-bold text-green-400 tracking-tight">
                             {formatCurrency(totalSalesProductsDay)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">Bruto: {formatCurrency(totalSales)} • {sales.length} venda(s)</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">Bruto: {formatCurrency(totalSales)} • {sales.length} venda(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-emerald-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-emerald-500 relative overflow-hidden">
+                    <ArrowUpCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-emerald-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1">Suprimentos</p>
-                        <h3 className="text-2xl font-bold text-emerald-400">
+                        <h3 className="text-3xl font-bold text-emerald-400 tracking-tight">
                             {formatCurrency(totalSupplies)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'supply').length} lançamento(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-red-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-red-500 relative overflow-hidden">
+                    <ArrowDownCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-red-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1">Sangrias</p>
-                        <h3 className="text-2xl font-bold text-red-400">
+                        <h3 className="text-3xl font-bold text-red-400 tracking-tight">
                             {formatCurrency(totalBleeds)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'bleed').length} lançamento(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-orange-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-orange-500 relative overflow-hidden">
+                    <RotateCcw size={80} className="absolute right-[-10px] bottom-[-20px] text-orange-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1">Trocos</p>
-                        <h3 className="text-2xl font-bold text-orange-400">
+                        <h3 className="text-3xl font-bold text-orange-400 tracking-tight">
                             {formatCurrency(totalChange)}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
+                        <p className="text-xs text-gray-500 mt-1 font-medium">{movements.filter(m => m.type === 'change').length} lançamento(s)</p>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-primary-500">
-                    <div className="p-4">
+                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-l-4 border-l-primary-500 relative overflow-hidden">
+                    <Wallet size={80} className="absolute right-[-10px] bottom-[-20px] text-primary-500/10" />
+                    <div className="p-4 relative z-10">
                         <p className="text-gray-400 text-sm mb-1 flex items-center gap-2"><Wallet size={16} className="text-primary-400" /> Saldo Atual</p>
-                        <h3 className="text-2xl font-bold text-primary-400">
+                        <h3 className="text-3xl font-bold text-primary-400 tracking-tight">
                             {formatCurrency(currentBalance)}
                         </h3>
                     </div>
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
+            {/* BREAKDOWN DE PAGAMENTOS ROW */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {paymentsSummaryDay.length === 0 ? (
+                    <div className="col-span-full p-4 rounded-lg bg-slate-800/50 border border-slate-700 text-center text-gray-400 text-sm">
+                        Nenhuma venda registrada
+                    </div>
+                ) : (
+                    paymentsSummaryDay.map((p, idx) => (
+                        <div key={idx} className="bg-slate-800/80 rounded-lg p-3 border border-slate-700/50 flex flex-col justify-center items-center shadow-sm">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                {p.method}
+                            </span>
+                            <span className="text-lg font-bold text-white mb-0.5">{formatCurrency(p.amount)}</span>
+                            <span className="text-[10px] px-2 py-0.5 bg-slate-700/50 text-gray-400 rounded-full">{p.count} transação(ões)</span>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+                <div>
                     <Card title="Histórico de Movimentações" icon={History}>
                         <div className="space-y-6">
                             <div>
@@ -1415,60 +1445,6 @@ const CashRegisterPage = () => {
                         </div>
                     </Card>
                 </div>
-                <div>
-                    <Card title="Resumo de Pagamentos (Dia)">
-                        <div className="p-4 space-y-2">
-                            {paymentsSummaryDay.length === 0 ? (
-                                <div className="text-sm text-gray-400">Sem pagamentos registrados</div>
-                            ) : (
-                                paymentsSummaryDay.map((p, idx) => (
-                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                            <span style={{ padding: '2px 8px', borderRadius: 9999, background: 'var(--color-bg-tertiary)', color: 'var(--color-text-secondary)', fontSize: '12px' }}>
-                                                {p.method}
-                                            </span>
-                                            <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>{p.count}x</span>
-                                        </span>
-                                        <span style={{ fontWeight: 700 }}>{formatCurrency(p.amount)}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </Card>
-                    {canWrite && (
-                        <Card title="Fechar Caixa" className="border-red-500/20" style={{ marginTop: 'var(--spacing-md)' }}>
-                            <div className="p-4 space-y-4">
-                                <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
-                                    <div className="flex items-start gap-3">
-                                        <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
-                                        <div>
-                                            <h4 className="font-medium text-red-400 mb-1">Atenção</h4>
-                                            <p className="text-sm text-red-300/80">
-                                                Ao fechar o caixa, você não poderá mais registrar vendas ou movimentações nesta sessão.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <Input
-                                    label="Observações de Fechamento"
-                                    value={closingNote}
-                                    onChange={(e) => setClosingNote(e.target.value)}
-                                    placeholder="Ex: Diferença de R$ 2,00 no caixa..."
-                                    textarea
-                                />
-                                <Button
-                                    variant="danger"
-                                    fullWidth
-                                    onClick={handleCloseRegister}
-                                    loading={loading}
-                                    icon={Lock}
-                                >
-                                    Fechar Caixa Agora
-                                </Button>
-                            </div>
-                        </Card>
-                    )}
-                </div>
             </div>
 
             <MovementModal
@@ -1560,6 +1536,44 @@ const CashRegisterPage = () => {
                 </div>
             </Modal>
             {historyModals}
+
+            {/* Closing Register Modal */}
+            <Modal
+                isOpen={closeRegisterModalOpen}
+                onClose={() => setCloseRegisterModalOpen(false)}
+                title="Fechar Caixa"
+            >
+                <div className="space-y-4">
+                    <div className="bg-red-500/10 rounded-lg p-4 border border-red-500/20">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={20} />
+                            <div>
+                                <h4 className="font-medium text-red-400 mb-1">Atenção</h4>
+                                <p className="text-sm text-red-300/80">
+                                    Ao fechar o caixa, você não poderá mais registrar vendas ou movimentações nesta sessão.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <Input
+                        label="Observações de Fechamento"
+                        value={closingNote}
+                        onChange={(e) => setClosingNote(e.target.value)}
+                        placeholder="Ex: Diferença de R$ 2,00 no caixa..."
+                        textarea
+                    />
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button variant="ghost" onClick={() => setCloseRegisterModalOpen(false)}>Cancelar</Button>
+                        <Button
+                            variant="danger"
+                            onClick={handleConfirmCloseRegister}
+                            icon={Lock}
+                        >
+                            Prosseguir
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Manager Approval Modal for Cashier Closing */}
             <Modal
