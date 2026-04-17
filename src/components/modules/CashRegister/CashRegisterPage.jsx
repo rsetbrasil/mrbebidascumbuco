@@ -684,6 +684,27 @@ const CashRegisterPage = () => {
         }
     };
 
+    const handleDeleteRegister = async (registerId) => {
+        if (!window.confirm('Certeza que deseja apagar este caixa? Essa ação não pode ser desfeita.')) return;
+        setLoading(true);
+        try {
+            await cashRegisterService.delete(registerId);
+            showNotification('success', 'Caixa apagado com sucesso');
+            if (!isRegisterOpen) {
+                loadRecentHistory();
+            }
+            if (historyOpen) {
+                const list = await cashRegisterService.getHistory();
+                setHistoryItems(list || []);
+            }
+        } catch (error) {
+            console.error('Error deleting register:', error);
+            showNotification('error', 'Erro ao apagar caixa');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleViewOpen = () => {
         try {
             const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -817,6 +838,14 @@ const CashRegisterPage = () => {
                                                     >
                                                         Imprimir
                                                     </Button>
+                                                    {isManager && (
+                                                        <Button
+                                                            variant="danger"
+                                                            size="sm"
+                                                            icon={Trash2}
+                                                            onClick={() => handleDeleteRegister(register.id)}
+                                                        />
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -1087,47 +1116,69 @@ const CashRegisterPage = () => {
                             historyItems.map((reg) => (
                                 <div 
                                     key={reg.id} 
-                                    className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/50 flex items-center justify-between hover:bg-slate-800 transition-colors"
+                                    className="bg-slate-800/80 p-5 rounded-2xl border border-slate-700/50 flex flex-col md:flex-row items-center justify-between hover:bg-slate-800 transition-all hover:shadow-lg group"
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-gray-400">
-                                            <Lock size={20} />
+                                    <div className="flex items-center gap-5 w-full md:w-auto mb-4 md:mb-0">
+                                        <div className="w-12 h-12 bg-slate-700/50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-slate-700 group-hover:text-primary-400 transition-colors">
+                                            <Lock size={24} />
                                         </div>
                                         <div>
-                                            <div className="text-white font-medium">{formatDateTime(reg.closedAt)}</div>
-                                            <div className="text-xs text-gray-400">Operador: {reg.closedBy}</div>
+                                            <div className="text-white font-bold text-lg">{formatDateTime(reg.closedAt)}</div>
+                                            <div className="text-xs text-gray-400 flex items-center gap-2">
+                                                <span className="px-2 py-0.5 bg-slate-900/50 rounded-full">Operador: {reg.closedBy}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-success-400 font-bold">{formatCurrency(reg.closingBalance)}</div>
-                                        <div className={`text-[10px] font-medium px-2 py-0.5 rounded-full inline-block mt-1 ${
-                                            Number(reg.difference || 0) === 0 ? 'bg-slate-700 text-gray-400' :
-                                            Number(reg.difference || 0) > 0 ? 'bg-success-500/10 text-success-400' :
-                                            'bg-danger-500/10 text-danger-400'
-                                        }`}>
-                                            {Number(reg.difference || 0) === 0 ? 'Sem diferença' : 
-                                             Number(reg.difference || 0) > 0 ? `Sobra: ${formatCurrency(reg.difference)}` : 
-                                             `Falta: ${formatCurrency(Math.abs(reg.difference))}`}
+                                    
+                                    <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+                                        <div className="text-right">
+                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Saldo Final</div>
+                                            <div className="text-success-400 font-black text-xl leading-none">{formatCurrency(reg.closingBalance)}</div>
+                                            <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1.5 uppercase tracking-tighter ${
+                                                Number(reg.difference || 0) === 0 ? 'bg-slate-700/50 text-gray-400' :
+                                                Number(reg.difference || 0) > 0 ? 'bg-success-500/10 text-success-400' :
+                                                'bg-danger-500/10 text-danger-400'
+                                            }`}>
+                                                {Number(reg.difference || 0) === 0 ? 'Sem diferença' : 
+                                                 Number(reg.difference || 0) > 0 ? `Sobra: ${formatCurrency(reg.difference)}` : 
+                                                 `Falta: ${formatCurrency(Math.abs(reg.difference))}`}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="ml-4">
-                                        <Button 
-                                            variant="secondary" 
-                                            size="sm" 
-                                            icon={Eye} 
-                                            onClick={() => handleViewHistory(reg)}
-                                        />
+
+                                            <div className="flex items-center gap-2">
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    icon={Eye} 
+                                                    onClick={() => handleViewHistory(reg)}
+                                                />
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    icon={Printer} 
+                                                    onClick={() => handlePrintHistory(reg)}
+                                                />
+                                                {isManager && (
+                                                    <Button 
+                                                        variant="danger" 
+                                                        size="sm" 
+                                                        icon={Trash2} 
+                                                        onClick={() => handleDeleteRegister(reg.id)}
+                                                    />
+                                                )}
+                                            </div>
                                     </div>
                                 </div>
                             ))
                         )}
                         <Button 
-                            variant="secondary" 
+                            variant="ghost" 
                             fullWidth 
                             onClick={openHistoryModal}
                             icon={History}
+                            className="text-gray-400 hover:text-white"
                         >
-                            Ver Todo Histórico
+                            Ver Todo Histórico de Caixas
                         </Button>
                     </div>
                 </div>
@@ -1325,128 +1376,112 @@ const CashRegisterPage = () => {
                 </div>
             )}
 
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <Wallet className="text-primary-500" />
-                        Controle de Caixa
-                    </h1>
-                    <p className="text-gray-400">Aberto em {formatDateTime(currentCashRegister.openedAt)}</p>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-slate-800/40 p-6 rounded-3xl border border-slate-700/40 backdrop-blur-md">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-primary-500/10 rounded-2xl flex items-center justify-center text-primary-400 border border-primary-500/20">
+                        <Wallet size={32} />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-black text-white tracking-tight mb-0 flex items-center gap-3">
+                            Controle de Caixa
+                        </h1>
+                        <p className="text-gray-400 text-sm font-medium flex items-center gap-2 mb-0">
+                            <span className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></span>
+                            Aberto em {formatDateTime(currentCashRegister.openedAt)}
+                        </p>
+                    </div>
                 </div>
-                <div
-                    style={{
-                        display: 'flex',
-                        gap: 'var(--spacing-sm)',
-                        width: '100%',
-                        maxWidth: '100%',
-                        flexWrap: 'nowrap',
-                        overflowX: 'auto',
-                        marginBottom: 'var(--spacing-sm)'
-                    }}
-                >
-                    <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
-                        <Button
-                            size="sm"
-                            variant={salesFilter === 'all' ? 'primary' : 'secondary'}
-                            onClick={() => setSalesFilter('all')}
-                        >
-                            Todas
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={salesFilter === 'today' ? 'primary' : 'secondary'}
+                
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <div className="flex bg-slate-900/50 p-1 rounded-xl border border-slate-700/50 mr-2">
+                        <button
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                                salesFilter === 'today' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-gray-400 hover:text-white'
+                            }`}
                             onClick={() => setSalesFilter('today')}
                         >
-                            Vendas de Hoje
+                            HOJE
+                        </button>
+                        <button
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                                salesFilter === 'all' ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20' : 'text-gray-400 hover:text-white'
+                            }`}
+                            onClick={() => setSalesFilter('all')}
+                        >
+                            TUDO
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={openHistoryModal}
+                            icon={History}
+                        >
+                            Histórico
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleViewOpen}
+                            icon={Eye}
+                        >
+                            Ver Caixa
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handlePrintOpenRegister}
+                            icon={Printer}
+                        >
+                            Imprimir
+                        </Button>
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={handleInitCloseRegister}
+                            icon={Lock}
+                            className="font-bold px-6"
+                        >
+                            Fechar Caixa
                         </Button>
                     </div>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={openHistoryModal}
-                        icon={History}
-                    >
-                        Histórico
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleViewOpen}
-                        icon={Eye}
-                    >
-                        Ver Caixa
-                    </Button>
-                    <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handlePrintOpenRegister}
-                        icon={Printer}
-                    >
-                        Imprimir
-                    </Button>
-                    {canWrite && (
-                        <>
-                            <Button
-                                variant="success"
-                                size="sm"
-                                onClick={() => setModalType('supply')}
-                                icon={ArrowUpCircle}
-                            >
-                                Suprimento
-                            </Button>
-                            <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => setModalType('bleed')}
-                                icon={ArrowDownCircle}
-                            >
-                                Sangria
-                            </Button>
-                            <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={handleInitCloseRegister}
-                                icon={Lock}
-                            >
-                                Fechar Caixa
-                            </Button>
-                        </>
-                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-emerald-500/10 border-emerald-500/20 relative overflow-hidden">
-                    <ArrowUpCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-emerald-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-emerald-400 text-sm mb-1 flex items-center gap-2">
-                            <ArrowUpCircle size={16} /> Entradas
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="bg-emerald-500/10 border-emerald-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
+                    <ArrowUpCircle size={100} className="absolute right-[-20px] bottom-[-20px] text-emerald-500/10" />
+                    <div className="p-6 relative z-10">
+                        <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <ArrowUpCircle size={18} /> Entradas
                         </p>
-                        <h3 className="text-3xl font-bold text-emerald-400 tracking-tight">
+                        <h3 className="text-4xl font-black text-emerald-400 tracking-tight">
                             {formatCurrency(totalSalesProductsDay + totalSupplies)}
                         </h3>
                     </div>
                 </Card>
 
-                <Card className="bg-red-500/10 border-red-500/20 relative overflow-hidden">
-                    <ArrowDownCircle size={80} className="absolute right-[-10px] bottom-[-20px] text-red-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-red-400 text-sm mb-1 flex items-center gap-2">
-                            <ArrowDownCircle size={16} /> Saídas
+                <Card className="bg-red-500/10 border-red-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
+                    <ArrowDownCircle size={100} className="absolute right-[-20px] bottom-[-20px] text-red-500/10" />
+                    <div className="p-6 relative z-10">
+                        <p className="text-red-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <ArrowDownCircle size={18} /> Saídas
                         </p>
-                        <h3 className="text-3xl font-bold text-red-400 tracking-tight">
+                        <h3 className="text-4xl font-black text-red-400 tracking-tight">
                             {formatCurrency(totalBleeds)}
                         </h3>
                     </div>
                 </Card>
 
-                <Card className="bg-blue-500/10 border-blue-500/20 relative overflow-hidden">
-                    <DollarSign size={80} className="absolute right-[-10px] bottom-[-20px] text-blue-500/10" />
-                    <div className="p-4 relative z-10">
-                        <p className="text-blue-400 text-sm mb-1 flex items-center gap-2">
-                            <DollarSign size={16} /> Saldo
+                <Card className="bg-blue-500/10 border-blue-500/20 relative overflow-hidden h-40 flex flex-col justify-center">
+                    <DollarSign size={100} className="absolute right-[-20px] bottom-[-20px] text-blue-500/10" />
+                    <div className="p-6 relative z-10">
+                        <p className="text-blue-400 text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <DollarSign size={18} /> Saldo
                         </p>
-                        <h3 className="text-3xl font-bold text-blue-400 tracking-tight">
+                        <h3 className="text-4xl font-black text-blue-400 tracking-tight">
                             {formatCurrency(currentBalance)}
                         </h3>
                     </div>
