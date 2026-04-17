@@ -1126,93 +1126,20 @@ const CashRegisterPage = () => {
                                             Abrir Caixa
                                         </Button>
                                     )}
+                                    <Button 
+                                        type="button"
+                                        variant="secondary" 
+                                        size="lg"
+                                        onClick={openHistoryModal}
+                                        icon={History}
+                                        fullWidth
+                                    >
+                                        Ver Histórico de Caixas
+                                    </Button>
                                 </div>
                             </form>
                         </div>
                     </Card>
-                </div>
-
-                {/* Últimos Fechamentos Section */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <History size={20} className="text-primary-500" />
-                        Últimos Fechamentos
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 gap-3">
-                        {historyItems.length === 0 ? (
-                            <div className="p-8 text-center bg-slate-800/50 rounded-lg border border-slate-700/50 text-gray-400">
-                                Nenhum fechamento recente
-                            </div>
-                        ) : (
-                            historyItems.map((reg) => (
-                                <div 
-                                    key={reg.id} 
-                                    className="bg-slate-800/80 p-5 rounded-2xl border border-slate-700/50 flex flex-col md:flex-row items-center justify-between hover:bg-slate-800 transition-all hover:shadow-lg group"
-                                >
-                                    <div className="flex items-center gap-5 w-full md:w-auto mb-4 md:mb-0">
-                                        <div className="w-12 h-12 bg-slate-700/50 rounded-2xl flex items-center justify-center text-gray-400 group-hover:bg-slate-700 group-hover:text-primary-400 transition-colors">
-                                            <Lock size={24} />
-                                        </div>
-                                        <div>
-                                            <div className="text-white font-bold text-lg">{formatDateTime(reg.closedAt)}</div>
-                                            <div className="text-xs text-gray-400 flex items-center gap-2">
-                                                <span className="px-2 py-0.5 bg-slate-900/50 rounded-full">Operador: {reg.closedBy}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
-                                        <div className="text-right">
-                                            <div className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-0.5">Saldo Final</div>
-                                            <div className="text-success-400 font-black text-xl leading-none">{formatCurrency(reg.closingBalance)}</div>
-                                            <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1.5 uppercase tracking-tighter ${
-                                                Number(reg.difference || 0) === 0 ? 'bg-slate-700/50 text-gray-400' :
-                                                Number(reg.difference || 0) > 0 ? 'bg-success-500/10 text-success-400' :
-                                                'bg-danger-500/10 text-danger-400'
-                                            }`}>
-                                                {Number(reg.difference || 0) === 0 ? 'Sem diferença' : 
-                                                 Number(reg.difference || 0) > 0 ? `Sobra: ${formatCurrency(reg.difference)}` : 
-                                                 `Falta: ${formatCurrency(Math.abs(reg.difference))}`}
-                                            </div>
-                                        </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="sm" 
-                                                    icon={Eye} 
-                                                    onClick={() => handleViewHistory(reg)}
-                                                />
-                                                <Button 
-                                                    variant="secondary" 
-                                                    size="sm" 
-                                                    icon={Printer} 
-                                                    onClick={() => handlePrintHistory(reg)}
-                                                />
-                                                {isManager && (
-                                                    <Button 
-                                                        variant="danger" 
-                                                        size="sm" 
-                                                        icon={Trash2} 
-                                                        onClick={() => handleDeleteRegister(reg.id)}
-                                                    />
-                                                )}
-                                            </div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                        <Button 
-                            variant="ghost" 
-                            fullWidth 
-                            onClick={openHistoryModal}
-                            icon={History}
-                            className="text-gray-400 hover:text-white"
-                        >
-                            Ver Todo Histórico de Caixas
-                        </Button>
-                    </div>
                 </div>
 
                 {historyModals}
