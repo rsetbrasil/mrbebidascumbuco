@@ -12,8 +12,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         name: '',
         barcode: '',
         wholesalePrice: '',
+        wholesalePrice2: '',
         coldPrice: '',
+        coldPrice2: '',
         retailPrice: '',
+        retailPrice2: '',
         cost: '',
         coldCost: '',
         retailCost: '',
@@ -46,8 +49,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 name: product.name || '',
                 barcode: product.barcode || '',
                 wholesalePrice: product.wholesalePrice === null ? '' : (product.wholesalePrice ?? product.price ?? ''),
+                wholesalePrice2: product.wholesalePrice2 ?? '',
                 coldPrice: product.coldPrice === null ? '' : (product.coldPrice ?? ''),
+                coldPrice2: product.coldPrice2 ?? '',
                 retailPrice: product.retailPrice === null ? '' : (product.retailPrice ?? ''),
+                retailPrice2: product.retailPrice2 ?? '',
                 cost: product.cost || '',
                 coldCost: product.coldCost || '',
                 retailCost: product.retailCost || '',
@@ -68,8 +74,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 name: '',
                 barcode: '',
                 wholesalePrice: '',
+                wholesalePrice2: '',
                 coldPrice: '',
+                coldPrice2: '',
                 retailPrice: '',
+                retailPrice2: '',
                 cost: '',
                 coldCost: '',
                 retailCost: '',
@@ -153,8 +162,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 return Number.isFinite(n) ? n : null;
             };
             const wholesalePrice = normalizeMoney(formData.wholesalePrice);
+            const wholesalePrice2 = normalizeMoney(formData.wholesalePrice2);
             const coldPrice = normalizeMoney(formData.coldPrice);
+            const coldPrice2 = normalizeMoney(formData.coldPrice2);
             const retailPrice = normalizeMoney(formData.retailPrice);
+            const retailPrice2 = normalizeMoney(formData.retailPrice2);
             const cost = normalizeMoney(formData.cost);
             const coldCost = normalizeMoney(formData.coldCost);
             const retailCost = normalizeMoney(formData.retailCost);
@@ -164,8 +176,11 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 ...formData,
                 price: basePrice,
                 wholesalePrice,
+                wholesalePrice2,
                 coldPrice,
+                coldPrice2,
                 retailPrice,
+                retailPrice2,
                 cost: cost ?? 0,
                 coldCost: coldCost ?? 0,
                 retailCost: retailCost ?? 0,
@@ -275,6 +290,14 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                             </div>
                         </div>
                         <CurrencyInput
+                            label="Preço 2 (Atacado)"
+                            name="wholesalePrice2"
+                            value={formData.wholesalePrice2}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
+                        <CurrencyInput
                             label="Preço Custo (Atacado)"
                             name="cost"
                             value={formData.cost}
@@ -334,6 +357,14 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                             </div>
                         </div>
                         <CurrencyInput
+                            label="Preço 2 (Mercearia)"
+                            name="coldPrice2"
+                            value={formData.coldPrice2}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
+                        <CurrencyInput
                             label="Preço Custo (Mercearia)"
                             name="coldCost"
                             value={formData.coldCost}
@@ -392,6 +423,14 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 />
                             </div>
                         </div>
+                        <CurrencyInput
+                            label="Preço 2 (Varejo)"
+                            name="retailPrice2"
+                            value={formData.retailPrice2}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
                         <CurrencyInput
                             label="Preço Custo (Varejo)"
                             name="retailCost"
