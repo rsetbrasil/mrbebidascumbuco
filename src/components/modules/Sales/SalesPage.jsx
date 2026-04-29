@@ -1471,12 +1471,12 @@ const SalesPage = () => {
                         {/* Botões em grid 3×2 */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                             {[
-                                { key: 'wholesale',  label: 'Fardo/Caixa',  ref: wholesaleBtnRef,  enabled: isWholesaleEnabled,  color: '#22c55e' },
-                                { key: 'wholesale2', label: 'At. Varejo',   ref: wholesale2BtnRef, enabled: isWholesale2Enabled, color: '#22c55e' },
-                                { key: 'cold',       label: 'Mercearia',   ref: coldBtnRef,       enabled: isColdEnabled,       color: '#3b82f6' },
-                                { key: 'cold2',      label: 'Mercearia 2', ref: cold2BtnRef,      enabled: isCold2Enabled,      color: '#3b82f6' },
-                                { key: 'retail',     label: 'Varejo',      ref: retailBtnRef,     enabled: isRetailEnabled,     color: '#f59e0b' },
-                                { key: 'retail2',    label: 'Varejo 2',    ref: retail2BtnRef,    enabled: isRetail2Enabled,    color: '#f59e0b' },
+                                { key: 'wholesale',  group: 'Atacado',   label: 'Fardo/Caixa',  ref: wholesaleBtnRef,  enabled: isWholesaleEnabled,  color: '#22c55e' },
+                                { key: 'wholesale2', group: 'Atacado',   label: 'At. Varejo',   ref: wholesale2BtnRef, enabled: isWholesale2Enabled, color: '#22c55e' },
+                                { key: 'cold',       group: 'Mercearia', label: 'Preço 1',      ref: coldBtnRef,       enabled: isColdEnabled,       color: '#3b82f6' },
+                                { key: 'cold2',      group: 'Mercearia', label: 'Preço 2',      ref: cold2BtnRef,      enabled: isCold2Enabled,      color: '#3b82f6' },
+                                { key: 'retail',     group: 'Varejo',    label: 'Preço 1',      ref: retailBtnRef,     enabled: isRetailEnabled,     color: '#f59e0b' },
+                                { key: 'retail2',    group: 'Varejo',    label: 'Preço 2',      ref: retail2BtnRef,    enabled: isRetail2Enabled,    color: '#f59e0b' },
                             ].map(btn => {
                                 const active = itemPriceType === btn.key;
                                 const disabled = selectedProduct ? !btn.enabled(selectedProduct) : false;
@@ -1506,6 +1506,9 @@ const SalesPage = () => {
                                             transition: 'all 0.15s'
                                         }}
                                     >
+                                        <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', opacity: active ? 0.9 : 0.55, marginBottom: '2px' }}>
+                                            {btn.group}
+                                        </div>
                                         {btn.label}
                                         {selectedProduct && btn.enabled(selectedProduct) && (
                                             <div style={{ fontSize: '11px', fontWeight: 600, marginTop: '2px', opacity: 0.85 }}>
