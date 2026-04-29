@@ -1471,8 +1471,8 @@ const SalesPage = () => {
                         {/* Botões em grid 3×2 */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                             {[
-                                { key: 'wholesale',  label: 'Atacado',     ref: wholesaleBtnRef,  enabled: isWholesaleEnabled,  color: '#22c55e' },
-                                { key: 'wholesale2', label: 'Atacado 2',   ref: wholesale2BtnRef, enabled: isWholesale2Enabled, color: '#22c55e' },
+                                { key: 'wholesale',  label: 'Fardo/Caixa',  ref: wholesaleBtnRef,  enabled: isWholesaleEnabled,  color: '#22c55e' },
+                                { key: 'wholesale2', label: 'At. Varejo',   ref: wholesale2BtnRef, enabled: isWholesale2Enabled, color: '#22c55e' },
                                 { key: 'cold',       label: 'Mercearia',   ref: coldBtnRef,       enabled: isColdEnabled,       color: '#3b82f6' },
                                 { key: 'cold2',      label: 'Mercearia 2', ref: cold2BtnRef,      enabled: isCold2Enabled,      color: '#3b82f6' },
                                 { key: 'retail',     label: 'Varejo',      ref: retailBtnRef,     enabled: isRetailEnabled,     color: '#f59e0b' },

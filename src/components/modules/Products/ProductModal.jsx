@@ -258,7 +258,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
                                 <div style={{ flex: 1 }}>
-                                    <CurrencyInput label="Preço 1" name="wholesalePrice" value={formData.wholesalePrice} onChange={handleChange} error={errors.wholesalePrice} placeholder="0,00" className="no-margin" />
+                                    <CurrencyInput label="Fardo/Caixa" name="wholesalePrice" value={formData.wholesalePrice} onChange={handleChange} error={errors.wholesalePrice} placeholder="0,00" className="no-margin" />
                                 </div>
                                 <div className="input-group no-margin" style={{ width: '64px' }}>
                                     <label className="input-label">Un.</label>
@@ -270,7 +270,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     <Input label="Qtd/Un." name="wholesaleUnitMultiplier" type="number" value={formData.wholesaleUnitMultiplier} onChange={handleChange} placeholder="1" className="no-margin" />
                                 </div>
                             </div>
-                            <CurrencyInput label="Preço 2" name="wholesalePrice2" value={formData.wholesalePrice2} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <CurrencyInput label="At. Varejo" name="wholesalePrice2" value={formData.wholesalePrice2} onChange={handleChange} placeholder="0,00" className="no-margin" />
                             <div style={{ height: '1px', background: '#22c55e22', margin: '0 -12px' }} />
                             <CurrencyInput label="Custo" name="cost" value={formData.cost} onChange={handleChange} placeholder="0,00" className="no-margin" />
                             <Input label="Estoque" name="stock" type="number" value={formData.stock} onChange={handleChange} placeholder="0" className="no-margin" />
