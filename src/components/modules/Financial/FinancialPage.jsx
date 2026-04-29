@@ -423,12 +423,12 @@ const FinancialPage = () => {
 
     return (
         <div className="fade-in">
-            <div style={{ marginBottom: 'var(--spacing-xl)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginBottom: 'var(--spacing-xl)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1>Relatórios Financeiros</h1>
-                    <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--spacing-xs)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
                         Visão geral do desempenho do seu negócio
-                    </p>
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Relatórios Financeiros</h1>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center' }}>
                     <button

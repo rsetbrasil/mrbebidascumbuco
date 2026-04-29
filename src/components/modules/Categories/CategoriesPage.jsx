@@ -107,93 +107,65 @@ const CategoriesPage = () => {
     };
 
     return (
-        <div className="fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-                <h1>Categorias</h1>
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Tag size={14} /> {filteredCategories.length} categori{filteredCategories.length !== 1 ? 'as' : 'a'}
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Categorias</h1>
+                </div>
                 {canWrite && (
-                    <Button
-                        variant="primary"
-                        icon={<Plus size={20} />}
-                        onClick={() => handleOpenModal()}
-                    >
-                        Nova Categoria
-                    </Button>
+                    <button onClick={() => handleOpenModal()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
+                        <Plus size={18} /> Nova Categoria
+                    </button>
                 )}
             </div>
 
-            <Card>
-                <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                    <Input
-                        placeholder="Buscar categorias..."
-                        value={searchTerm}
-                        onChange={handleSearch}
-                        icon={<Search size={20} />}
-                    />
+            {/* Tabela */}
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
+                    <div style={{ maxWidth: '380px' }}>
+                        <Input placeholder="Buscar categorias..." value={searchTerm} onChange={handleSearch} icon={<Search size={18} />} />
+                    </div>
                 </div>
-
-                <div className="table-container">
-                    <table className="table">
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Descrição</th>
-                                <th style={{ width: '100px', textAlign: 'center' }}>Ações</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                {['Nome', 'Descrição', 'Ações'].map((h, i) => (
+                                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 2 ? 'center' : 'left', width: i === 2 ? '100px' : undefined }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {loading ? (
-                                <tr>
-                                    <td colSpan="3" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
-                                        Carregando...
-                                    </td>
-                                </tr>
+                                <tr><td colSpan="3" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Carregando...</td></tr>
                             ) : filteredCategories.length === 0 ? (
-                                <tr>
-                                    <td colSpan="3" style={{ textAlign: 'center', padding: 'var(--spacing-xl)', color: 'var(--color-text-secondary)' }}>
-                                        Nenhuma categoria encontrada
-                                    </td>
-                                </tr>
+                                <tr><td colSpan="3" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                    <Tag size={40} style={{ opacity: 0.15, display: 'block', margin: '0 auto 10px' }} />
+                                    Nenhuma categoria encontrada
+                                </td></tr>
                             ) : (
                                 filteredCategories.map(category => (
-                                    <tr key={category.id}>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                                <div style={{
-                                                    width: '32px',
-                                                    height: '32px',
-                                                    borderRadius: '50%',
-                                                    background: 'var(--color-bg-tertiary)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    color: 'var(--color-primary)'
-                                                }}>
+                                    <tr key={category.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                        <td style={{ padding: '13px 16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: '#6366f118', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', flexShrink: 0 }}>
                                                     <Tag size={16} />
                                                 </div>
-                                                <span style={{ fontWeight: 500 }}>{category.name}</span>
+                                                <span style={{ fontWeight: 600 }}>{category.name}</span>
                                             </div>
                                         </td>
-                                        <td style={{ color: 'var(--color-text-secondary)' }}>
-                                            {category.description || '-'}
-                                        </td>
-                                        <td>
+                                        <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>{category.description || '—'}</td>
+                                        <td style={{ padding: '13px 16px' }}>
                                             {canWrite && (
-                                                <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--spacing-sm)' }}>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        icon={<Edit size={16} />}
-                                                        onClick={() => handleOpenModal(category)}
-                                                        title="Editar"
-                                                    />
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        icon={<Trash2 size={16} />}
-                                                        onClick={() => handleDelete(category.id)}
-                                                        style={{ color: 'var(--color-danger)' }}
-                                                        title="Excluir"
-                                                    />
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                                    <button onClick={() => handleOpenModal(category)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Editar"><Edit size={16} /></button>
+                                                    <button onClick={() => handleDelete(category.id)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Excluir"><Trash2 size={16} /></button>
                                                 </div>
                                             )}
                                         </td>
@@ -203,7 +175,7 @@ const CategoriesPage = () => {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
 
             {/* Create/Edit Modal */}
             <Modal

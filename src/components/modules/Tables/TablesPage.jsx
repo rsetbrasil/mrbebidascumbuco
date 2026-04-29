@@ -203,31 +203,23 @@ const TablesPage = () => {
             )}
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--spacing-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                    <Coffee size={28} style={{ color: 'var(--color-primary)' }} />
-                    <div>
-                        <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, margin: 0 }}>
-                            Mesas
-                        </h1>
-                        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', margin: 0 }}>
-                            {filteredTables.filter(t => t.status === 'open').length} mesa(s) aberta(s)
-                        </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Coffee size={14} /> {filteredTables.filter(t => t.status === 'open').length} mesa{filteredTables.filter(t => t.status === 'open').length !== 1 ? 's' : ''} aberta{filteredTables.filter(t => t.status === 'open').length !== 1 ? 's' : ''}
                     </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Mesas</h1>
                 </div>
                 {canWrite && (
-                    <Button
-                        onClick={() => setNewTableModalOpen(true)}
-                        icon={<Plus size={18} />}
-                    >
-                        Nova Mesa
-                    </Button>
+                    <button onClick={() => setNewTableModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
+                        <Plus size={18} /> Nova Mesa
+                    </button>
                 )}
             </div>
 
             {/* Filters */}
-            <Card>
-                <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '16px 20px' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <div style={{ flex: 1, minWidth: '200px' }}>
                         <Input
                             ref={searchInputRef}
@@ -237,7 +229,7 @@ const TablesPage = () => {
                             icon={<Search size={18} />}
                         />
                     </div>
-                    <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                         {[
                             { value: 'open', label: 'Abertas' },
                             { value: 'closed', label: 'Fechadas' },
@@ -247,15 +239,15 @@ const TablesPage = () => {
                                 key={f.value}
                                 onClick={() => setStatusFilter(f.value)}
                                 style={{
-                                    padding: 'var(--spacing-sm) var(--spacing-md)',
-                                    borderRadius: 'var(--radius-md)',
+                                    padding: '7px 16px',
+                                    borderRadius: '20px',
                                     border: '1px solid var(--color-border)',
                                     background: statusFilter === f.value ? 'var(--color-primary)' : 'transparent',
                                     color: statusFilter === f.value ? '#fff' : 'var(--color-text-secondary)',
                                     cursor: 'pointer',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 500,
-                                    transition: 'all var(--transition-fast)'
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    transition: 'all 0.15s'
                                 }}
                             >
                                 {f.label}
@@ -263,25 +255,15 @@ const TablesPage = () => {
                         ))}
                     </div>
                 </div>
-            </Card>
+            </div>
 
             {/* Tables Grid */}
             {filteredTables.length === 0 ? (
-                <Card>
-                    <div style={{
-                        textAlign: 'center',
-                        padding: 'var(--spacing-2xl)',
-                        color: 'var(--color-text-secondary)'
-                    }}>
-                        <Coffee size={48} style={{ marginBottom: 'var(--spacing-md)', opacity: 0.5 }} />
-                        <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600 }}>
-                            Nenhuma mesa encontrada
-                        </p>
-                        <p style={{ fontSize: 'var(--font-size-sm)' }}>
-                            {statusFilter === 'open' ? 'Abra uma nova mesa para começar' : 'Sem mesas neste filtro'}
-                        </p>
-                    </div>
-                </Card>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    <Coffee size={40} style={{ opacity: 0.15, display: 'block', margin: '0 auto 10px' }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>Nenhuma mesa encontrada</p>
+                    <p style={{ margin: '4px 0 0', fontSize: '13px' }}>{statusFilter === 'open' ? 'Abra uma nova mesa para começar' : 'Sem mesas neste filtro'}</p>
+                </div>
             ) : (
                 <div style={{
                     display: 'grid',
@@ -321,10 +303,10 @@ const TablesPage = () => {
                                                 {table.customerName || 'Sem nome'}
                                             </span>
                                             <span style={{
-                                                fontSize: 'var(--font-size-xs)',
-                                                padding: '2px 8px',
-                                                borderRadius: '4px',
-                                                fontWeight: 600,
+                                                fontSize: '11px',
+                                                padding: '3px 10px',
+                                                borderRadius: '20px',
+                                                fontWeight: 700,
                                                 flexShrink: 0,
                                                 ...statusStyle
                                             }}>

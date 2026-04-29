@@ -79,158 +79,77 @@ const CustomersPage = () => {
     if (loading && !customers.length) return <Loading fullScreen />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {notification && (
-                <Notification
-                    type={notification.type}
-                    message={notification.message}
-                    onClose={() => setNotification(null)}
-                />
+                <Notification type={notification.type} message={notification.message} onClose={() => setNotification(null)} />
             )}
 
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 'var(--spacing-md)'
-            }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1 style={{
-                        fontSize: 'var(--font-size-2xl)',
-                        fontWeight: 700,
-                        color: 'var(--color-text-primary)',
-                        marginBottom: 'var(--spacing-xs)'
-                    }}>Clientes</h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie sua base de clientes</p>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Users size={14} /> {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''}
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Clientes</h1>
                 </div>
                 {canWrite && (
-                    <Button
-                        onClick={() => {
-                            setEditingCustomer(null);
-                            setIsModalOpen(true);
-                        }}
-                        icon={<Plus size={20} />}
+                    <button
+                        onClick={() => { setEditingCustomer(null); setIsModalOpen(true); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 20px', borderRadius: '10px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}
                     >
-                        Novo Cliente
-                    </Button>
+                        <Plus size={18} /> Novo Cliente
+                    </button>
                 )}
             </div>
 
-            <Card>
-                <div style={{ padding: 'var(--spacing-md)', borderBottom: '1px solid var(--color-border)' }}>
-                    <div style={{ maxWidth: '400px' }}>
-                        <Input
-                            placeholder="Buscar por nome, CPF ou telefone..."
-                            icon={Search}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+            {/* Tabela */}
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
+                    <div style={{ maxWidth: '380px' }}>
+                        <Input placeholder="Buscar por nome, CPF ou telefone..." icon={Search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                 </div>
-
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Nome</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Documento</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Contato</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Tipo</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                {['Nome', 'Documento', 'Contato', 'Tipo', 'Ações'].map((h, i) => (
+                                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 4 ? 'right' : 'left' }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredCustomers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                            <Users size={48} style={{ opacity: 0.2 }} />
-                                            <p>Nenhum cliente encontrado</p>
-                                        </div>
+                                    <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        <Users size={40} style={{ opacity: 0.15, marginBottom: '10px', display: 'block', margin: '0 auto 10px' }} />
+                                        <p style={{ margin: 0 }}>Nenhum cliente encontrado</p>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredCustomers.map((customer) => (
-                                    <tr key={customer.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{customer.name}</div>
-                                            {customer.email && (
-                                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{customer.email}</div>
-                                            )}
+                                    <tr key={customer.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                        <td style={{ padding: '13px 16px' }}>
+                                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{customer.name}</div>
+                                            {customer.email && <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{customer.email}</div>}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
-                                            {customer.document ? (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <FileText size={14} style={{ color: 'var(--color-text-muted)' }} />
-                                                    <span>{customer.document}</span>
-                                                </div>
-                                            ) : (
-                                                <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                                            )}
+                                        <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                            {customer.document ? <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={13} style={{ color: 'var(--color-text-muted)' }} />{customer.document}</div> : <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
-                                            {customer.phone ? (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Phone size={14} style={{ color: 'var(--color-text-muted)' }} />
-                                                    <span>{customer.phone}</span>
-                                                </div>
-                                            ) : (
-                                                <span style={{ color: 'var(--color-text-muted)' }}>-</span>
-                                            )}
+                                        <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                            {customer.phone ? <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Phone size={13} style={{ color: 'var(--color-text-muted)' }} />{customer.phone}</div> : <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: '4px',
-                                                fontSize: '12px',
-                                                fontWeight: 500,
-                                                backgroundColor: customer.priceType === 'wholesale' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                                                color: customer.priceType === 'wholesale' ? '#a78bfa' : '#60a5fa',
-                                                border: `1px solid ${customer.priceType === 'wholesale' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`
-                                            }}>
+                                        <td style={{ padding: '13px 16px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: customer.priceType === 'wholesale' ? '#8b5cf618' : '#3b82f618', color: customer.priceType === 'wholesale' ? '#8b5cf6' : '#3b82f6' }}>
                                                 {customer.priceType === 'wholesale' ? 'Atacado' : 'Varejo'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingCustomer(customer);
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    style={{
-                                                        padding: '8px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-primary)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        transition: 'background var(--transition-fast)'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Editar"
-                                                >
-                                                    <Edit size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(customer.id)}
-                                                    style={{
-                                                        padding: '8px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-danger)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)',
-                                                        transition: 'background var(--transition-fast)'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--color-bg-hover)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                    title="Excluir"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
+                                        <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
+                                                <button onClick={() => { setEditingCustomer(customer); setIsModalOpen(true); }} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Editar"><Edit size={16} /></button>
+                                                <button onClick={() => handleDelete(customer.id)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Excluir"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -239,7 +158,7 @@ const CustomersPage = () => {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
 
             <CustomerModal
                 isOpen={isModalOpen}

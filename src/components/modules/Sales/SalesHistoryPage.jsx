@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, XCircle, Eye, Printer } from 'lucide-react';
-import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import DateInput from '../../common/DateInput';
@@ -685,31 +684,22 @@ const SalesHistoryPage = () => {
                 />
             )}
 
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 'var(--spacing-md)'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1 style={{
-                        fontSize: 'var(--font-size-2xl)',
-                        fontWeight: 700,
-                        color: 'var(--color-text-primary)',
-                        marginBottom: 'var(--spacing-xs)'
-                    }}>Histórico de Vendas</h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>Visualize e gerencie todas as vendas realizadas</p>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+                        {filteredSales.length} venda{filteredSales.length !== 1 ? 's' : ''} no período
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Histórico de Vendas</h1>
                 </div>
             </div>
 
-            <Card>
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
                 <div style={{
-                    padding: 'var(--spacing-md)',
+                    padding: '16px 20px',
                     borderBottom: '1px solid var(--color-border)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 'var(--spacing-md)'
+                    gap: '12px'
                 }}>
                     <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
                         <div style={{ flex: 2, minWidth: '300px' }}>
@@ -774,111 +764,55 @@ const SalesHistoryPage = () => {
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Número</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Data</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Cliente</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Itens</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Total</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Tipo</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Pagamento</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                {['Número', 'Data', 'Cliente', 'Itens', 'Total', 'Tipo', 'Pagamento', 'Ações'].map((h, i) => (
+                                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 7 ? 'right' : 'left' }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredSales.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                    <td colSpan="8" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                         Nenhuma venda encontrada
                                     </td>
                                 </tr>
                             ) : (
                                 filteredSales.map((sale) => (
-                                    <tr key={sale.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
-                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 500 }}>
+                                    <tr key={sale.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                        <td style={{ padding: '13px 16px', fontWeight: 700 }}>
                                             #{sale.saleNumber}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
+                                        <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
                                             {formatDateTime(sale.createdAt)}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
+                                        <td style={{ padding: '13px 16px', fontWeight: 600 }}>
                                             {sale.customerName || 'Cliente Balcão'}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
+                                        <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
                                             {sale.items?.length || 0} itens
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-success)' }}>
+                                        <td style={{ padding: '13px 16px', fontWeight: 700, color: 'var(--color-success)' }}>
                                             {formatCurrency(sale.total)}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: 'var(--color-bg-secondary)',
-                                                color: 'var(--color-text-secondary)',
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 500,
-                                                border: '1px solid var(--color-border)'
-                                            }}>
+                                        <td style={{ padding: '13px 16px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#6366f118', color: '#6366f1' }}>
                                                 {getSaleTypeLabel(sale)}
                                             </span>
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: 'var(--color-bg-secondary)',
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 500
-                                            }}>
+                                        <td style={{ padding: '13px 16px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: '#10b98118', color: '#10b981' }}>
                                                 {sale.paymentMethod}
                                             </span>
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-sm)' }}>
-                                                <button
-                                                    onClick={() => handleViewSale(sale)}
-                                                    style={{
-                                                        padding: '6px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-primary)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)'
-                                                    }}
-                                                    title="Ver Detalhes"
-                                                >
-                                                    <Eye size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handlePrint(sale)}
-                                                    style={{
-                                                        padding: '6px',
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: 'var(--color-text-secondary)',
-                                                        cursor: 'pointer',
-                                                        borderRadius: 'var(--radius-md)'
-                                                    }}
-                                                    title="Imprimir Comprovante"
-                                                >
-                                                    <Printer size={18} />
-                                                </button>
+                                        <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
+                                                <button onClick={() => handleViewSale(sale)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Ver Detalhes"><Eye size={16} /></button>
+                                                <button onClick={() => handlePrint(sale)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-text-secondary)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Imprimir"><Printer size={16} /></button>
                                                 {canWrite && (
-                                                    <button
-                                                        onClick={() => handleCancelSale(sale)}
-                                                        style={{
-                                                            padding: '6px',
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: 'var(--color-danger)',
-                                                            cursor: 'pointer',
-                                                            borderRadius: 'var(--radius-md)'
-                                                        }}
-                                                        title="Cancelar Venda"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
+                                                    <button onClick={() => handleCancelSale(sale)} style={{ padding: '7px', background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', borderRadius: '8px' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} title="Cancelar"><XCircle size={16} /></button>
                                                 )}
                                             </div>
                                         </td>
@@ -888,7 +822,7 @@ const SalesHistoryPage = () => {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
 
             <Modal
                 isOpen={reportModalOpen}

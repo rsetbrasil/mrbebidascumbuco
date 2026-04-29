@@ -201,21 +201,12 @@ const PresalesPage = () => {
                 />
             )}
 
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 'var(--spacing-md)'
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1 style={{
-                        fontSize: 'var(--font-size-2xl)',
-                        fontWeight: 700,
-                        color: 'var(--color-text-primary)',
-                        marginBottom: 'var(--spacing-xs)'
-                    }}>Pedidos / Pré-Vendas</h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>Gerencie os pedidos em aberto</p>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+                        {filteredPresales.filter(p => p.status === 'pending').length} pedido(s) pendente(s)
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Pedidos / Pré-Vendas</h1>
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                     {canWrite && (
@@ -261,46 +252,15 @@ const PresalesPage = () => {
                 </div>
             </div>
 
-            <Card>
-                <div style={{
-                    padding: 'var(--spacing-md)',
-                    borderBottom: '1px solid var(--color-border)',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: 'var(--spacing-md)',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap'
-                }}>
-                    <div style={{ width: '100%', maxWidth: '400px' }}>
-                        <Input
-                            ref={searchInputRef}
-                            placeholder="Buscar por cliente ou número..."
-                            icon={Search}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ maxWidth: '340px', flex: 1 }}>
+                        <Input ref={searchInputRef} placeholder="Buscar por cliente ou número..." icon={Search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
-
-                    <div style={{ display: 'flex', gap: 'var(--spacing-sm)', overflowX: 'auto', paddingBottom: '4px' }}>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {['pending', 'reserved', 'completed', 'cancelled', 'all'].map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                style={{
-                                    padding: '8px 16px',
-                                    borderRadius: 'var(--radius-md)',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 500,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap',
-                                    transition: 'all var(--transition-fast)',
-                                    background: statusFilter === status ? 'var(--color-primary)' : 'var(--color-bg-secondary)',
-                                    color: statusFilter === status ? '#fff' : 'var(--color-text-secondary)'
-                                }}
-                            >
-                                {status === 'all' ? 'Todos' : (status === 'reserved' ? 'Reservados' : getStatusLabel(status))}
+                            <button key={status} onClick={() => setStatusFilter(status)} style={{ padding: '7px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, border: '1px solid', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s', borderColor: statusFilter === status ? 'var(--color-primary)' : 'var(--color-border)', background: statusFilter === status ? 'var(--color-primary)' : 'transparent', color: statusFilter === status ? '#fff' : 'var(--color-text-secondary)' }}>
+                                {status === 'all' ? 'Todos' : status === 'reserved' ? 'Reservados' : getStatusLabel(status)}
                             </button>
                         ))}
                     </div>
@@ -309,109 +269,56 @@ const PresalesPage = () => {
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Data/Hora</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Cliente</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Itens</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Total</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Tipo</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Vendedor</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Status</th>
-                                <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                {['Data/Hora', 'Cliente', 'Itens', 'Total', 'Tipo', 'Vendedor', 'Status', 'Ações'].map((h, i) => (
+                                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 7 ? 'right' : 'left' }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredPresales.length === 0 ? (
                                 <tr>
-                                    <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
-                                            <ClipboardList size={48} style={{ opacity: 0.2 }} />
-                                            <p>Nenhum pedido encontrado</p>
-                                        </div>
+                                    <td colSpan="8" style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        <ClipboardList size={40} style={{ opacity: 0.15, display: 'block', margin: '0 auto 10px' }} />
+                                        <p style={{ margin: 0 }}>Nenhum pedido encontrado</p>
                                     </td>
                                 </tr>
                             ) : (
                                 filteredPresales.map((presale) => {
                                     const presaleStatus = presale.status || 'pending';
                                     return (
-                                    <tr key={presale.id} style={{ borderBottom: '1px solid var(--color-divider)' }}>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
-                                            {formatDateTime(presale.createdAt)}
+                                    <tr key={presale.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                        <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{formatDateTime(presale.createdAt)}</td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{presale.customerName || 'Cliente Balcão'}</div>
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                                                {presale.customerName || 'Cliente Balcão'}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: 'var(--spacing-md)', color: 'var(--color-text-secondary)' }}>
-                                            {presale.items?.length || 0} itens
-                                        </td>
-                                        <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-success)' }}>
-                                            {formatCurrency(presale.total)}
-                                        </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
+                                        <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{presale.items?.length || 0} itens</td>
+                                        <td style={{ padding: '12px 16px', fontWeight: 700, color: '#22c55e', fontSize: '14px' }}>{formatCurrency(presale.total)}</td>
+                                        <td style={{ padding: '12px 16px' }}>
                                             {(() => {
                                                 const items = presale.items || [];
                                                 const hasCold = items.some(i => !!i.isCold);
                                                 const hasWholesale = items.some(i => !i.isCold);
                                                 return (
-                                                    <>
-                                                        {hasCold && (
-                                                            <span style={{
-                                                                padding: '4px 8px',
-                                                                borderRadius: 'var(--radius-sm)',
-                                                                background: 'var(--color-primary)',
-                                                                color: '#fff',
-                                                                fontSize: 'var(--font-size-xs)',
-                                                                fontWeight: 500,
-                                                                border: '1px solid var(--color-primary)'
-                                                            }}>
-                                                                Mercearia
-                                                            </span>
-                                                        )}
-                                                        {hasWholesale && (
-                                                            <span style={{
-                                                                padding: '4px 8px',
-                                                                borderRadius: 'var(--radius-sm)',
-                                                                background: 'var(--color-success)',
-                                                                color: '#fff',
-                                                                fontSize: 'var(--font-size-xs)',
-                                                                fontWeight: 500,
-                                                                border: '1px solid var(--color-success)',
-                                                                marginLeft: hasCold ? '8px' : 0
-                                                            }}>
-                                                                Atacado
-                                                            </span>
-                                                        )}
-                                                    </>
+                                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                        {hasCold && <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px', background: '#3b82f618', color: '#3b82f6' }}>Mercearia</span>}
+                                                        {hasWholesale && <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '20px', background: '#22c55e18', color: '#22c55e' }}>Atacado</span>}
+                                                    </div>
                                                 );
                                             })()}
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                background: 'var(--color-bg-secondary)',
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 500
-                                            }}>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ fontSize: '12px', fontWeight: 600, padding: '3px 8px', borderRadius: '20px', background: 'var(--color-bg-hover)', color: 'var(--color-text-secondary)' }}>
                                                 {presale.createdBy || 'Vendedor'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: 'var(--spacing-md)' }}>
-                                            <span style={{
-                                                padding: '4px 8px',
-                                                borderRadius: 'var(--radius-sm)',
-                                                fontSize: 'var(--font-size-xs)',
-                                                fontWeight: 500,
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                ...getStatusColor(presaleStatus)
-                                            }}>
-                                                {presaleStatus === 'completed' && <CheckCircle size={12} />}
-                                                {presaleStatus === 'cancelled' && <XCircle size={12} />}
-                                                {presaleStatus === 'pending' && <Clock size={12} />}
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '4px', ...getStatusColor(presaleStatus) }}>
+                                                {presaleStatus === 'completed' && <CheckCircle size={11} />}
+                                                {presaleStatus === 'cancelled' && <XCircle size={11} />}
+                                                {presaleStatus === 'pending' && <Clock size={11} />}
                                                 {getStatusLabel(presaleStatus)}
                                             </span>
                                         </td>
@@ -501,7 +408,7 @@ const PresalesPage = () => {
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
             {/* View Presale Modal */}
             <Modal
                 isOpen={viewModalOpen}
