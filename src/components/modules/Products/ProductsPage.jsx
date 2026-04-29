@@ -372,8 +372,10 @@ const ProductsPage = () => {
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Categoria</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Atacado)</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Mercearia)</th>
+                                        <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Preço (Varejo)</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Estoque</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Est. Mercearia</th>
+                                        <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Est. Varejo</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Status</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600, textAlign: 'right' }}>Ações</th>
                                     </tr>
@@ -381,7 +383,7 @@ const ProductsPage = () => {
                                 <tbody>
                                     {filteredProducts.length === 0 ? (
                                         <tr>
-                                            <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                            <td colSpan="9" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                                                     <Package size={48} style={{ opacity: 0.2 }} />
                                                     <p>Nenhum produto encontrado</p>
@@ -404,6 +406,9 @@ const ProductsPage = () => {
                                                 <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-info)' }}>
                                                     {product.coldPrice === null ? '-' : formatCurrency((product.coldPrice ?? product.price) || 0)}
                                                 </td>
+                                                <td style={{ padding: 'var(--spacing-md)', fontWeight: 500, color: 'var(--color-warning)' }}>
+                                                    {product.retailPrice == null ? '-' : formatCurrency(product.retailPrice || 0)}
+                                                </td>
                                                 <td style={{ padding: 'var(--spacing-md)' }}>
                                                     <span style={{
                                                         padding: '4px 8px',
@@ -413,7 +418,7 @@ const ProductsPage = () => {
                                                         background: product.stock <= 5 ? 'rgba(239, 68, 68, 0.1)' : 'var(--color-bg-secondary)',
                                                         color: product.stock <= 5 ? 'var(--color-danger)' : 'var(--color-text-secondary)'
                                                     }}>
-                                                        {product.stock} {product.retailUnit || product.unitOfMeasure || 'UN'}
+                                                        {product.stock} {product.wholesaleUnit || product.unitOfMeasure || 'UN'}
                                                     </span>
                                                 </td>
                                                 <td style={{ padding: 'var(--spacing-md)' }}>
@@ -426,6 +431,18 @@ const ProductsPage = () => {
                                                         color: 'var(--color-info)'
                                                     }}>
                                                         {product.coldStock || 0} {product.coldUnit || product.unitOfMeasure || 'UN'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: 'var(--spacing-md)' }}>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        fontSize: 'var(--font-size-xs)',
+                                                        fontWeight: 500,
+                                                        background: 'var(--color-bg-secondary)',
+                                                        color: 'var(--color-warning)'
+                                                    }}>
+                                                        {product.retailStock || 0} {product.retailUnit || 'UN'}
                                                     </span>
                                                 </td>
                                                 <td style={{ padding: 'var(--spacing-md)' }}>
@@ -543,12 +560,14 @@ const ProductsPage = () => {
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Atacado (Custo)</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Mercearia (Venda)</th>
                                         <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Mercearia (Custo)</th>
+                                        <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Varejo (Venda)</th>
+                                        <th style={{ padding: 'var(--spacing-md)', fontWeight: 600 }}>Varejo (Custo)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {priceListFilteredProducts.length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                            <td colSpan="7" style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                                 Nenhum produto encontrado
                                             </td>
                                         </tr>
@@ -570,6 +589,12 @@ const ProductsPage = () => {
                                                 </td>
                                                 <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
                                                     {formatCurrency(product.coldCost || product.cost || 0)}
+                                                </td>
+                                                <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
+                                                    {product.retailPrice == null ? '-' : formatCurrency(product.retailPrice || 0)}
+                                                </td>
+                                                <td style={{ padding: 'var(--spacing-md)', fontWeight: 600, color: 'var(--color-warning)' }}>
+                                                    {formatCurrency(product.retailCost || 0)}
                                                 </td>
                                             </tr>
                                         ))

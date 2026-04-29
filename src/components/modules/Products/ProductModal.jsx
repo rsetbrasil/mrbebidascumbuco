@@ -13,15 +13,20 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         barcode: '',
         wholesalePrice: '',
         coldPrice: '',
+        retailPrice: '',
         cost: '',
         coldCost: '',
+        retailCost: '',
         stock: '',
         coldStock: '',
+        retailStock: '',
         categoryId: '',
         wholesaleUnit: 'UN',
         coldUnit: 'UN',
+        retailUnit: 'UN',
         wholesaleUnitMultiplier: 1,
         coldUnitMultiplier: 1,
+        retailUnitMultiplier: 1,
         active: true
     });
 
@@ -42,15 +47,20 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 barcode: product.barcode || '',
                 wholesalePrice: product.wholesalePrice === null ? '' : (product.wholesalePrice ?? product.price ?? ''),
                 coldPrice: product.coldPrice === null ? '' : (product.coldPrice ?? ''),
+                retailPrice: product.retailPrice === null ? '' : (product.retailPrice ?? ''),
                 cost: product.cost || '',
                 coldCost: product.coldCost || '',
+                retailCost: product.retailCost || '',
                 stock: product.stock || '',
                 coldStock: product.coldStock || '',
+                retailStock: product.retailStock || '',
                 categoryId: product.categoryId || '',
                 wholesaleUnit: product.wholesaleUnit || product.unitOfMeasure || 'UN',
                 coldUnit: product.coldUnit || product.unitOfMeasure || 'UN',
+                retailUnit: product.retailUnit || 'UN',
                 wholesaleUnitMultiplier: product.wholesaleUnitMultiplier || 1,
                 coldUnitMultiplier: product.coldUnitMultiplier || 1,
+                retailUnitMultiplier: product.retailUnitMultiplier || 1,
                 active: product.active !== undefined ? product.active : true
             });
         } else {
@@ -59,15 +69,20 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                 barcode: '',
                 wholesalePrice: '',
                 coldPrice: '',
+                retailPrice: '',
                 cost: '',
                 coldCost: '',
+                retailCost: '',
                 stock: '',
                 coldStock: '',
+                retailStock: '',
                 categoryId: '',
                 wholesaleUnit: 'UN',
                 coldUnit: 'UN',
+                retailUnit: 'UN',
                 wholesaleUnitMultiplier: 1,
                 coldUnitMultiplier: 1,
+                retailUnitMultiplier: 1,
                 active: true
             });
         }
@@ -112,10 +127,12 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         if (!formData.name.trim()) newErrors.name = 'Nome é obrigatório';
         const wholesaleOk = formData.wholesalePrice !== '' && Number(formData.wholesalePrice) > 0;
         const coldOk = formData.coldPrice !== '' && Number(formData.coldPrice) > 0;
-        if (!wholesaleOk && !coldOk) {
-            const msg = 'Informe o preço do Atacado ou da Mercearia';
+        const retailOk = formData.retailPrice !== '' && Number(formData.retailPrice) > 0;
+        if (!wholesaleOk && !coldOk && !retailOk) {
+            const msg = 'Informe o preço do Atacado, Mercearia ou Varejo';
             newErrors.wholesalePrice = msg;
             newErrors.coldPrice = msg;
+            newErrors.retailPrice = msg;
         }
 
         setErrors(newErrors);
@@ -137,22 +154,28 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
             };
             const wholesalePrice = normalizeMoney(formData.wholesalePrice);
             const coldPrice = normalizeMoney(formData.coldPrice);
+            const retailPrice = normalizeMoney(formData.retailPrice);
             const cost = normalizeMoney(formData.cost);
             const coldCost = normalizeMoney(formData.coldCost);
-            const basePrice = wholesalePrice ?? coldPrice ?? 0;
+            const retailCost = normalizeMoney(formData.retailCost);
+            const basePrice = wholesalePrice ?? coldPrice ?? retailPrice ?? 0;
 
             const productData = {
                 ...formData,
                 price: basePrice,
                 wholesalePrice,
                 coldPrice,
+                retailPrice,
                 cost: cost ?? 0,
                 coldCost: coldCost ?? 0,
+                retailCost: retailCost ?? 0,
                 stock: parseInt(formData.stock) || 0,
-                coldStock: parseInt(formData.coldStock) || 0
+                coldStock: parseInt(formData.coldStock) || 0,
+                retailStock: parseInt(formData.retailStock) || 0
             };
             productData.wholesaleUnitMultiplier = Math.max(1, parseInt(formData.wholesaleUnitMultiplier) || 1);
             productData.coldUnitMultiplier = Math.max(1, parseInt(formData.coldUnitMultiplier) || 1);
+            productData.retailUnitMultiplier = Math.max(1, parseInt(formData.retailUnitMultiplier) || 1);
 
             await onSave(productData);
             onClose();
@@ -210,9 +233,10 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
+                    {/* Atacado */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
                             <div style={{ flex: 1 }}>
                                 <CurrencyInput
                                     label="Preço (Atacado)"
@@ -224,7 +248,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     className="no-margin"
                                 />
                             </div>
-                            <div className="input-group no-margin" style={{ width: '80px' }}>
+                            <div className="input-group no-margin" style={{ width: '68px' }}>
                                 <label className="input-label">Un.</label>
                                 <select
                                     name="wholesaleUnit"
@@ -238,7 +262,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     ))}
                                 </select>
                             </div>
-                            <div style={{ width: '110px' }}>
+                            <div style={{ width: '70px' }}>
                                 <Input
                                     label="Qtd/Un."
                                     name="wholesaleUnitMultiplier"
@@ -250,16 +274,14 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 />
                             </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                            <CurrencyInput
-                                label="Preço Custo (Atacado)"
-                                name="cost"
-                                value={formData.cost}
-                                onChange={handleChange}
-                                placeholder="0,00"
-                                className="no-margin"
-                            />
-                        </div>
+                        <CurrencyInput
+                            label="Preço Custo (Atacado)"
+                            name="cost"
+                            value={formData.cost}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
                         <Input
                             label="Estoque Atual"
                             name="stock"
@@ -271,8 +293,9 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                         />
                     </div>
 
+                    {/* Mercearia */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
                             <div style={{ flex: 1 }}>
                                 <CurrencyInput
                                     label="Preço (Mercearia)"
@@ -284,7 +307,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     className="no-margin"
                                 />
                             </div>
-                            <div className="input-group no-margin" style={{ width: '80px' }}>
+                            <div className="input-group no-margin" style={{ width: '68px' }}>
                                 <label className="input-label">Un.</label>
                                 <select
                                     name="coldUnit"
@@ -298,7 +321,7 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                     ))}
                                 </select>
                             </div>
-                            <div style={{ width: '110px' }}>
+                            <div style={{ width: '70px' }}>
                                 <Input
                                     label="Qtd/Un."
                                     name="coldUnitMultiplier"
@@ -310,21 +333,78 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                                 />
                             </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                            <CurrencyInput
-                                label="Preço Custo (Mercearia)"
-                                name="coldCost"
-                                value={formData.coldCost}
-                                onChange={handleChange}
-                                placeholder="0,00"
-                                className="no-margin"
-                            />
-                        </div>
+                        <CurrencyInput
+                            label="Preço Custo (Mercearia)"
+                            name="coldCost"
+                            value={formData.coldCost}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
                         <Input
                             label="Estoque Mercearia"
                             name="coldStock"
                             type="number"
                             value={formData.coldStock}
+                            onChange={handleChange}
+                            placeholder="0"
+                            className="no-margin"
+                        />
+                    </div>
+
+                    {/* Varejo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                            <div style={{ flex: 1 }}>
+                                <CurrencyInput
+                                    label="Preço (Varejo)"
+                                    name="retailPrice"
+                                    value={formData.retailPrice}
+                                    onChange={handleChange}
+                                    error={errors.retailPrice}
+                                    placeholder="0,00"
+                                    className="no-margin"
+                                />
+                            </div>
+                            <div className="input-group no-margin" style={{ width: '68px' }}>
+                                <label className="input-label">Un.</label>
+                                <select
+                                    name="retailUnit"
+                                    value={formData.retailUnit}
+                                    onChange={handleChange}
+                                    className="input"
+                                    style={{ width: '100%' }}
+                                >
+                                    {units.map(unit => (
+                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ width: '70px' }}>
+                                <Input
+                                    label="Qtd/Un."
+                                    name="retailUnitMultiplier"
+                                    type="number"
+                                    value={formData.retailUnitMultiplier}
+                                    onChange={handleChange}
+                                    placeholder="1"
+                                    className="no-margin"
+                                />
+                            </div>
+                        </div>
+                        <CurrencyInput
+                            label="Preço Custo (Varejo)"
+                            name="retailCost"
+                            value={formData.retailCost}
+                            onChange={handleChange}
+                            placeholder="0,00"
+                            className="no-margin"
+                        />
+                        <Input
+                            label="Estoque Varejo"
+                            name="retailStock"
+                            type="number"
+                            value={formData.retailStock}
                             onChange={handleChange}
                             placeholder="0"
                             className="no-margin"
