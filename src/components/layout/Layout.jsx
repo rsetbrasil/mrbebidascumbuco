@@ -89,7 +89,7 @@ const Layout = ({ children }) => {
                 overflow: 'hidden'
             }}>
                 {/* Navbar */}
-                <div style={{ flexShrink: 0 }}>
+                <div style={{ flexShrink: 0, height: '64px' }}>
                     <Navbar onMenuClick={isMobile ? toggleSidebar : undefined} />
                 </div>
 
