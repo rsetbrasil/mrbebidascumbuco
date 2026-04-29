@@ -248,206 +248,89 @@ const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
                     />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--spacing-md)' }}>
-                    {/* Atacado */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                            <div style={{ flex: 1 }}>
-                                <CurrencyInput
-                                    label="Preço (Atacado)"
-                                    name="wholesalePrice"
-                                    value={formData.wholesalePrice}
-                                    onChange={handleChange}
-                                    error={errors.wholesalePrice}
-                                    placeholder="0,00"
-                                    className="no-margin"
-                                />
-                            </div>
-                            <div className="input-group no-margin" style={{ width: '68px' }}>
-                                <label className="input-label">Un.</label>
-                                <select
-                                    name="wholesaleUnit"
-                                    value={formData.wholesaleUnit}
-                                    onChange={handleChange}
-                                    className="input"
-                                    style={{ width: '100%' }}
-                                >
-                                    {units.map(unit => (
-                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div style={{ width: '70px' }}>
-                                <Input
-                                    label="Qtd/Un."
-                                    name="wholesaleUnitMultiplier"
-                                    type="number"
-                                    value={formData.wholesaleUnitMultiplier}
-                                    onChange={handleChange}
-                                    placeholder="1"
-                                    className="no-margin"
-                                />
-                            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    {/* ── ATACADO ── */}
+                    <div style={{ border: '1px solid #22c55e55', borderRadius: '10px', overflow: 'hidden' }}>
+                        <div style={{ background: '#22c55e18', borderBottom: '1px solid #22c55e44', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#16a34a', letterSpacing: '0.03em' }}>ATACADO</span>
                         </div>
-                        <CurrencyInput
-                            label="Preço 2 (Atacado)"
-                            name="wholesalePrice2"
-                            value={formData.wholesalePrice2}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <CurrencyInput
-                            label="Preço Custo (Atacado)"
-                            name="cost"
-                            value={formData.cost}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <Input
-                            label="Estoque Atual"
-                            name="stock"
-                            type="number"
-                            value={formData.stock}
-                            onChange={handleChange}
-                            placeholder="0"
-                            className="no-margin"
-                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <CurrencyInput label="Preço 1" name="wholesalePrice" value={formData.wholesalePrice} onChange={handleChange} error={errors.wholesalePrice} placeholder="0,00" className="no-margin" />
+                                </div>
+                                <div className="input-group no-margin" style={{ width: '64px' }}>
+                                    <label className="input-label">Un.</label>
+                                    <select name="wholesaleUnit" value={formData.wholesaleUnit} onChange={handleChange} className="input" style={{ width: '100%' }}>
+                                        {units.map(u => <option key={u.id} value={u.abbreviation}>{u.abbreviation}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ width: '64px' }}>
+                                    <Input label="Qtd/Un." name="wholesaleUnitMultiplier" type="number" value={formData.wholesaleUnitMultiplier} onChange={handleChange} placeholder="1" className="no-margin" />
+                                </div>
+                            </div>
+                            <CurrencyInput label="Preço 2" name="wholesalePrice2" value={formData.wholesalePrice2} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <div style={{ height: '1px', background: '#22c55e22', margin: '0 -12px' }} />
+                            <CurrencyInput label="Custo" name="cost" value={formData.cost} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <Input label="Estoque" name="stock" type="number" value={formData.stock} onChange={handleChange} placeholder="0" className="no-margin" />
+                        </div>
                     </div>
 
-                    {/* Mercearia */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                            <div style={{ flex: 1 }}>
-                                <CurrencyInput
-                                    label="Preço (Mercearia)"
-                                    name="coldPrice"
-                                    value={formData.coldPrice}
-                                    onChange={handleChange}
-                                    error={errors.coldPrice}
-                                    placeholder="0,00"
-                                    className="no-margin"
-                                />
-                            </div>
-                            <div className="input-group no-margin" style={{ width: '68px' }}>
-                                <label className="input-label">Un.</label>
-                                <select
-                                    name="coldUnit"
-                                    value={formData.coldUnit}
-                                    onChange={handleChange}
-                                    className="input"
-                                    style={{ width: '100%' }}
-                                >
-                                    {units.map(unit => (
-                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div style={{ width: '70px' }}>
-                                <Input
-                                    label="Qtd/Un."
-                                    name="coldUnitMultiplier"
-                                    type="number"
-                                    value={formData.coldUnitMultiplier}
-                                    onChange={handleChange}
-                                    placeholder="1"
-                                    className="no-margin"
-                                />
-                            </div>
+                    {/* ── MERCEARIA ── */}
+                    <div style={{ border: '1px solid #3b82f655', borderRadius: '10px', overflow: 'hidden' }}>
+                        <div style={{ background: '#3b82f618', borderBottom: '1px solid #3b82f644', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#2563eb', letterSpacing: '0.03em' }}>MERCEARIA</span>
                         </div>
-                        <CurrencyInput
-                            label="Preço 2 (Mercearia)"
-                            name="coldPrice2"
-                            value={formData.coldPrice2}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <CurrencyInput
-                            label="Preço Custo (Mercearia)"
-                            name="coldCost"
-                            value={formData.coldCost}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <Input
-                            label="Estoque Mercearia"
-                            name="coldStock"
-                            type="number"
-                            value={formData.coldStock}
-                            onChange={handleChange}
-                            placeholder="0"
-                            className="no-margin"
-                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <CurrencyInput label="Preço 1" name="coldPrice" value={formData.coldPrice} onChange={handleChange} error={errors.coldPrice} placeholder="0,00" className="no-margin" />
+                                </div>
+                                <div className="input-group no-margin" style={{ width: '64px' }}>
+                                    <label className="input-label">Un.</label>
+                                    <select name="coldUnit" value={formData.coldUnit} onChange={handleChange} className="input" style={{ width: '100%' }}>
+                                        {units.map(u => <option key={u.id} value={u.abbreviation}>{u.abbreviation}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ width: '64px' }}>
+                                    <Input label="Qtd/Un." name="coldUnitMultiplier" type="number" value={formData.coldUnitMultiplier} onChange={handleChange} placeholder="1" className="no-margin" />
+                                </div>
+                            </div>
+                            <CurrencyInput label="Preço 2" name="coldPrice2" value={formData.coldPrice2} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <div style={{ height: '1px', background: '#3b82f622', margin: '0 -12px' }} />
+                            <CurrencyInput label="Custo" name="coldCost" value={formData.coldCost} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <Input label="Estoque" name="coldStock" type="number" value={formData.coldStock} onChange={handleChange} placeholder="0" className="no-margin" />
+                        </div>
                     </div>
 
-                    {/* Varejo */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
-                            <div style={{ flex: 1 }}>
-                                <CurrencyInput
-                                    label="Preço (Varejo)"
-                                    name="retailPrice"
-                                    value={formData.retailPrice}
-                                    onChange={handleChange}
-                                    error={errors.retailPrice}
-                                    placeholder="0,00"
-                                    className="no-margin"
-                                />
-                            </div>
-                            <div className="input-group no-margin" style={{ width: '68px' }}>
-                                <label className="input-label">Un.</label>
-                                <select
-                                    name="retailUnit"
-                                    value={formData.retailUnit}
-                                    onChange={handleChange}
-                                    className="input"
-                                    style={{ width: '100%' }}
-                                >
-                                    {units.map(unit => (
-                                        <option key={unit.id} value={unit.abbreviation}>{unit.abbreviation}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div style={{ width: '70px' }}>
-                                <Input
-                                    label="Qtd/Un."
-                                    name="retailUnitMultiplier"
-                                    type="number"
-                                    value={formData.retailUnitMultiplier}
-                                    onChange={handleChange}
-                                    placeholder="1"
-                                    className="no-margin"
-                                />
-                            </div>
+                    {/* ── VAREJO ── */}
+                    <div style={{ border: '1px solid #f59e0b55', borderRadius: '10px', overflow: 'hidden' }}>
+                        <div style={{ background: '#f59e0b18', borderBottom: '1px solid #f59e0b44', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '13px', color: '#d97706', letterSpacing: '0.03em' }}>VAREJO</span>
                         </div>
-                        <CurrencyInput
-                            label="Preço 2 (Varejo)"
-                            name="retailPrice2"
-                            value={formData.retailPrice2}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <CurrencyInput
-                            label="Preço Custo (Varejo)"
-                            name="retailCost"
-                            value={formData.retailCost}
-                            onChange={handleChange}
-                            placeholder="0,00"
-                            className="no-margin"
-                        />
-                        <Input
-                            label="Estoque Varejo"
-                            name="retailStock"
-                            type="number"
-                            value={formData.retailStock}
-                            onChange={handleChange}
-                            placeholder="0"
-                            className="no-margin"
-                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px' }}>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <CurrencyInput label="Preço 1" name="retailPrice" value={formData.retailPrice} onChange={handleChange} error={errors.retailPrice} placeholder="0,00" className="no-margin" />
+                                </div>
+                                <div className="input-group no-margin" style={{ width: '64px' }}>
+                                    <label className="input-label">Un.</label>
+                                    <select name="retailUnit" value={formData.retailUnit} onChange={handleChange} className="input" style={{ width: '100%' }}>
+                                        {units.map(u => <option key={u.id} value={u.abbreviation}>{u.abbreviation}</option>)}
+                                    </select>
+                                </div>
+                                <div style={{ width: '64px' }}>
+                                    <Input label="Qtd/Un." name="retailUnitMultiplier" type="number" value={formData.retailUnitMultiplier} onChange={handleChange} placeholder="1" className="no-margin" />
+                                </div>
+                            </div>
+                            <CurrencyInput label="Preço 2" name="retailPrice2" value={formData.retailPrice2} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <div style={{ height: '1px', background: '#f59e0b22', margin: '0 -12px' }} />
+                            <CurrencyInput label="Custo" name="retailCost" value={formData.retailCost} onChange={handleChange} placeholder="0,00" className="no-margin" />
+                            <Input label="Estoque" name="retailStock" type="number" value={formData.retailStock} onChange={handleChange} placeholder="0" className="no-margin" />
+                        </div>
                     </div>
                 </div>
 

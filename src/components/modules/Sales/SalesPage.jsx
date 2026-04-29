@@ -1468,74 +1468,78 @@ const SalesPage = () => {
                         <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
                             Tipo de Preço (por item)
                         </label>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                        {/* Botões em grid 3×2 */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                             {[
-                                { key: 'wholesale', label: 'Atacado', ref: wholesaleBtnRef, enabled: isWholesaleEnabled },
-                                { key: 'wholesale2', label: 'Atacado 2', ref: wholesale2BtnRef, enabled: isWholesale2Enabled },
-                                { key: 'cold', label: 'Mercearia', ref: coldBtnRef, enabled: isColdEnabled },
-                                { key: 'cold2', label: 'Mercearia 2', ref: cold2BtnRef, enabled: isCold2Enabled },
-                                { key: 'retail', label: 'Varejo', ref: retailBtnRef, enabled: isRetailEnabled },
-                                { key: 'retail2', label: 'Varejo 2', ref: retail2BtnRef, enabled: isRetail2Enabled },
-                            ].map(btn => (
-                                <Button
-                                    key={btn.key}
-                                    ref={btn.ref}
-                                    variant={itemPriceType === btn.key ? 'primary' : 'secondary'}
-                                    disabled={selectedProduct ? !btn.enabled(selectedProduct) : false}
-                                    onClick={() => {
-                                        if (selectedProduct && !btn.enabled(selectedProduct)) return;
-                                        setItemPriceType(btn.key);
-                                        setQuantityStep('price');
-                                        if (selectedProduct) setPriceInput(getPriceForType(selectedProduct, btn.key));
-                                        setTimeout(() => { priceInputRef.current?.focus(); }, 0);
-                                    }}
-                                >
-                                    {btn.label}
-                                </Button>
-                            ))}
+                                { key: 'wholesale',  label: 'Atacado',     ref: wholesaleBtnRef,  enabled: isWholesaleEnabled,  color: '#22c55e' },
+                                { key: 'wholesale2', label: 'Atacado 2',   ref: wholesale2BtnRef, enabled: isWholesale2Enabled, color: '#22c55e' },
+                                { key: 'cold',       label: 'Mercearia',   ref: coldBtnRef,       enabled: isColdEnabled,       color: '#3b82f6' },
+                                { key: 'cold2',      label: 'Mercearia 2', ref: cold2BtnRef,      enabled: isCold2Enabled,      color: '#3b82f6' },
+                                { key: 'retail',     label: 'Varejo',      ref: retailBtnRef,     enabled: isRetailEnabled,     color: '#f59e0b' },
+                                { key: 'retail2',    label: 'Varejo 2',    ref: retail2BtnRef,    enabled: isRetail2Enabled,    color: '#f59e0b' },
+                            ].map(btn => {
+                                const active = itemPriceType === btn.key;
+                                const disabled = selectedProduct ? !btn.enabled(selectedProduct) : false;
+                                return (
+                                    <button
+                                        key={btn.key}
+                                        ref={btn.ref}
+                                        disabled={disabled}
+                                        onClick={() => {
+                                            if (disabled) return;
+                                            setItemPriceType(btn.key);
+                                            setQuantityStep('price');
+                                            if (selectedProduct) setPriceInput(getPriceForType(selectedProduct, btn.key));
+                                            setTimeout(() => { priceInputRef.current?.focus(); }, 0);
+                                        }}
+                                        style={{
+                                            padding: '10px 6px',
+                                            borderRadius: '8px',
+                                            border: `2px solid ${active ? btn.color : 'var(--color-border)'}`,
+                                            background: active ? btn.color + '22' : 'transparent',
+                                            color: active ? btn.color : disabled ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                                            fontWeight: active ? 700 : 500,
+                                            fontSize: '13px',
+                                            cursor: disabled ? 'not-allowed' : 'pointer',
+                                            opacity: disabled ? 0.4 : 1,
+                                            textAlign: 'center',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        {btn.label}
+                                        {selectedProduct && btn.enabled(selectedProduct) && (
+                                            <div style={{ fontSize: '11px', fontWeight: 600, marginTop: '2px', opacity: 0.85 }}>
+                                                {formatCurrency(getPriceForType(selectedProduct, btn.key) || 0)}
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <div style={{ marginTop: '6px', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
-                            Preço Selecionado: <span style={{ color: 'var(--color-primary)' }}>
+
+                        {/* Preço selecionado */}
+                        <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Preço Selecionado</span>
+                            <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)' }}>
                                 {(() => {
                                     const v = getPriceForType(selectedProduct, itemPriceType);
                                     return v === null ? '-' : formatCurrency(v || 0);
                                 })()}
                             </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+
+                        {/* Estoque disponível */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                             {[
-                                { label: 'Atacado', get: getWholesalePrice },
-                                { label: 'Atacado 2', get: getWholesalePrice2 },
-                                { label: 'Mercearia', get: getColdPrice },
-                                { label: 'Mercearia 2', get: getColdPrice2 },
-                                { label: 'Varejo', get: getRetailPrice },
-                                { label: 'Varejo 2', get: getRetailPrice2 },
-                            ].map(({ label, get }) => {
-                                const v = get(selectedProduct);
-                                if (v === null || v === undefined) return null;
-                                return (
-                                    <span key={label} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                        {label}: <strong>{formatCurrency(v || 0)}</strong>
-                                    </span>
-                                );
-                            })}
-                        </div>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Disp. Atacado: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.stock ?? 0) - Number(selectedProduct.reservedStock ?? 0))) : '-'}</strong>
-                            </span>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Disp. Mercearia: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.coldStock ?? 0) - Number(selectedProduct.reservedColdStock ?? 0))) : '-'}</strong>
-                            </span>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Disp. Varejo: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.retailStock ?? 0))) : '-'}</strong>
-                            </span>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
-                                Reservado (Atacado): <strong>{selectedProduct ? String(Number(selectedProduct.reservedStock ?? 0)) : '-'}</strong>
-                            </span>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
-                                Reservado (Mercearia): <strong>{selectedProduct ? String(Number(selectedProduct.reservedColdStock ?? 0)) : '-'}</strong>
-                            </span>
+                                { label: 'Atacado', value: Math.max(0, Number(selectedProduct?.stock ?? 0) - Number(selectedProduct?.reservedStock ?? 0)), color: '#22c55e' },
+                                { label: 'Mercearia', value: Math.max(0, Number(selectedProduct?.coldStock ?? 0) - Number(selectedProduct?.reservedColdStock ?? 0)), color: '#3b82f6' },
+                                { label: 'Varejo', value: Math.max(0, Number(selectedProduct?.retailStock ?? 0)), color: '#f59e0b' },
+                            ].map(({ label, value, color }) => (
+                                <div key={label} style={{ background: color + '11', border: `1px solid ${color}33`, borderRadius: '6px', padding: '6px 10px', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '11px', color, fontWeight: 600 }}>{label}</div>
+                                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{selectedProduct ? String(value) : '-'}</div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <CurrencyInput
