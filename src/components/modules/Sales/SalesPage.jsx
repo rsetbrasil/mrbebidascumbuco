@@ -72,22 +72,48 @@ const SalesPage = () => {
         const v = p.wholesalePrice ?? p.price;
         return v === undefined ? null : v;
     };
-
+    const getWholesalePrice2 = (p) => {
+        if (!p) return null;
+        const v = p.wholesalePrice2;
+        return (v === null || v === undefined || v === '') ? null : Number(v);
+    };
     const getColdPrice = (p) => {
         if (!p) return null;
         if (p.coldPrice === null) return null;
         const v = p.coldPrice ?? p.price;
         return v === undefined ? null : v;
     };
-
-    const isWholesaleEnabled = (p) => {
-        const v = getWholesalePrice(p);
-        return v !== null && Number(v) > 0;
+    const getColdPrice2 = (p) => {
+        if (!p) return null;
+        const v = p.coldPrice2;
+        return (v === null || v === undefined || v === '') ? null : Number(v);
+    };
+    const getRetailPrice = (p) => {
+        if (!p) return null;
+        const v = p.retailPrice;
+        return (v === null || v === undefined || v === '') ? null : Number(v);
+    };
+    const getRetailPrice2 = (p) => {
+        if (!p) return null;
+        const v = p.retailPrice2;
+        return (v === null || v === undefined || v === '') ? null : Number(v);
     };
 
-    const isColdEnabled = (p) => {
-        const v = getColdPrice(p);
-        return v !== null && Number(v) > 0;
+    const isWholesaleEnabled = (p) => { const v = getWholesalePrice(p); return v !== null && Number(v) > 0; };
+    const isWholesale2Enabled = (p) => { const v = getWholesalePrice2(p); return v !== null && Number(v) > 0; };
+    const isColdEnabled = (p) => { const v = getColdPrice(p); return v !== null && Number(v) > 0; };
+    const isCold2Enabled = (p) => { const v = getColdPrice2(p); return v !== null && Number(v) > 0; };
+    const isRetailEnabled = (p) => { const v = getRetailPrice(p); return v !== null && Number(v) > 0; };
+    const isRetail2Enabled = (p) => { const v = getRetailPrice2(p); return v !== null && Number(v) > 0; };
+
+    const getPriceForType = (p, type) => {
+        if (type === 'wholesale') return getWholesalePrice(p);
+        if (type === 'wholesale2') return getWholesalePrice2(p);
+        if (type === 'cold') return getColdPrice(p);
+        if (type === 'cold2') return getColdPrice2(p);
+        if (type === 'retail') return getRetailPrice(p);
+        if (type === 'retail2') return getRetailPrice2(p);
+        return null;
     };
 
     const focusDefaultPriceTypeButton = () => {
@@ -114,7 +140,11 @@ const SalesPage = () => {
     const searchInputRef = useRef(null);
     const quantityInputRef = useRef(null);
     const wholesaleBtnRef = useRef(null);
+    const wholesale2BtnRef = useRef(null);
     const coldBtnRef = useRef(null);
+    const cold2BtnRef = useRef(null);
+    const retailBtnRef = useRef(null);
+    const retail2BtnRef = useRef(null);
     const priceInputRef = useRef(null);
 
     const isManager = user?.role === 'admin' || user?.role === 'manager';
@@ -371,9 +401,13 @@ const SalesPage = () => {
     };
 
     const getBaseUnit = () => {
-        const base = itemPriceType === 'cold'
+        const isColdType = itemPriceType === 'cold' || itemPriceType === 'cold2';
+        const isRetailType = itemPriceType === 'retail' || itemPriceType === 'retail2';
+        const base = isColdType
             ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+            : isRetailType
+                ? (selectedProduct?.retailUnit || selectedProduct?.unitOfMeasure || 'UN')
+                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
         return base || 'UN';
     };
 
@@ -431,10 +465,7 @@ const SalesPage = () => {
 
     useEffect(() => {
         if (selectedProduct && quantityModalOpen) {
-            const defaultPrice = itemPriceType === 'cold'
-                ? getColdPrice(selectedProduct)
-                : getWholesalePrice(selectedProduct);
-            setPriceInput(defaultPrice);
+            setPriceInput(getPriceForType(selectedProduct, itemPriceType));
         }
     }, [itemPriceType, selectedProduct, quantityModalOpen]);
 
@@ -472,9 +503,7 @@ const SalesPage = () => {
     };
 
     const handleConfirmQuantity = () => {
-        const baseUnit = itemPriceType === 'cold'
-            ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+        const baseUnit = getBaseUnit();
         let qty = 0;
         if (baseUnit === 'KG') {
             if (weightMode === 'G') {
@@ -1399,23 +1428,14 @@ const SalesPage = () => {
                     <Input
                         ref={quantityInputRef}
                         type="text"
-                        inputMode={(() => {
-                            const base = itemPriceType === 'cold'
-                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
-                            return base === 'KG' ? 'decimal' : 'numeric';
-                        })()}
+                        inputMode={getBaseUnit() === 'KG' ? 'decimal' : 'numeric'}
                         label={(() => {
-                            const base = itemPriceType === 'cold'
-                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                            const base = getBaseUnit();
                             if (base === 'KG') return weightMode === 'G' ? 'Peso (g)' : 'Peso (KG)';
                             return 'Quantidade';
                         })()}
                         suffix={(() => {
-                            const base = itemPriceType === 'cold'
-                                ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-                                : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
+                            const base = getBaseUnit();
                             if (base !== 'KG') return base || undefined;
                             return weightMode === 'G' ? 'g' : 'KG';
                         })()}
@@ -1439,136 +1459,82 @@ const SalesPage = () => {
                         }}
                         autoFocus
                     />
-                    {(() => {
-                        const base = itemPriceType === 'cold'
-                            ? (selectedProduct?.coldUnit || selectedProduct?.unitOfMeasure || 'UN')
-                            : (selectedProduct?.wholesaleUnit || selectedProduct?.unitOfMeasure || 'UN');
-                        if (base !== 'KG') return null;
-                        return (
-                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Preço por KG
-                            </div>
-                        );
-                    })()}
+                    {getBaseUnit() === 'KG' && (
+                        <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                            Preço por KG
+                        </div>
+                    )}
                     <div>
                         <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)' }}>
                             Tipo de Preço (por item)
                         </label>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                            <Button
-                                ref={wholesaleBtnRef}
-                                variant={itemPriceType === 'wholesale' ? 'primary' : 'secondary'}
-                                disabled={selectedProduct ? !isWholesaleEnabled(selectedProduct) : false}
-                                onClick={() => {
-                                    if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
-                                    setItemPriceType('wholesale');
-                                    setQuantityStep('price');
-                                    if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
-                                    setTimeout(() => {
-                                        priceInputRef.current?.focus();
-                                    }, 0);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
-                                        setItemPriceType('wholesale');
+                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                            {[
+                                { key: 'wholesale', label: 'Atacado', ref: wholesaleBtnRef, enabled: isWholesaleEnabled },
+                                { key: 'wholesale2', label: 'Atacado 2', ref: wholesale2BtnRef, enabled: isWholesale2Enabled },
+                                { key: 'cold', label: 'Mercearia', ref: coldBtnRef, enabled: isColdEnabled },
+                                { key: 'cold2', label: 'Mercearia 2', ref: cold2BtnRef, enabled: isCold2Enabled },
+                                { key: 'retail', label: 'Varejo', ref: retailBtnRef, enabled: isRetailEnabled },
+                                { key: 'retail2', label: 'Varejo 2', ref: retail2BtnRef, enabled: isRetail2Enabled },
+                            ].map(btn => (
+                                <Button
+                                    key={btn.key}
+                                    ref={btn.ref}
+                                    variant={itemPriceType === btn.key ? 'primary' : 'secondary'}
+                                    disabled={selectedProduct ? !btn.enabled(selectedProduct) : false}
+                                    onClick={() => {
+                                        if (selectedProduct && !btn.enabled(selectedProduct)) return;
+                                        setItemPriceType(btn.key);
                                         setQuantityStep('price');
-                                        if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
-                                        setTimeout(() => {
-                                            priceInputRef.current?.focus();
-                                        }, 0);
-                                    } else if (e.key === 'ArrowRight') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
-                                        setItemPriceType('cold');
-                                        if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
-                                        coldBtnRef.current?.focus();
-                                    } else if (e.key === 'Tab') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
-                                        setItemPriceType('wholesale');
-                                        setQuantityStep('price');
-                                        setTimeout(() => {
-                                            priceInputRef.current?.focus();
-                                        }, 0);
-                                    }
-                                }}
-                            >
-                                Atacado
-                            </Button>
-                            <Button
-                                ref={coldBtnRef}
-                                variant={itemPriceType === 'cold' ? 'primary' : 'secondary'}
-                                disabled={selectedProduct ? !isColdEnabled(selectedProduct) : false}
-                                onClick={() => {
-                                    if (selectedProduct && !isColdEnabled(selectedProduct)) return;
-                                    setItemPriceType('cold');
-                                    setQuantityStep('price');
-                                    if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
-                                    setTimeout(() => {
-                                        priceInputRef.current?.focus();
-                                    }, 0);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
-                                        setItemPriceType('cold');
-                                        setQuantityStep('price');
-                                        if (selectedProduct) setPriceInput(getColdPrice(selectedProduct));
-                                        setTimeout(() => {
-                                            priceInputRef.current?.focus();
-                                        }, 0);
-                                    } else if (e.key === 'ArrowLeft') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isWholesaleEnabled(selectedProduct)) return;
-                                        setItemPriceType('wholesale');
-                                        if (selectedProduct) setPriceInput(getWholesalePrice(selectedProduct));
-                                        wholesaleBtnRef.current?.focus();
-                                    } else if (e.key === 'Tab') {
-                                        e.preventDefault();
-                                        if (selectedProduct && !isColdEnabled(selectedProduct)) return;
-                                        setItemPriceType('cold');
-                                        setQuantityStep('price');
-                                        setTimeout(() => {
-                                            priceInputRef.current?.focus();
-                                        }, 0);
-                                    }
-                                }}
-                            >
-                                Mercearia
-                            </Button>
+                                        if (selectedProduct) setPriceInput(getPriceForType(selectedProduct, btn.key));
+                                        setTimeout(() => { priceInputRef.current?.focus(); }, 0);
+                                    }}
+                                >
+                                    {btn.label}
+                                </Button>
+                            ))}
                         </div>
                         <div style={{ marginTop: '6px', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
                             Preço Selecionado: <span style={{ color: 'var(--color-primary)' }}>
                                 {(() => {
-                                    const v = itemPriceType === 'cold' ? getColdPrice(selectedProduct) : getWholesalePrice(selectedProduct);
-                                    if (v === null) return '-';
-                                    return formatCurrency(v || 0);
+                                    const v = getPriceForType(selectedProduct, itemPriceType);
+                                    return v === null ? '-' : formatCurrency(v || 0);
                                 })()}
                             </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)' }}>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Atacado: <strong>{selectedProduct ? (getWholesalePrice(selectedProduct) === null ? '-' : formatCurrency(getWholesalePrice(selectedProduct) || 0)) : '-'}</strong>
-                            </span>
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Mercearia: <strong>{selectedProduct ? (getColdPrice(selectedProduct) === null ? '-' : formatCurrency(getColdPrice(selectedProduct) || 0)) : '-'}</strong>
-                            </span>
+                        <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                            {[
+                                { label: 'Atacado', get: getWholesalePrice },
+                                { label: 'Atacado 2', get: getWholesalePrice2 },
+                                { label: 'Mercearia', get: getColdPrice },
+                                { label: 'Mercearia 2', get: getColdPrice2 },
+                                { label: 'Varejo', get: getRetailPrice },
+                                { label: 'Varejo 2', get: getRetailPrice2 },
+                            ].map(({ label, get }) => {
+                                const v = get(selectedProduct);
+                                if (v === null || v === undefined) return null;
+                                return (
+                                    <span key={label} style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                        {label}: <strong>{formatCurrency(v || 0)}</strong>
+                                    </span>
+                                );
+                            })}
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Disponível Atacado: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.stock ?? 0) - Number(selectedProduct.reservedStock ?? 0))) : '-'}</strong>
+                                Disp. Atacado: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.stock ?? 0) - Number(selectedProduct.reservedStock ?? 0))) : '-'}</strong>
                             </span>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Disponível Mercearia: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.coldStock ?? 0) - Number(selectedProduct.reservedColdStock ?? 0))) : '-'}</strong>
+                                Disp. Mercearia: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.coldStock ?? 0) - Number(selectedProduct.reservedColdStock ?? 0))) : '-'}</strong>
+                            </span>
+                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                Disp. Varejo: <strong>{selectedProduct ? String(Math.max(0, Number(selectedProduct.retailStock ?? 0))) : '-'}</strong>
                             </span>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
-                                Reservado Pré-venda (Atacado): <strong>{selectedProduct ? String(Number(selectedProduct.reservedStock ?? 0)) : '-'}</strong>
+                                Reservado (Atacado): <strong>{selectedProduct ? String(Number(selectedProduct.reservedStock ?? 0)) : '-'}</strong>
                             </span>
                             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-warning)' }}>
-                                Reservado Pré-venda (Mercearia): <strong>{selectedProduct ? String(Number(selectedProduct.reservedColdStock ?? 0)) : '-'}</strong>
+                                Reservado (Mercearia): <strong>{selectedProduct ? String(Number(selectedProduct.reservedColdStock ?? 0)) : '-'}</strong>
                             </span>
                         </div>
                     </div>

@@ -22,9 +22,9 @@ export const CartProvider = ({ children }) => {
     const [priceType, setPriceType] = useState('wholesale'); // 'retail', 'wholesale', or 'cold'
     const [cartVersion, setCartVersion] = useState(0);
 
-    const buildCartItemId = useCallback((productId, unit, isCold) => {
+    const buildCartItemId = useCallback((productId, unit, priceTypeKey) => {
         const unitName = unit ? unit.name : 'base';
-        return `${String(productId || '')}-${String(unitName || 'base')}-${isCold ? 'cold' : 'normal'}`;
+        return `${String(productId || '')}-${String(unitName || 'base')}-${String(priceTypeKey || 'wholesale')}`;
     }, []);
 
     // Helper to recalculate prices
@@ -64,50 +64,59 @@ export const CartProvider = ({ children }) => {
     // Add item to cart
     const addItem = useCallback((product, quantity = 1, unit = null, options = {}) => {
         setItems(prevItems => {
-            // Check if item already exists (same product, same unit choice, same cold flag)
             const type = options.itemPriceType ? options.itemPriceType : priceType;
-            const isCold = type === 'cold';
-            const isWholesale = type === 'wholesale';
+            const isCold = type === 'cold' || type === 'cold2';
+            const isWholesale = type === 'wholesale' || type === 'wholesale2';
+            const isRetail = type === 'retail' || type === 'retail2';
 
-            const newCartItemId = buildCartItemId(product.id, unit, isCold);
+            const newCartItemId = buildCartItemId(product.id, unit, type);
 
             const existingIndex = prevItems.findIndex(item =>
                 item.cartItemId === newCartItemId
             );
 
-            // Determine price based on current price type
-
             const wholesaleBasePrice = product.wholesalePrice === null ? null : (product.wholesalePrice ?? product.price);
             const coldBasePrice = product.coldPrice === null ? null : (product.coldPrice ?? product.price);
-            let priceToUse = wholesaleBasePrice ?? product.price;
+            const retailBasePrice = product.retailPrice == null ? null : product.retailPrice;
+
+            const priceMap = {
+                wholesale: wholesaleBasePrice,
+                wholesale2: product.wholesalePrice2 ?? null,
+                cold: coldBasePrice,
+                cold2: product.coldPrice2 ?? null,
+                retail: retailBasePrice,
+                retail2: product.retailPrice2 ?? null,
+            };
+            let priceToUse = priceMap[type] ?? wholesaleBasePrice ?? product.price;
+
             const costUnitMultiplier = isCold
                 ? Number(product.coldUnitMultiplier || 1)
-                : Number(product.wholesaleUnitMultiplier || 1);
-            const rawCost = isCold ? (product.coldCost || product.cost || 0) : (product.cost || 0);
+                : isRetail
+                    ? Number(product.retailUnitMultiplier || 1)
+                    : Number(product.wholesaleUnitMultiplier || 1);
+            const rawCost = isCold
+                ? (product.coldCost || product.cost || 0)
+                : isRetail
+                    ? (product.retailCost || product.cost || 0)
+                    : (product.cost || 0);
             const baseCost = costUnitMultiplier > 0 ? (rawCost / costUnitMultiplier) : rawCost;
             let costToUse = baseCost;
             let stockDeduction = 1;
 
             if (!unit && options.customPrice === undefined) {
-                if (isWholesale && wholesaleBasePrice === null) return prevItems;
-                if (isCold && coldBasePrice === null) return prevItems;
+                if ((isWholesale) && wholesaleBasePrice === null) return prevItems;
+                if ((isCold) && coldBasePrice === null) return prevItems;
+                if (isRetail && retailBasePrice === null) return prevItems;
             }
 
             if (unit) {
-                // If selling a specific unit (Pack/Kit)
                 priceToUse = unit.price;
                 costToUse = baseCost * unit.multiplier;
                 stockDeduction = unit.multiplier;
             } else {
-                // Standard unit logic
-                if (isWholesale && wholesaleBasePrice !== null && wholesaleBasePrice !== undefined) {
-                    priceToUse = wholesaleBasePrice;
-                    costToUse = rawCost; // Use full cost of the bundle/unit
-                    stockDeduction = costUnitMultiplier > 0 ? costUnitMultiplier : 1;
-                }
-                if (isCold && coldBasePrice !== null && coldBasePrice !== undefined) {
-                    priceToUse = coldBasePrice;
-                    costToUse = rawCost; // Use full cost of the bundle/unit
+                if (priceMap[type] !== null && priceMap[type] !== undefined) {
+                    priceToUse = priceMap[type];
+                    costToUse = rawCost;
                     stockDeduction = costUnitMultiplier > 0 ? costUnitMultiplier : 1;
                 }
             }
@@ -117,22 +126,21 @@ export const CartProvider = ({ children }) => {
             }
 
             if (existingIndex >= 0) {
-                // Update quantity if item already exists
                 const updatedItems = [...prevItems];
                 const item = updatedItems[existingIndex];
 
                 updatedItems[existingIndex] = {
                     ...item,
                     quantity: options.replaceQuantity ? quantity : (item.quantity + quantity),
-                    // If it's a unit, price is fixed. If base product, it follows priceType
                     unitPrice: unit ? (options.customPrice !== undefined ? Number(options.customPrice) : unit.price) : priceToUse,
                     unitCost: unit ? costToUse : baseCost,
                     isCold,
                     isWholesale,
+                    isRetail,
+                    priceTypeKey: type,
                     stockDeduction: (options.replaceQuantity ? quantity : (item.quantity + quantity)) * stockDeduction
                 };
 
-                // Recalculate total for this item
                 updatedItems[existingIndex].total =
                     (updatedItems[existingIndex].quantity * updatedItems[existingIndex].unitPrice) -
                     (updatedItems[existingIndex].discount || 0);
@@ -140,28 +148,32 @@ export const CartProvider = ({ children }) => {
                 return updatedItems;
             }
 
-            // Add new item
             return [...prevItems, {
                 cartItemId: newCartItemId,
                 id: product.id,
                 name: unit ? `${product.name} (${unit.name})` : product.name,
                 barcode: unit ? (unit.barcode || product.barcode) : product.barcode,
                 quantity,
-                retailPrice: product.price,  // Always store retail price
-                wholesalePrice: product.wholesalePrice === null ? null : (product.wholesalePrice ?? product.price),  // Always store wholesale price
-                coldPrice: product.coldPrice === null ? null : (product.coldPrice ?? product.price), // Always store cold price
-                unitPrice: priceToUse,  // The price being charged
+                retailPrice: product.price,
+                wholesalePrice: product.wholesalePrice === null ? null : (product.wholesalePrice ?? product.price),
+                coldPrice: product.coldPrice === null ? null : (product.coldPrice ?? product.price),
+                unitPrice: priceToUse,
                 unitCost: costToUse,
                 wholesaleCost: product.cost || 0,
                 coldCost: product.coldCost || product.cost || 0,
+                retailCost: product.retailCost || product.cost || 0,
                 wholesaleUnitMultiplier: Number(product.wholesaleUnitMultiplier || 1),
                 coldUnitMultiplier: Number(product.coldUnitMultiplier || 1),
-                stock: product.stock, // Store stock limit
-                coldStock: product.coldStock || 0, // Store cold stock limit
-                stockDeductionPerUnit: stockDeduction, // How much to deduct from stock per 1 quantity
-                unit: unit, // Store the unit details if any
-                isCold: isCold, // Track if this is a cold item
+                retailUnitMultiplier: Number(product.retailUnitMultiplier || 1),
+                stock: product.stock,
+                coldStock: product.coldStock || 0,
+                retailStock: product.retailStock || 0,
+                stockDeductionPerUnit: stockDeduction,
+                unit: unit,
+                isCold,
                 isWholesale,
+                isRetail,
+                priceTypeKey: type,
                 discount: 0,
                 total: (quantity * priceToUse)
             }];
