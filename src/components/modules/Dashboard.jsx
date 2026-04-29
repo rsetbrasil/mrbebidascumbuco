@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight, Coffee, Truck } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, Package, ArrowRight, Coffee, Truck, BarChart2, ClipboardList, AlertTriangle, CheckCircle } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
@@ -186,189 +186,202 @@ const Dashboard = () => {
         return <Loading message="Carregando dashboard..." />;
     }
 
+    const today = new Date();
+    const weekday = today.toLocaleDateString('pt-BR', { weekday: 'long' });
+    const dateStr = today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
     return (
-        <div className="fade-in">
-            <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                <h1>Painel</h1>
-                <p style={{ color: 'var(--color-text-muted)' }}>
-                    Visão geral do sistema
-                </p>
-            </div>
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-            {/* Stats Cards */}
-            <div className="grid grid-4" style={{ marginBottom: 'var(--spacing-xl)' }}>
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                Vendas Hoje
-                            </p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-3xl)' }}>
-                                {stats.todaySales}
-                            </h2>
-                        </div>
-                        <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: 'var(--radius-lg)',
-                            background: 'var(--gradient-primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <ShoppingCart size={30} color="white" />
-                        </div>
+            {/* ── Header ── */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', textTransform: 'capitalize', marginBottom: '4px' }}>
+                        {weekday}, {dateStr}
                     </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                Faturamento Hoje
-                            </p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-3xl)' }}>
-                                {formatCurrency(stats.todayRevenue)}
-                            </h2>
-                        </div>
-                        <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: 'var(--radius-lg)',
-                            background: 'var(--gradient-success)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp size={30} color="white" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                Taxas de Entrega Hoje
-                            </p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-3xl)' }}>
-                                {formatCurrency(stats.todayDeliveryFees)}
-                            </h2>
-                        </div>
-                        <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: 'var(--radius-lg)',
-                            background: 'var(--color-warning)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <Truck size={30} color="white" />
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                        onClick={() => { if (stats.lowStockProducts > 0) setLowStockOpen(true); }}
-                    >
-                        <div>
-                            <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                                Estoque Baixo
-                            </p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: 'var(--font-size-3xl)' }}>
-                                {stats.lowStockProducts}
-                            </h2>
-                        </div>
-                        <div style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: 'var(--radius-lg)',
-                            background: stats.lowStockProducts > 0 ? 'var(--color-warning)' : 'var(--color-success)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: stats.lowStockProducts > 0 ? 'pointer' : 'default'
-                        }}>
-                            <Package size={30} color="white" />
-                        </div>
-                    </div>
-                </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <Card title="Ações Rápidas" style={{ marginBottom: 'var(--spacing-xl)' }}>
-                <div className="grid grid-4">
-                    <Link to="/vendas" style={{ textDecoration: 'none' }}>
-                        <Button variant="primary" style={{ width: '100%' }}>
-                            <ShoppingCart size={20} />
-                            Nova Venda
-                        </Button>
-                    </Link>
-                    <Link to="/pre-vendas" style={{ textDecoration: 'none' }}>
-                        <Button variant="secondary" style={{ width: '100%' }}>
-                            Nova Pré-Venda
-                        </Button>
-                    </Link>
-                    <Link to="/produtos" style={{ textDecoration: 'none' }}>
-                        <Button variant="secondary" style={{ width: '100%' }}>
-                            Gerenciar Produtos
-                        </Button>
-                    </Link>
-                    <Link to="/financeiro" style={{ textDecoration: 'none' }}>
-                        <Button variant="secondary" style={{ width: '100%' }}>
-                            Relatórios
-                        </Button>
-                    </Link>
-                    <Link to="/mesas" style={{ textDecoration: 'none' }}>
-                        <Button variant="secondary" style={{ width: '100%' }}>
-                            <Coffee size={20} />
-                            Mesas
-                        </Button>
-                    </Link>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Painel</h1>
                 </div>
-            </Card>
+                <Link to="/vendas" style={{ textDecoration: 'none' }}>
+                    <button style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '12px 20px', borderRadius: '10px', border: 'none',
+                        background: 'var(--gradient-primary)', color: '#fff',
+                        fontWeight: 700, fontSize: '15px', cursor: 'pointer',
+                        boxShadow: '0 4px 14px rgba(99,102,241,0.35)'
+                    }}>
+                        <ShoppingCart size={18} /> Nova Venda
+                    </button>
+                </Link>
+            </div>
 
-            {/* Recent Sales */}
-            <Card
-                title="Vendas Recentes"
-                headerAction={
-                    <Link to="/financeiro">
-                        <Button variant="secondary" size="sm">
-                            Ver Todas <ArrowRight size={16} />
-                        </Button>
-                    </Link>
-                }
-            >
-                {recentSales.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', padding: 'var(--spacing-xl)' }}>
-                        Nenhuma venda registrada
-                    </p>
-                ) : (
-                    <div className="table-container">
-                        <table className="table">
+            {/* ── Stats Cards ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                {[
+                    {
+                        label: 'Vendas Hoje',
+                        value: stats.todaySales,
+                        icon: <ShoppingCart size={22} color="#fff" />,
+                        accent: '#6366f1',
+                        bg: 'linear-gradient(135deg,#6366f1,#818cf8)',
+                        format: v => String(v)
+                    },
+                    {
+                        label: 'Faturamento Hoje',
+                        value: stats.todayRevenue,
+                        icon: <TrendingUp size={22} color="#fff" />,
+                        accent: '#22c55e',
+                        bg: 'linear-gradient(135deg,#22c55e,#4ade80)',
+                        format: formatCurrency
+                    },
+                    {
+                        label: 'Entregas Hoje',
+                        value: stats.todayDeliveryFees,
+                        icon: <Truck size={22} color="#fff" />,
+                        accent: '#f59e0b',
+                        bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+                        format: formatCurrency
+                    },
+                    {
+                        label: 'Estoque Baixo',
+                        value: stats.lowStockProducts,
+                        icon: stats.lowStockProducts > 0 ? <AlertTriangle size={22} color="#fff" /> : <CheckCircle size={22} color="#fff" />,
+                        accent: stats.lowStockProducts > 0 ? '#ef4444' : '#22c55e',
+                        bg: stats.lowStockProducts > 0
+                            ? 'linear-gradient(135deg,#ef4444,#f87171)'
+                            : 'linear-gradient(135deg,#22c55e,#4ade80)',
+                        format: v => String(v),
+                        onClick: () => { if (stats.lowStockProducts > 0) setLowStockOpen(true); },
+                        clickable: stats.lowStockProducts > 0
+                    },
+                ].map(card => (
+                    <div
+                        key={card.label}
+                        onClick={card.onClick}
+                        style={{
+                            background: 'var(--color-bg-secondary)',
+                            borderRadius: '14px',
+                            padding: '20px',
+                            border: '1px solid var(--color-border)',
+                            cursor: card.clickable ? 'pointer' : 'default',
+                            transition: 'transform 0.15s, box-shadow 0.15s',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}
+                        onMouseEnter={e => { if (card.clickable) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'; } }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                    >
+                        {/* accent bar */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: card.bg }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: '4px' }}>
+                            <div>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+                                    {card.label}
+                                </div>
+                                <div style={{ fontSize: '30px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1 }}>
+                                    {card.format(card.value)}
+                                </div>
+                            </div>
+                            <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {card.icon}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* ── Ações Rápidas + Vendas Recentes ── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', alignItems: 'start' }}>
+
+                {/* Ações Rápidas */}
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+                        Ações Rápidas
+                    </div>
+                    {[
+                        { to: '/vendas',     icon: <ShoppingCart size={17} />, label: 'Nova Venda',         accent: '#6366f1', primary: true },
+                        { to: '/pre-vendas', icon: <ClipboardList size={17} />, label: 'Nova Pré-Venda',    accent: '#3b82f6' },
+                        { to: '/produtos',   icon: <Package size={17} />,       label: 'Produtos',          accent: '#22c55e' },
+                        { to: '/financeiro', icon: <BarChart2 size={17} />,     label: 'Relatórios',        accent: '#f59e0b' },
+                        { to: '/mesas',      icon: <Coffee size={17} />,        label: 'Mesas',             accent: '#8b5cf6' },
+                    ].map(action => (
+                        <Link key={action.to} to={action.to} style={{ textDecoration: 'none' }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: '10px',
+                                padding: '11px 14px', borderRadius: '10px',
+                                background: action.primary ? action.accent + '18' : 'transparent',
+                                border: `1px solid ${action.primary ? action.accent + '44' : 'transparent'}`,
+                                cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s'
+                            }}
+                                onMouseEnter={e => { e.currentTarget.style.background = action.accent + '18'; e.currentTarget.style.borderColor = action.accent + '44'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = action.primary ? action.accent + '18' : 'transparent'; e.currentTarget.style.borderColor = action.primary ? action.accent + '44' : 'transparent'; }}
+                            >
+                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: action.accent + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: action.accent, flexShrink: 0 }}>
+                                    {action.icon}
+                                </div>
+                                <span style={{ fontWeight: action.primary ? 700 : 500, fontSize: '14px', color: action.primary ? action.accent : 'var(--color-text-primary)' }}>
+                                    {action.label}
+                                </span>
+                                <ArrowRight size={14} style={{ marginLeft: 'auto', color: 'var(--color-text-muted)', opacity: 0.5 }} />
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+
+                {/* Vendas Recentes */}
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                            Vendas Recentes
+                        </div>
+                        <Link to="/financeiro" style={{ textDecoration: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--color-primary)', fontWeight: 600, cursor: 'pointer' }}>
+                                Ver todas <ArrowRight size={14} />
+                            </div>
+                        </Link>
+                    </div>
+                    {recentSales.length === 0 ? (
+                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            <ShoppingCart size={40} style={{ opacity: 0.15, marginBottom: '10px' }} />
+                            <p style={{ margin: 0 }}>Nenhuma venda registrada</p>
+                        </div>
+                    ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
-                                <tr>
-                                    <th>Número</th>
-                                    <th>Data</th>
-                                    <th>Cliente</th>
-                                    <th>Tipo</th>
-                                    <th>Total</th>
-                                    <th>Pagamento</th>
+                                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                    {['Nº', 'Data/Hora', 'Cliente', 'Tipo', 'Total', 'Pagamento'].map(h => (
+                                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {recentSales.map(sale => (
-                                    <tr key={sale.id}>
-                                        <td><strong>{sale.saleNumber}</strong></td>
-                                        <td>{formatDateTime(sale.createdAt)}</td>
-                                        <td>{sale.customerName || 'Cliente Padrão'}</td>
-                                        <td>{sale.type}</td>
-                                        <td><strong>{formatCurrency(sale.total)}</strong></td>
-                                        <td>
-                                            <span className="badge badge-success">
+                                {recentSales.map((sale, i) => (
+                                    <tr key={sale.id} style={{ borderBottom: i < recentSales.length - 1 ? '1px solid var(--color-divider)' : 'none', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ''}
+                                    >
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontSize: '13px' }}>#{sale.saleNumber}</span>
+                                        </td>
+                                        <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                            {formatDateTime(sale.createdAt)}
+                                        </td>
+                                        <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 500 }}>
+                                            {sale.customerName || 'Cliente Padrão'}
+                                        </td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{
+                                                fontSize: '11px', fontWeight: 600, padding: '3px 8px', borderRadius: '20px',
+                                                background: sale.type.includes('Mercearia') ? '#3b82f618' : '#6366f118',
+                                                color: sale.type.includes('Mercearia') ? '#3b82f6' : '#6366f1'
+                                            }}>
+                                                {sale.type}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '14px', color: '#22c55e' }}>{formatCurrency(sale.total)}</span>
+                                        </td>
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ fontSize: '12px', fontWeight: 600, padding: '3px 8px', borderRadius: '20px', background: '#22c55e18', color: '#22c55e' }}>
                                                 {sale.paymentMethod || 'Dinheiro'}
                                             </span>
                                         </td>
@@ -376,9 +389,9 @@ const Dashboard = () => {
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-                )}
-            </Card>
+                    )}
+                </div>
+            </div>
 
             <Modal
                 isOpen={lowStockOpen}
