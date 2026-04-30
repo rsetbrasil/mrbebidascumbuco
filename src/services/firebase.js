@@ -20,10 +20,8 @@ setLogLevel('silent');
 const isConfigured = firebaseConfig.apiKey &&
     firebaseConfig.apiKey !== 'your_api_key_here';
 const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-const localDemo = typeof window !== 'undefined' && (() => {
-    try { return localStorage.getItem('pdv_force_demo') === 'true'; } catch { return false; }
-})();
-const forceDemo = (import.meta.env.VITE_USE_DEMO === 'true') || localDemo;
+// SEGURANÇA: modo demo NÃO pode ser ativado pelo usuário via localStorage
+const forceDemo = (import.meta.env.VITE_USE_DEMO === 'true');
 const enableAnonAuth = import.meta.env.VITE_ENABLE_ANON_AUTH === 'true';
 const enableAnalytics = import.meta.env.VITE_ENABLE_ANALYTICS === 'true';
 

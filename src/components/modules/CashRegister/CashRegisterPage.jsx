@@ -500,13 +500,13 @@ const CashRegisterPage = () => {
             const activeMovements = movements;
             const totalSupplies = activeMovements
                 .filter(m => m.type === 'supply')
-                .reduce((acc, m) => acc + m.amount, 0);
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalBleeds = activeMovements
                 .filter(m => m.type === 'bleed')
-                .reduce((acc, m) => acc + m.amount, 0);
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
             const totalChange = activeMovements
                 .filter(m => m.type === 'change')
-                .reduce((acc, m) => acc + m.amount, 0);
+                .reduce((acc, m) => acc + Number(m.amount || 0), 0);
 
             const paymentsMap = new Map();
             for (const sale of activeSales) {
@@ -1287,21 +1287,21 @@ const CashRegisterPage = () => {
     const activeSalesView = sales
         .filter(s => s.status !== 'cancelled');
 
-    const totalSales = activeSalesView.reduce((acc, sale) => acc + sale.total, 0);
+    const totalSales = activeSalesView.reduce((acc, sale) => acc + Number(sale.total || 0), 0);
 
     const activeMovementsView = movements;
 
     const totalSupplies = activeMovementsView
         .filter(m => m.type === 'supply')
-        .reduce((acc, m) => acc + m.amount, 0);
+        .reduce((acc, m) => acc + Number(m.amount || 0), 0);
 
     const totalBleeds = activeMovementsView
         .filter(m => m.type === 'bleed')
-        .reduce((acc, m) => acc + m.amount, 0);
+        .reduce((acc, m) => acc + Number(m.amount || 0), 0);
 
     const totalChange = activeMovementsView
         .filter(m => m.type === 'change')
-        .reduce((acc, m) => acc + m.amount, 0);
+        .reduce((acc, m) => acc + Number(m.amount || 0), 0);
 
     const totalFeesDay = activeSalesView.reduce((acc, sale) => acc + Number(sale.deliveryFeeValue || 0), 0);
     const totalSalesProductsDay = activeSalesView.reduce((acc, sale) => {

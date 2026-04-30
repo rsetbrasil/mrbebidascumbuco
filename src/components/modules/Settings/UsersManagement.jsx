@@ -59,6 +59,14 @@ const UsersManagement = () => {
             showNotification('warning', 'Preencha todos os campos obrigatórios');
             return;
         }
+        if (formData.password.length < 4) {
+            showNotification('warning', 'A senha deve ter pelo menos 4 caracteres');
+            return;
+        }
+        if (formData.username.trim().length < 2) {
+            showNotification('warning', 'O usuário deve ter pelo menos 2 caracteres');
+            return;
+        }
 
         try {
             setSaving(true);

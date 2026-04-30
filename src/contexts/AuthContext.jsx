@@ -16,16 +16,36 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check for stored user session
-        const storedUser = localStorage.getItem('pdv_user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
+        const initSession = async () => {
+            // Inicializa usuário padrão se necessário
+            await userService.initDefaultUser().catch(() => {});
 
-        // Initialize default user if needed
-        userService.initDefaultUser().catch(console.error);
+            const storedUser = localStorage.getItem('pdv_user');
+            if (!storedUser) {
+                setLoading(false);
+                return;
+            }
 
-        setLoading(false);
+            try {
+                const parsed = JSON.parse(storedUser);
+                // Re-verifica no banco: impede manipulação de role/permissões via localStorage
+                const fresh = await userService.getByUsername(parsed.username).catch(() => null);
+                if (fresh && fresh.active) {
+                    const { password: _, ...userWithoutPassword } = fresh;
+                    setUser(userWithoutPassword);
+                    localStorage.setItem('pdv_user', JSON.stringify(userWithoutPassword));
+                } else {
+                    // Usuário não existe mais ou foi desativado — força logout
+                    localStorage.removeItem('pdv_user');
+                }
+            } catch {
+                localStorage.removeItem('pdv_user');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initSession();
     }, []);
 
     const login = async (username, password) => {
