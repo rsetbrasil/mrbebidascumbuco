@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, Package, AlertCircle, List, Printer, Tag } from 'lucide-react';
 import CategoriesPage from '../Categories/CategoriesPage';
 import Button from '../../common/Button';
@@ -26,6 +26,37 @@ const ProductsPage = () => {
     const [isPriceListOpen, setIsPriceListOpen] = useState(false);
     const [priceListSearch, setPriceListSearch] = useState('');
     const [activeTab, setActiveTab] = useState('products');
+    const [limit, setLimit] = useState(200);
+    const [loadedAll, setLoadedAll] = useState(false);
+
+    // loadData aceita overrides para evitar bug de stale closure com setState
+    const loadData = async (overrideLoadedAll, overrideLimit) => {
+        const shouldLoadAll = overrideLoadedAll !== undefined ? overrideLoadedAll : loadedAll;
+        const effectiveLimit = overrideLimit !== undefined ? overrideLimit : limit;
+        setLoading(true);
+        try {
+            const productsPromise = shouldLoadAll
+                ? productService.getAll()
+                : productService.getAllLimited(effectiveLimit);
+            const categoriesPromise = categoryService.getAll();
+
+            const productsData = await productsPromise;
+            setProducts(productsData);
+            if (productsData.length > 0) setLoading(false);
+            try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch { }
+
+            const categoriesData = await categoriesPromise;
+            const catMap = {};
+            categoriesData.forEach(cat => { catMap[cat.id] = cat.name; });
+            setCategories(catMap);
+            try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch { }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showNotification('error', 'Erro ao carregar dados');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         try {
@@ -42,42 +73,6 @@ const ProductsPage = () => {
         loadData();
     }, []);
 
-    const [limit, setLimit] = useState(200);
-    const [loadedAll, setLoadedAll] = useState(false);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            // Start both requests in parallel
-            const productsPromise = loadedAll ? productService.getAll() : productService.getAllLimited(limit);
-            const categoriesPromise = categoryService.getAll();
-
-            // Await products first to show content ASAP
-            const productsData = await productsPromise;
-            setProducts(productsData);
-
-            // Allow UI to render products (even with missing category names)
-            if (productsData.length > 0) setLoading(false);
-
-            try { localStorage.setItem('pdv_products_cache', JSON.stringify(productsData)); } catch { }
-
-            // Then await categories and update
-            const categoriesData = await categoriesPromise;
-            const catMap = {};
-            categoriesData.forEach(cat => {
-                catMap[cat.id] = cat.name;
-            });
-            setCategories(catMap);
-            try { localStorage.setItem('pdv_categories_cache', JSON.stringify(catMap)); } catch { }
-
-        } catch (error) {
-            console.error('Error loading data:', error);
-            showNotification('error', 'Erro ao carregar dados');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const showNotification = (type, message) => {
         setNotification({ type, message });
         setTimeout(() => setNotification(null), 3000);
@@ -89,26 +84,40 @@ const ProductsPage = () => {
 
     const handleLoadMore = async () => {
         setLoadedAll(true);
-        await loadData();
+        await loadData(true, limit);
     };
 
     const handleIncreaseLimit = async () => {
         const next = limit + 200;
         setLimit(next);
         setLoadedAll(false);
-        await loadData();
+        await loadData(false, next);
     };
 
     const handleSave = async (productData) => {
         try {
             if (editingProduct) {
                 await productService.update(editingProduct.id, productData);
+                // Atualiza estado local sem re-buscar do Firebase
+                setProducts(prev => prev.map(p =>
+                    p.id === editingProduct.id ? { ...p, ...productData } : p
+                ));
+                try {
+                    const updated = JSON.parse(localStorage.getItem('pdv_products_cache') || '[]');
+                    const idx = updated.findIndex(p => p.id === editingProduct.id);
+                    if (idx >= 0) { updated[idx] = { ...updated[idx], ...productData }; localStorage.setItem('pdv_products_cache', JSON.stringify(updated)); }
+                } catch { }
                 showNotification('success', 'Produto atualizado com sucesso');
             } else {
-                await productService.create(productData);
+                const created = await productService.create(productData);
+                const newProduct = { ...productData, id: created.id };
+                setProducts(prev => [...prev, newProduct]);
+                try {
+                    const cached = JSON.parse(localStorage.getItem('pdv_products_cache') || '[]');
+                    localStorage.setItem('pdv_products_cache', JSON.stringify([...cached, newProduct]));
+                } catch { }
                 showNotification('success', 'Produto criado com sucesso');
             }
-            loadData();
         } catch (error) {
             console.error('Error saving product:', error);
             showNotification('error', 'Erro ao salvar produto');
@@ -118,11 +127,14 @@ const ProductsPage = () => {
 
     const handleDelete = async (id) => {
         if (!window.confirm('Tem certeza que deseja excluir este produto?')) return;
-
         try {
             await productService.delete(id);
+            setProducts(prev => prev.filter(p => p.id !== id));
+            try {
+                const cached = JSON.parse(localStorage.getItem('pdv_products_cache') || '[]');
+                localStorage.setItem('pdv_products_cache', JSON.stringify(cached.filter(p => p.id !== id)));
+            } catch { }
             showNotification('success', 'Produto excluído com sucesso');
-            loadData();
         } catch (error) {
             console.error('Error deleting product:', error);
             showNotification('error', 'Erro ao excluir produto');
@@ -139,22 +151,28 @@ const ProductsPage = () => {
         loadData();
     };
 
-    const filteredProducts = products
-        .filter(p =>
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.barcode && p.barcode.includes(searchTerm))
-        )
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    const filteredProducts = useMemo(() =>
+        products
+            .filter(p =>
+                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.barcode && p.barcode.includes(searchTerm))
+            )
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
+        [products, searchTerm]
+    );
 
-    const priceListFilteredProducts = products
-        .filter(p => {
-            const term = String(priceListSearch || '').trim().toLowerCase();
-            if (!term) return true;
-            const name = String(p?.name || '').toLowerCase();
-            const barcode = String(p?.barcode || '');
-            return name.includes(term) || barcode.includes(priceListSearch);
-        })
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
+    const priceListFilteredProducts = useMemo(() =>
+        products
+            .filter(p => {
+                const term = String(priceListSearch || '').trim().toLowerCase();
+                if (!term) return true;
+                const name = String(p?.name || '').toLowerCase();
+                const barcode = String(p?.barcode || '');
+                return name.includes(term) || barcode.includes(term);
+            })
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR')),
+        [products, priceListSearch]
+    );
 
     if (loading && !products.length) return <Loading fullScreen />;
 
