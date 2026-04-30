@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import Card from '../../common/Card';
 import Loading from '../../common/Loading';
 import Input from '../../common/Input';
-import Button from '../../common/Button';
-import { DollarSign, TrendingUp, Truck } from 'lucide-react';
+import { DollarSign, TrendingUp, Truck, PieChart } from 'lucide-react';
 import { salesService, productService } from '../../../services/firestore';
 import { formatCurrency } from '../../../utils/formatters';
 import { useApp } from '../../../contexts/AppContext';
@@ -160,31 +158,58 @@ const QuickSummaryPage = () => {
         return () => window.removeEventListener('resize', check);
     }, []);
 
+    const periodButtons = [
+        { key: 'today', label: 'Hoje' },
+        { key: 'yesterday', label: 'Ontem' },
+        { key: 'range', label: 'Período' },
+        { key: 'current', label: 'Caixa Atual', disabled: !currentCashRegister || !currentCashRegister.id },
+    ];
+
     return (
-        <div style={{ padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: isMobile ? 'var(--spacing-md)' : 'var(--spacing-lg)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 'var(--spacing-md)', flexDirection: isMobile ? 'column' : 'row' }}>
-                <h1 style={{ margin: 0 }}>Resumo</h1>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 'var(--spacing-sm)',
-                    flexWrap: 'wrap',
-                    width: isMobile ? '100%' : 'auto'
-                }}>
-                    <Button size={isMobile ? 'sm' : 'md'} style={isMobile ? { flex: '1 1 30%', minWidth: 0 } : undefined} variant={period === 'today' ? 'primary' : 'secondary'} onClick={() => setPeriod('today')}>Hoje</Button>
-                    <Button size={isMobile ? 'sm' : 'md'} style={isMobile ? { flex: '1 1 30%', minWidth: 0 } : undefined} variant={period === 'yesterday' ? 'primary' : 'secondary'} onClick={() => setPeriod('yesterday')}>Ontem</Button>
-                    <Button size={isMobile ? 'sm' : 'md'} style={isMobile ? { flex: '1 1 30%', minWidth: 0 } : undefined} variant={period === 'range' ? 'primary' : 'secondary'} onClick={() => setPeriod('range')}>Período</Button>
-                    <Button size={isMobile ? 'sm' : 'md'} style={isMobile ? { flex: '1 1 30%', minWidth: 0 } : undefined} variant={period === 'current' ? 'primary' : 'secondary'} onClick={() => setPeriod('current')} disabled={!currentCashRegister || !currentCashRegister.id}>Caixa Atual</Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: '16px' }}>
+                <div>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <PieChart size={14} /> Resumo financeiro
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Resumo</h1>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                    {periodButtons.map(btn => (
+                        <button
+                            key={btn.key}
+                            onClick={() => !btn.disabled && setPeriod(btn.key)}
+                            disabled={btn.disabled}
+                            style={{
+                                padding: '7px 16px',
+                                borderRadius: '20px',
+                                border: period === btn.key ? 'none' : '1px solid var(--color-border)',
+                                background: period === btn.key ? 'var(--gradient-primary)' : 'transparent',
+                                color: period === btn.key ? '#fff' : 'var(--color-text-secondary)',
+                                fontWeight: 600,
+                                fontSize: '13px',
+                                cursor: btn.disabled ? 'not-allowed' : 'pointer',
+                                opacity: btn.disabled ? 0.45 : 1,
+                                transition: 'all 0.15s',
+                                whiteSpace: 'nowrap',
+                                flex: isMobile ? '1 1 auto' : undefined
+                            }}
+                        >
+                            {btn.label}
+                        </button>
+                    ))}
                     {period === 'range' && (
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, auto)',
-                            gap: 'var(--spacing-sm)',
-                            width: isMobile ? '100%' : 'auto'
-                        }}>
-                            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={isMobile ? { width: '100%' } : undefined} />
-                            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={isMobile ? { width: '100%' } : undefined} />
-                            <Button size={isMobile ? 'sm' : 'md'} onClick={loadData} style={isMobile ? { width: '100%' } : undefined}>Atualizar</Button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                            <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                            <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                            <button
+                                onClick={loadData}
+                                style={{ padding: '7px 16px', borderRadius: '10px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                            >
+                                Atualizar
+                            </button>
                         </div>
                     )}
                 </div>
@@ -193,40 +218,22 @@ const QuickSummaryPage = () => {
             {loading ? (
                 <Loading />
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? 'var(--spacing-md)' : 'var(--spacing-lg)' }}>
-                    <Card>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                            <div style={{ padding: 'var(--spacing-md)', background: 'rgba(34,197,94,0.1)', borderRadius: 'var(--radius-lg)' }}>
-                                <DollarSign style={{ color: 'var(--color-success)' }} size={24} />
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+                    {[
+                        { label: 'Total Vendido', value: metrics.totalGross, icon: DollarSign, color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+                        { label: 'Lucro Estimado', value: metrics.profit, icon: TrendingUp, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+                        { label: 'Taxa de Entrega', value: metrics.totalFees, icon: Truck, color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+                    ].map(card => (
+                        <div key={card.label} style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <card.icon size={22} color={card.color} />
                             </div>
                             <div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Total Vendido</div>
-                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-xl)' }}>{formatCurrency(metrics.totalGross)}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>{card.label}</div>
+                                <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-text-primary)', letterSpacing: '-0.5px' }}>{formatCurrency(card.value)}</div>
                             </div>
                         </div>
-                    </Card>
-                    <Card>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                            <div style={{ padding: 'var(--spacing-md)', background: 'rgba(59,130,246,0.1)', borderRadius: 'var(--radius-lg)' }}>
-                                <TrendingUp style={{ color: 'var(--color-primary)' }} size={24} />
-                            </div>
-                            <div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Lucro</div>
-                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-xl)' }}>{formatCurrency(metrics.profit)}</div>
-                            </div>
-                        </div>
-                    </Card>
-                    <Card>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                            <div style={{ padding: 'var(--spacing-md)', background: 'rgba(234,88,12,0.1)', borderRadius: 'var(--radius-lg)' }}>
-                                <Truck style={{ color: '#ea580c' }} size={24} />
-                            </div>
-                            <div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Taxa de Entrega</div>
-                                <div style={{ fontWeight: 700, fontSize: 'var(--font-size-xl)' }}>{formatCurrency(metrics.totalFees)}</div>
-                            </div>
-                        </div>
-                    </Card>
+                    ))}
                 </div>
             )}
         </div>

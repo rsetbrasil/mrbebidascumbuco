@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Trash2, Plus, Minus, FileText, Clock, ArrowLeft, Printer, CreditCard, Edit } from 'lucide-react';
-import Card from '../../common/Card';
+import { Search, ShoppingCart, Trash2, Plus, Minus, FileText, Clock, ArrowLeft, Printer, CreditCard, Edit, Package } from 'lucide-react';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import Modal from '../../common/Modal';
@@ -382,77 +381,90 @@ const InternalConsumptionPage = () => {
 
     if (view === 'history') {
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)', height: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                     <div>
-                        <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-xs)' }}>Histórico de Consumo Interno</h1>
-                        <p style={{ color: 'var(--color-text-secondary)' }}>Últimos registros de retirada de estoque para consumo.</p>
+                        <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Package size={14} /> {history.length} registro{history.length !== 1 ? 's' : ''}
+                        </div>
+                        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Histórico de Consumo</h1>
                     </div>
-                    <Button variant="secondary" onClick={() => setView('register')} icon={<ArrowLeft size={18} />}>
-                        Voltar para Registro
-                    </Button>
+                    <button
+                        onClick={() => setView('register')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 18px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}
+                    >
+                        <ArrowLeft size={16} /> Voltar
+                    </button>
                 </div>
 
-                <Card>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
                     {loadingHistory ? (
-                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Carregando histórico...</div>
+                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Carregando histórico...</div>
                     ) : history.length === 0 ? (
-                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>Nenhum consumo registrado ainda.</div>
+                        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            <Package size={40} style={{ opacity: 0.15, display: 'block', margin: '0 auto 10px' }} />
+                            <p style={{ margin: 0 }}>Nenhum consumo registrado ainda.</p>
+                        </div>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
-                            <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                                 <thead>
-                                    <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                                        <th style={{ padding: 'var(--spacing-sm)' }}>Data/Hora</th>
-                                        <th style={{ padding: 'var(--spacing-sm)' }}>Operador</th>
-                                        <th style={{ padding: 'var(--spacing-sm)' }}>Itens</th>
-                                        <th style={{ padding: 'var(--spacing-sm)' }}>Motivo/Obs</th>
-                                        <th style={{ padding: 'var(--spacing-sm)' }}>Status</th>
-                                        <th style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>Custo Total</th>
-                                        <th style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>Ações</th>
+                                    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                        {['Data/Hora', 'Operador', 'Itens', 'Motivo/Obs', 'Status', 'Custo Total', 'Ações'].map((h, i) => (
+                                            <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i >= 5 ? 'right' : 'left' }}>{h}</th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {history.map(record => (
-                                        <tr key={record.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                            <td style={{ padding: 'var(--spacing-sm)' }}>{formatDateTime(record.createdAt)}</td>
-                                            <td style={{ padding: 'var(--spacing-sm)' }}>{record.createdBy || '-'}</td>
-                                            <td style={{ padding: 'var(--spacing-sm)' }}>
+                                        <tr key={record.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                            <td style={{ padding: '13px 16px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{formatDateTime(record.createdAt)}</td>
+                                            <td style={{ padding: '13px 16px', fontSize: '13px', fontWeight: 600 }}>{record.createdBy || '—'}</td>
+                                            <td style={{ padding: '13px 16px' }}>
                                                 {Array.isArray(record.items) ? record.items.map(it => (
-                                                    <div key={it.productId} style={{ fontSize: 'var(--font-size-xs)' }}>
+                                                    <div key={it.productId} style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                                                         {it.quantity}x {it.productName}
                                                     </div>
-                                                )) : '-'}
+                                                )) : '—'}
                                             </td>
-                                            <td style={{ padding: 'var(--spacing-sm)', color: 'var(--color-text-secondary)' }}>{record.notes || '-'}</td>
-                                            <td style={{ padding: 'var(--spacing-sm)' }}>
-                                                <span style={{ 
-                                                    padding: '2px 8px', 
-                                                    borderRadius: '12px', 
-                                                    fontSize: 'var(--font-size-xs)',
-                                                    fontWeight: 600,
-                                                    background: record.status === 'paid' ? 'var(--color-success)' : 'var(--color-warning)',
-                                                    color: 'white'
+                                            <td style={{ padding: '13px 16px', fontSize: '13px', color: 'var(--color-text-muted)' }}>{record.notes || '—'}</td>
+                                            <td style={{ padding: '13px 16px' }}>
+                                                <span style={{
+                                                    padding: '3px 10px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 700,
+                                                    background: record.status === 'paid' ? '#10b98118' : '#f59e0b18',
+                                                    color: record.status === 'paid' ? '#10b981' : '#f59e0b'
                                                 }}>
                                                     {record.status === 'paid' ? 'Pago' : 'Pendente'}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: 'var(--spacing-sm)', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(record.totalCost || 0)}</td>
-                                            <td style={{ padding: 'var(--spacing-sm)', textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                            <td style={{ padding: '13px 16px', textAlign: 'right', fontWeight: 700, fontSize: '14px' }}>{formatCurrency(record.totalCost || 0)}</td>
+                                            <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                                                     {record.status !== 'paid' && (
                                                         <>
-                                                            <Button variant="primary" size="sm" onClick={() => handlePay(record)} title="Pagar">
-                                                                <CreditCard size={14} /> Pagar
-                                                            </Button>
-                                                            <Button variant="secondary" size="sm" onClick={() => handleEdit(record)} title="Editar">
-                                                                <Edit size={14} />
-                                                            </Button>
+                                                            <button onClick={() => handlePay(record)} title="Pagar"
+                                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
+                                                                <CreditCard size={13} /> Pagar
+                                                            </button>
+                                                            <button onClick={() => handleEdit(record)} title="Editar"
+                                                                style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }}
+                                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                                <Edit size={15} />
+                                                            </button>
                                                         </>
                                                     )}
-                                                    <Button variant="secondary" size="sm" onClick={() => printConsumption(record)} title="Imprimir Comprovante">
-                                                        <Printer size={14} />
-                                                    </Button>
+                                                    <button onClick={() => printConsumption(record)} title="Imprimir"
+                                                        style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                        <Printer size={15} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -461,7 +473,7 @@ const InternalConsumptionPage = () => {
                             </table>
                         </div>
                     )}
-                </Card>
+                </div>
 
                 {/* Payment Modal */}
                 <Modal isOpen={paymentModalOpen} onClose={() => setPaymentModalOpen(false)} title="Pagar Consumo Interno" size="sm">
@@ -535,33 +547,45 @@ const InternalConsumptionPage = () => {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-xs)' }}>
-                        {editingId ? 'Editando Consumo Interno' : 'Consumo Interno'}
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Package size={14} /> {editingId ? 'Editando registro' : 'Baixa de estoque para consumo interno'}
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>
+                        {editingId ? 'Editar Consumo' : 'Consumo Interno'}
                     </h1>
-                    <p style={{ color: 'var(--color-text-secondary)' }}>
-                        {editingId ? 'Altere os itens e salve para atualizar o registro.' : 'Registre a retirada de produtos para consumo interno (baixa de estoque).'}
-                    </p>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
                     {editingId && (
-                        <Button variant="danger" onClick={() => { setItems([]); setEditingId(null); setNoteInput(''); }}>
+                        <button
+                            onClick={() => { setItems([]); setEditingId(null); setNoteInput(''); }}
+                            style={{ padding: '9px 18px', borderRadius: '10px', border: '1px solid var(--color-danger)', background: 'transparent', color: 'var(--color-danger)', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}
+                        >
                             Cancelar Edição
-                        </Button>
+                        </button>
                     )}
-                    <Button variant="secondary" onClick={handleViewHistory} icon={<Clock size={18} />}>
-                        Ver Histórico
-                    </Button>
+                    <button
+                        onClick={handleViewHistory}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 18px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}
+                    >
+                        <Clock size={15} /> Ver Histórico
+                    </button>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gridTemplateColumns: '1fr 380px', gap: 'var(--spacing-lg)', alignItems: 'start' }} className="grid md:grid-cols-[1fr_380px]">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '20px', alignItems: 'start' }}>
                 {/* Left Column - Products */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                    <Card title="Buscar Produtos" icon={Search}>
-                        <div style={{ padding: 'var(--spacing-md)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Search Card */}
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Search size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Buscar Produtos</span>
+                        </div>
+                        <div style={{ padding: '14px 16px' }}>
                             <Input
                                 ref={searchInputRef}
                                 placeholder="Buscar produto..."
@@ -570,7 +594,6 @@ const InternalConsumptionPage = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-
                         {filteredProducts.length > 0 && (
                             <div style={{ borderTop: '1px solid var(--color-border)' }}>
                                 {filteredProducts.map((product, idx) => (
@@ -578,8 +601,8 @@ const InternalConsumptionPage = () => {
                                         key={product.id}
                                         onClick={() => handleProductSelect(product)}
                                         style={{
-                                            padding: 'var(--spacing-md)',
-                                            borderBottom: '1px solid var(--color-border)',
+                                            padding: '12px 16px',
+                                            borderBottom: '1px solid var(--color-divider)',
                                             cursor: 'pointer',
                                             display: 'flex',
                                             justifyContent: 'space-between',
@@ -590,75 +613,83 @@ const InternalConsumptionPage = () => {
                                         onMouseLeave={(e) => e.currentTarget.style.background = selectedIndex === idx ? 'var(--color-bg-hover)' : 'transparent'}
                                     >
                                         <div>
-                                            <div style={{ fontWeight: 600 }}>{product.name}</div>
-                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                                            <div style={{ fontWeight: 600, fontSize: '14px' }}>{product.name}</div>
+                                            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                                                 Estoque: {product.stock} un
                                             </div>
                                         </div>
-                                        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                                            Custo: {formatCurrency(product.cost)}
+                                        <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                                            {formatCurrency(product.cost)}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </Card>
+                    </div>
 
-                    <Card title="Itens do Consumo" icon={ShoppingCart}>
+                    {/* Items Card */}
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ShoppingCart size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Itens do Consumo</span>
+                        </div>
                         {items.length === 0 ? (
-                            <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                                 Nenhum item adicionado
                             </div>
                         ) : (
-                            <div>
-                                {items.map((item) => (
-                                    <div key={item.id} style={{ padding: 'var(--spacing-md)', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                            <div style={{ fontWeight: 600 }}>{item.productName}</div>
-                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                                                Custo Unit: {formatCurrency(item.unitCost)} {item.isCold ? '(Gelado)' : ''}
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg-secondary)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
-                                                <button onClick={() => updateQuantity(item.id, -1)} style={{ padding: '4px', background: 'transparent', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer' }}><Minus size={16} /></button>
-                                                <span style={{ minWidth: '30px', textAlign: 'center', fontWeight: 600 }}>{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, 1)} style={{ padding: '4px', background: 'transparent', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer' }}><Plus size={16} /></button>
-                                            </div>
-                                            <div style={{ fontWeight: 600, minWidth: '80px', textAlign: 'right' }}>
-                                                {formatCurrency(item.totalCost)}
-                                            </div>
-                                            <button onClick={() => handleRemoveItem(item.id)} style={{ padding: '8px', color: 'var(--color-danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                                                <Trash2 size={18} />
-                                            </button>
+                            items.map((item) => (
+                                <div key={item.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--color-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: '14px' }}>{item.productName}</div>
+                                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                                            {formatCurrency(item.unitCost)}/un {item.isCold ? '· Gelado' : ''}
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--color-bg-primary)', padding: '4px 6px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                                            <button onClick={() => updateQuantity(item.id, -1)} style={{ padding: '2px 4px', background: 'transparent', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer' }}><Minus size={14} /></button>
+                                            <span style={{ minWidth: '28px', textAlign: 'center', fontWeight: 700, fontSize: '14px' }}>{item.quantity}</span>
+                                            <button onClick={() => updateQuantity(item.id, 1)} style={{ padding: '2px 4px', background: 'transparent', border: 'none', color: 'var(--color-text-primary)', cursor: 'pointer' }}><Plus size={14} /></button>
+                                        </div>
+                                        <div style={{ fontWeight: 700, fontSize: '14px', minWidth: '80px', textAlign: 'right' }}>
+                                            {formatCurrency(item.totalCost)}
+                                        </div>
+                                        <button onClick={() => handleRemoveItem(item.id)} style={{ padding: '6px', color: 'var(--color-danger)', background: 'transparent', border: 'none', cursor: 'pointer', borderRadius: '8px' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
                         )}
-                    </Card>
+                    </div>
                 </div>
 
                 {/* Right Column - Summary */}
-                <div style={{ position: 'sticky', top: '90px' }}>
-                    <Card title="Resumo do Custo" icon={FileText}>
-                        <div style={{ padding: 'var(--spacing-md)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>Custo Total</span>
-                                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-xl)', color: 'var(--color-danger)' }}>{formatCurrency(totalCost)}</span>
+                <div style={{ position: 'sticky', top: '80px' }}>
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <FileText size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Resumo do Custo</span>
+                        </div>
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '16px', background: 'var(--color-bg-primary)', borderRadius: '10px', border: '1px solid var(--color-border)' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Custo Total</span>
+                                <span style={{ fontWeight: 800, fontSize: '22px', color: 'var(--color-danger)', letterSpacing: '-0.5px' }}>{formatCurrency(totalCost)}</span>
                             </div>
-
-                            <Button
-                                variant="primary"
-                                size="lg"
-                                className="w-full justify-center mt-4"
+                            <button
                                 onClick={handleFinalize}
                                 disabled={processing || items.length === 0}
+                                style={{ width: '100%', padding: '13px', borderRadius: '10px', border: 'none', background: processing || items.length === 0 ? 'var(--color-bg-hover)' : 'var(--gradient-primary)', color: processing || items.length === 0 ? 'var(--color-text-muted)' : '#fff', fontWeight: 700, fontSize: '15px', cursor: processing || items.length === 0 ? 'not-allowed' : 'pointer', transition: 'all 0.15s' }}
                             >
-                                {editingId ? 'Atualizar Consumo' : 'Registrar Consumo'}
-                            </Button>
+                                {processing ? 'Processando...' : editingId ? 'Atualizar Consumo' : 'Registrar Consumo'}
+                            </button>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             </div>
 
