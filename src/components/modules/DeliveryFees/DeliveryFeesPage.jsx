@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Plus, Search, Edit, Trash2, Eye, Truck, FileText, Download } from 'lucide-react';
-import Card from '../../common/Card';
+import { Plus, Search, Edit, Trash2, Eye, Truck, FileText, Download, DollarSign } from 'lucide-react';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import CurrencyInput from '../../common/CurrencyInput';
@@ -303,9 +302,9 @@ const DeliveryFeesPage = () => {
 
     if (!isManager) {
         return (
-            <div className="p-8 text-center">
-                <h2 className="text-xl font-bold text-red-500">Acesso Negado</h2>
-                <p className="text-gray-400">Apenas gerentes podem gerenciar taxas de entrega.</p>
+            <div style={{ padding: '48px', textAlign: 'center' }}>
+                <h2 style={{ color: 'var(--color-danger)', fontWeight: 700 }}>Acesso Negado</h2>
+                <p style={{ color: 'var(--color-text-muted)' }}>Apenas gerentes podem gerenciar taxas de entrega.</p>
             </div>
         );
     }
@@ -313,162 +312,161 @@ const DeliveryFeesPage = () => {
     if (loading) return <Loading fullScreen />;
 
     return (
-        <div className="fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <h1>Taxas de Entrega</h1>
-                    <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                        Cadastro, filtros e relatórios
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Truck size={14} /> {filteredFees.length} taxa{filteredFees.length !== 1 ? 's' : ''} cadastrada{filteredFees.length !== 1 ? 's' : ''}
                     </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Taxas de Entrega</h1>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                    <Button variant="secondary" icon={<FileText size={18} />} onClick={exportPdf} disabled={filteredFees.length === 0}>
-                        Exportar PDF
-                    </Button>
-                    <Button variant="secondary" icon={<Download size={18} />} onClick={exportCsv} disabled={filteredFees.length === 0}>
-                        Exportar Excel
-                    </Button>
-                    <Button variant="primary" icon={<Plus size={18} />} onClick={openCreate}>
-                        Nova Taxa
-                    </Button>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button onClick={exportPdf} disabled={filteredFees.length === 0}
+                        style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 16px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: '13px', cursor: filteredFees.length === 0 ? 'not-allowed' : 'pointer', opacity: filteredFees.length === 0 ? 0.5 : 1 }}>
+                        <FileText size={15} /> Exportar PDF
+                    </button>
+                    <button onClick={exportCsv} disabled={filteredFees.length === 0}
+                        style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 16px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: '13px', cursor: filteredFees.length === 0 ? 'not-allowed' : 'pointer', opacity: filteredFees.length === 0 ? 0.5 : 1 }}>
+                        <Download size={15} /> Exportar Excel
+                    </button>
+                    <button onClick={openCreate}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 18px', borderRadius: '10px', border: 'none', background: 'var(--gradient-primary)', color: '#fff', fontWeight: 700, fontSize: '14px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
+                        <Plus size={16} /> Nova Taxa
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card title="Resumo" icon={Truck}>
-                    <div className="space-y-3 p-4">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Total acumulado</span>
-                            <span style={{ fontWeight: 700 }}>{formatCurrency(totals.totalAll)}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Total ativo</span>
-                            <span style={{ fontWeight: 700 }}>{formatCurrency(totals.totalActive)}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Registros</span>
-                            <span style={{ fontWeight: 700 }}>{totals.count}</span>
-                        </div>
+            {/* Info cards grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {/* Resumo */}
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <Truck size={15} color="var(--color-text-muted)" />
+                        <span style={{ fontWeight: 700, fontSize: '14px' }}>Resumo</span>
                     </div>
-                </Card>
+                    {[
+                        { label: 'Total acumulado', value: formatCurrency(totals.totalAll) },
+                        { label: 'Total ativo', value: formatCurrency(totals.totalActive) },
+                        { label: 'Registros', value: totals.count },
+                    ].map(row => (
+                        <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--color-divider)' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{row.label}</span>
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>{row.value}</span>
+                        </div>
+                    ))}
+                </div>
 
-                <Card title="Filtro por Período" icon={Search}>
-                    <div className="space-y-3 p-4" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
-                            <DateInput labelPrefix="Início" value={startDate} onChange={setStartDate} />
-                            <DateInput labelPrefix="Fim" value={endDate} onChange={setEndDate} />
-                        </div>
-                        <Input
-                            placeholder="Buscar por descrição..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            icon={<Search size={18} />}
-                        />
-                        <div style={{ display: 'flex', gap: 'var(--spacing-sm)', justifyContent: 'flex-end' }}>
-                            <Button variant="ghost" onClick={() => { setStartDate(''); setEndDate(''); }}>
-                                Limpar Período
-                            </Button>
-                        </div>
+                {/* Filtros */}
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <Search size={15} color="var(--color-text-muted)" />
+                        <span style={{ fontWeight: 700, fontSize: '14px' }}>Filtrar por Período</span>
                     </div>
-                </Card>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <DateInput labelPrefix="Início" value={startDate} onChange={setStartDate} />
+                        <DateInput labelPrefix="Fim" value={endDate} onChange={setEndDate} />
+                    </div>
+                    <Input
+                        placeholder="Buscar por descrição..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        icon={<Search size={16} />}
+                    />
+                    <button onClick={() => { setStartDate(''); setEndDate(''); setSearchTerm(''); }}
+                        style={{ padding: '7px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-muted)', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}>
+                        Limpar Período
+                    </button>
+                </div>
 
-                <Card title="Taxas Aplicadas em Vendas" icon={FileText}>
-                    <div className="space-y-3 p-4">
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Total (período)</span>
-                            <span style={{ fontWeight: 700 }}>
-                                {salesTotalsLoading ? '...' : formatCurrency(collectedTotals.totalDeliveryFees)}
-                            </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--color-text-secondary)' }}>Vendas com taxa</span>
-                            <span style={{ fontWeight: 700 }}>{salesTotalsLoading ? '...' : collectedTotals.countSalesWithFee}</span>
-                        </div>
-                        {currentCashRegister && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Total do caixa aberto</span>
-                                    <span style={{ fontWeight: 700 }}>
-                                        {salesTotalsLoading ? '...' : formatCurrency(collectedTotals.currentCashRegisterFees || 0)}
-                                    </span>
-                                </div>
-                                <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                                    Caixa atual: {currentCashRegister.openedAt ? formatDateTime(toDate(currentCashRegister.openedAt)) : currentCashRegister.id}
-                                </div>
-                            </div>
-                        )}
-                        <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-                            Valores registrados separadamente e excluídos do lucro.
-                        </div>
+                {/* Vendas */}
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                        <DollarSign size={15} color="var(--color-text-muted)" />
+                        <span style={{ fontWeight: 700, fontSize: '14px' }}>Taxas Aplicadas em Vendas</span>
                     </div>
-                </Card>
+                    {[
+                        { label: 'Total (período)', value: salesTotalsLoading ? '...' : formatCurrency(collectedTotals.totalDeliveryFees) },
+                        { label: 'Vendas com taxa', value: salesTotalsLoading ? '...' : collectedTotals.countSalesWithFee },
+                        ...(currentCashRegister ? [{ label: 'Total do caixa aberto', value: salesTotalsLoading ? '...' : formatCurrency(collectedTotals.currentCashRegisterFees || 0) }] : []),
+                    ].map(row => (
+                        <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--color-divider)' }}>
+                            <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>{row.label}</span>
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>{row.value}</span>
+                        </div>
+                    ))}
+                    <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '10px' }}>
+                        Valores registrados separadamente e excluídos do lucro.
+                    </p>
+                </div>
             </div>
 
-            <Card>
-                <div className="table-container">
-                    <table className="table">
+            {/* Tabela */}
+            <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                         <thead>
-                            <tr>
-                                <th>Descrição</th>
-                                <th>Valor</th>
-                                <th>Status</th>
-                                <th>Criada em</th>
-                                <th style={{ width: '160px', textAlign: 'center' }}>Ações</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                {['Descrição', 'Valor', 'Status', 'Criada em', 'Ações'].map((h, i) => (
+                                    <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 4 ? 'center' : 'left' }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredFees.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" style={{ textAlign: 'center', padding: 'var(--spacing-xl)', color: 'var(--color-text-secondary)' }}>
-                                        Nenhuma taxa encontrada
+                                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-muted)' }}>
+                                        <Truck size={40} style={{ opacity: 0.15, display: 'block', margin: '0 auto 10px' }} />
+                                        <p style={{ margin: 0 }}>Nenhuma taxa encontrada</p>
                                     </td>
                                 </tr>
                             ) : (
-                                filteredFees.map(fee => (
-                                    <tr key={fee.id}>
-                                        <td style={{ fontWeight: 600 }}>{fee.description}</td>
-                                        <td>{formatCurrency(Number(fee.value || 0))}</td>
-                                        <td>
-                                            <span style={{ color: (fee.status || 'active') === 'active' ? 'var(--color-success)' : 'var(--color-text-secondary)', fontWeight: 700 }}>
-                                                {(fee.status || 'active') === 'active' ? 'Ativa' : 'Inativa'}
-                                            </span>
-                                        </td>
-                                        <td style={{ color: 'var(--color-text-secondary)' }}>
-                                            {toDate(fee.createdAt) ? formatDateTime(toDate(fee.createdAt)) : '-'}
-                                        </td>
-                                        <td>
-                                            <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--spacing-sm)' }}>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    icon={<Eye size={16} />}
-                                                    onClick={() => openView(fee)}
-                                                    title="Visualizar"
-                                                />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    icon={<Edit size={16} />}
-                                                    onClick={() => openEdit(fee)}
-                                                    title="Editar"
-                                                />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    icon={<Trash2 size={16} />}
-                                                    onClick={() => handleDelete(fee)}
-                                                    style={{ color: 'var(--color-danger)' }}
-                                                    title="Excluir"
-                                                />
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                filteredFees.map(fee => {
+                                    const isActive = (fee.status || 'active') === 'active';
+                                    return (
+                                        <tr key={fee.id} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                            <td style={{ padding: '13px 16px', fontWeight: 600, fontSize: '14px' }}>{fee.description}</td>
+                                            <td style={{ padding: '13px 16px', fontWeight: 700, fontSize: '14px', color: '#22c55e' }}>{formatCurrency(Number(fee.value || 0))}</td>
+                                            <td style={{ padding: '13px 16px' }}>
+                                                <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: isActive ? '#10b98118' : '#94a3b818', color: isActive ? '#10b981' : '#94a3b8' }}>
+                                                    {isActive ? 'Ativa' : 'Inativa'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '13px 16px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                                                {toDate(fee.createdAt) ? formatDateTime(toDate(fee.createdAt)) : '-'}
+                                            </td>
+                                            <td style={{ padding: '13px 16px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                                    <button onClick={() => openView(fee)} title="Visualizar"
+                                                        style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                        <Eye size={15} />
+                                                    </button>
+                                                    <button onClick={() => openEdit(fee)} title="Editar"
+                                                        style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-primary)', cursor: 'pointer' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                        <Edit size={15} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(fee)} title="Excluir"
+                                                        style={{ padding: '7px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-danger)', cursor: 'pointer' }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.08)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
-            </Card>
+            </div>
 
             <Modal
                 isOpen={modalOpen}

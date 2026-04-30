@@ -184,7 +184,7 @@ const SettingsPage = () => {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {notification && (
                 <Notification
                     type={notification.type}
@@ -194,8 +194,10 @@ const SettingsPage = () => {
             )}
 
             <div>
-                <h1 className="text-2xl font-bold text-white">Configurações</h1>
-                <p className="text-gray-400">Personalize o sistema e gerencie usuários</p>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Settings size={14} /> Personalização do sistema
+                </div>
+                <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Configurações</h1>
             </div>
 
             {/* Users Management Section */}
@@ -204,8 +206,8 @@ const SettingsPage = () => {
             {/* Units Management Section */}
             <UnitsManagement />
 
-            <form onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
                     {/* Receipt Settings */}
                     <Card title="Cupom Fiscal" icon={Printer} collapsible defaultExpanded={false}>
                         <div className="space-y-4 p-4">
@@ -660,16 +662,14 @@ const SettingsPage = () => {
                     </Card>
                 </div>
 
-                <div className="flex justify-end">
-                    <Button
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
                         type="submit"
-                        variant="primary"
-                        size="lg"
-                        loading={saving}
-                        icon={Save}
+                        disabled={saving}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '11px 24px', borderRadius: '10px', border: 'none', background: saving ? 'var(--color-bg-hover)' : 'var(--gradient-primary)', color: saving ? 'var(--color-text-muted)' : '#fff', fontWeight: 700, fontSize: '15px', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: saving ? 'none' : '0 4px 14px rgba(99,102,241,0.3)', transition: 'all 0.15s' }}
                     >
-                        Salvar Alterações
-                    </Button>
+                        <Save size={16} /> {saving ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
                 </div>
             </form>
             <ImportProductsModal

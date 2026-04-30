@@ -20,7 +20,6 @@ import {
     Clock,
     RefreshCw
 } from 'lucide-react';
-import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import CurrencyInput from '../../common/CurrencyInput';
@@ -902,22 +901,22 @@ const CashRegisterPage = () => {
                     </div>
                 }
             >
-                <div className="table-container">
+                <div style={{ overflowX: 'auto' }}>
                     {historyLoading ? (
-                        <div style={{ padding: 'var(--spacing-xl)', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
                             Carregando...
                         </div>
                     ) : (
-                        <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
-                                <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>FECHAMENTO</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>OPERADOR</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO INICIAL</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>TOTAL VENDIDO</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>SALDO FINAL</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)' }}>DIFERENÇA</th>
-                                    <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, color: 'var(--color-text-muted)', textAlign: 'right', minWidth: 220, whiteSpace: 'nowrap' }}>AÇÃO</th>
+                                <tr style={{ background: 'var(--color-bg-secondary)' }}>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Fechamento</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Operador</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Saldo Inicial</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Total Vendido</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Saldo Final</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Diferença</th>
+                                    <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'right', minWidth: 220, whiteSpace: 'nowrap' }}>Ação</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1053,7 +1052,7 @@ const CashRegisterPage = () => {
                         </div>
 
                         {/* Main Cards */}
-                        <div className="grid grid-3">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                             <div style={{ textAlign: 'center', padding: 'var(--spacing-md)', border: '1px solid var(--color-divider)', borderRadius: 'var(--radius-md)' }}>
                                 <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>VENDAS</div>
                                 <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--color-primary)' }}>{formatCurrency(historyViewData.totals?.totalSales || 0)}</div>
@@ -1154,16 +1153,16 @@ const CashRegisterPage = () => {
                                 </p>
                             </div>
 
-                            <div className="table-container">
-                                <table className="table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                                     <thead>
-                                        <tr style={{ position: 'sticky', top: 0, background: 'var(--color-bg-secondary)', zIndex: 1 }}>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'left' }}>PRODUTO</th>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>QTD</th>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>PREÇO UN.</th>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>CUSTO UN.</th>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'right' }}>LUCRO TOT.</th>
-                                            <th style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', fontWeight: 600, textAlign: 'center' }}>TIPO</th>
+                                        <tr style={{ background: 'var(--color-bg-secondary)' }}>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)' }}>Produto</th>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'center' }}>Qtd</th>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'right' }}>Preço Un.</th>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'right' }}>Custo Un.</th>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'right' }}>Lucro Tot.</th>
+                                            <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', borderBottom: '1px solid var(--color-border)', textAlign: 'center' }}>Tipo</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1222,7 +1221,7 @@ const CashRegisterPage = () => {
 
     if (!isRegisterOpen) {
         return (
-            <div className="max-w-4xl mx-auto mt-10 space-y-8 animate-fade-in">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '900px', margin: '0 auto', paddingTop: '40px' }}>
                 {notification && (
                     <Notification
                         type={notification.type}
@@ -1231,56 +1230,53 @@ const CashRegisterPage = () => {
                     />
                 )}
 
-                <div className="max-w-md mx-auto">
-                    <Card>
-                        <div className="p-8 text-center">
-                            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Lock size={40} className="text-gray-400" />
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mb-2">Caixa Fechado</h2>
-                            <p className="text-gray-400 mb-8">
-                                O caixa está fechado. Informe o valor inicial para iniciar as operações.
-                            </p>
+                <div style={{ maxWidth: '440px', margin: '0 auto', width: '100%' }}>
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '40px 32px', textAlign: 'center' }}>
+                        <div style={{ width: '72px', height: '72px', background: 'var(--color-bg-tertiary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <Lock size={32} color="var(--color-text-muted)" />
+                        </div>
+                        <h2 style={{ margin: '0 0 8px', fontSize: '22px', fontWeight: 800, letterSpacing: '-0.3px' }}>Caixa Fechado</h2>
+                        <p style={{ margin: '0 0 28px', fontSize: '14px', color: 'var(--color-text-muted)' }}>
+                            O caixa está fechado. Informe o valor inicial para iniciar as operações.
+                        </p>
 
-                            <form onSubmit={handleOpenRegister} className="space-y-6">
+                        <form onSubmit={handleOpenRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {canWrite && (
+                                <CurrencyInput
+                                    label="Valor Inicial (R$)"
+                                    value={openingBalance}
+                                    onChange={(e) => setOpeningBalance(e.target.value)}
+                                    placeholder="0,00"
+                                    autoFocus
+                                />
+                            )}
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {canWrite && (
-                                    <CurrencyInput
-                                        label="Valor Inicial (R$)"
-                                        value={openingBalance}
-                                        onChange={(e) => setOpeningBalance(e.target.value)}
-                                        placeholder="0,00"
-                                        className="text-center text-lg"
-                                        autoFocus
-                                    />
-                                )}
-
-                                <div className="grid grid-cols-1 gap-3">
-                                    {canWrite && (
-                                        <Button
-                                            type="submit"
-                                            variant="success"
-                                            size="lg"
-                                            loading={loading}
-                                            icon={Unlock}
-                                            fullWidth
-                                        >
-                                            Abrir Caixa
-                                        </Button>
-                                    )}
-                                    <Button 
-                                        type="button"
-                                        variant="secondary" 
+                                    <Button
+                                        type="submit"
+                                        variant="success"
                                         size="lg"
-                                        onClick={openHistoryModal}
-                                        icon={History}
+                                        loading={loading}
+                                        icon={Unlock}
                                         fullWidth
                                     >
-                                        Ver Histórico de Caixas
+                                        Abrir Caixa
                                     </Button>
-                                </div>
-                            </form>
-                        </div>
-                    </Card>
+                                )}
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="lg"
+                                    onClick={openHistoryModal}
+                                    icon={History}
+                                    fullWidth
+                                >
+                                    Ver Histórico de Caixas
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 {historyModals}
@@ -1416,7 +1412,7 @@ const CashRegisterPage = () => {
     })();
 
     return (
-        <div className="fade-in" style={{ paddingBottom: 'var(--spacing-2xl)', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
             {notification && (
                 <Notification
                     type={notification.type}
@@ -1426,13 +1422,7 @@ const CashRegisterPage = () => {
             )}
 
             {isClosingMode && (
-                <div className="card" style={{ 
-                    marginBottom: 'var(--spacing-xl)', 
-                    border: '1px solid #fee2e2', 
-                    background: '#fff5f5',
-                    borderRadius: '24px',
-                    padding: 'var(--spacing-xl)'
-                }}>
+                <div style={{ border: '1px solid #fee2e2', background: '#fff5f5', borderRadius: '14px', padding: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
                         <div style={{ 
                             width: '48px', 
@@ -1454,7 +1444,7 @@ const CashRegisterPage = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-4" style={{ marginBottom: 'var(--spacing-xl)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
                         <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>DINHEIRO (GAVETA)</div>
                             <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, color: '#1e293b' }}>{formatCurrency(paymentTotals.cash)}</div>
@@ -1477,11 +1467,11 @@ const CashRegisterPage = () => {
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', marginBottom: 'var(--spacing-md)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ marginBottom: '24px' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             Análise de Vendas (Este Caixa)
                         </div>
-                        <div className="grid grid-2">
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                             {/* Varejo */}
                             <div style={{ padding: 'var(--spacing-lg)', background: 'white', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
                                 <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '12px', textTransform: 'uppercase' }}>VAREJO / UNID.</div>
@@ -1529,24 +1519,39 @@ const CashRegisterPage = () => {
                 </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-xl)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h1 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 900, margin: 0, color: 'var(--color-text-primary)' }}>Caixa Aberto</h1>
-                    <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-                        Aberto em {formatDateTime(currentCashRegister.openedAt).replace(' ', ' às ')}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <Wallet size={16} color="var(--color-text-muted)" />
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Caixa aberto — {formatDateTime(currentCashRegister.openedAt).replace(' ', ' às ')}
+                        </span>
+                    </div>
+                    <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Caixa Aberto</h1>
                 </div>
-                <Button
-                    variant="secondary"
-                    onClick={handleInitCloseRegister}
-                    icon={Lock}
-                    style={{ background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border)' }}
-                >
-                    Fechar Caixa
-                </Button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={handleViewOpen}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                    >
+                        <Eye size={16} /> Ver Resumo
+                    </button>
+                    <button
+                        onClick={handlePrintOpenRegister}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                    >
+                        <Printer size={16} /> Imprimir
+                    </button>
+                    <button
+                        onClick={handleInitCloseRegister}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                    >
+                        <Lock size={16} /> Fechar Caixa
+                    </button>
+                </div>
             </div>
 
-            <div className="grid grid-3" style={{ marginBottom: 'var(--spacing-xl)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                 {/* Entradas Card */}
                 <div style={{ 
                     background: 'rgba(16, 185, 129, 0.05)', 
@@ -1623,8 +1628,13 @@ const CashRegisterPage = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-xl)' }}>
                 {/* Left Column: Novo Lançamento */}
                 <div>
-                    <Card title="Novo Lançamento" icon={RefreshCw} style={{ height: '100%' }}>
-                        <form onSubmit={handleQuickMovement} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden', height: '100%' }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <RefreshCw size={18} color="var(--color-text-muted)" />
+                            <span style={{ fontSize: '15px', fontWeight: 700 }}>Novo Lançamento</span>
+                        </div>
+                        <div style={{ padding: '20px' }}>
+                        <form onSubmit={handleQuickMovement} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                             <div style={{ display: 'flex', background: 'var(--color-bg-tertiary)', padding: '4px', borderRadius: 'var(--radius-md)' }}>
                                 <button
                                     type="button"
@@ -1696,12 +1706,18 @@ const CashRegisterPage = () => {
                                 Registrar Lançamento
                             </Button>
                         </form>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Column: Movimentações do Caixa */}
                 <div>
-                    <Card title="Movimentações do Caixa" icon={Clock} style={{ height: '100%', minHeight: '400px' }}>
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden', minHeight: '400px' }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <Clock size={18} color="var(--color-text-muted)" />
+                            <span style={{ fontSize: '15px', fontWeight: 700 }}>Movimentações do Caixa</span>
+                        </div>
+                        <div style={{ padding: '20px' }}>
                         {activeMovementsView.length === 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-2xl)', color: 'var(--color-text-muted)' }}>
                                 <Clock size={48} style={{ opacity: 0.2, marginBottom: 'var(--spacing-md)' }} />
@@ -1779,7 +1795,8 @@ const CashRegisterPage = () => {
                                 ))}
                             </div>
                         )}
-                    </Card>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1879,8 +1896,8 @@ const CashRegisterPage = () => {
                 onClose={() => setManagerModalOpen(false)}
                 title="Aprovação do Gerente"
             >
-                <div className="space-y-4">
-                    <p className="text-gray-400 text-sm">Informe a senha do administrador ou gerente para fechar o caixa.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '14px' }}>Informe a senha do administrador ou gerente para fechar o caixa.</p>
                     <Input
                         label="Senha Admin / Gerente"
                         type="password"
@@ -1896,9 +1913,9 @@ const CashRegisterPage = () => {
                         }}
                     />
                     {managerError && (
-                        <div className="text-red-400 text-sm">{managerError}</div>
+                        <div style={{ color: '#ef4444', fontSize: '14px' }}>{managerError}</div>
                     )}
-                    <div className="flex justify-end gap-3 pt-2">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '8px' }}>
                         <Button variant="ghost" onClick={() => setManagerModalOpen(false)}>Cancelar</Button>
                         <Button
                             variant="primary"

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, User, FileText, Printer, Save, X, Truck } from 'lucide-react';
-import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
 import CurrencyInput from '../../common/CurrencyInput';
@@ -1103,90 +1102,99 @@ const SalesPage = () => {
     };
 
     return (
-        <div className="fade-in">
-            <h1 style={{ marginBottom: 'var(--spacing-xl)' }}>Ponto de Venda</h1>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Header */}
+            <div>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ShoppingCart size={14} /> {items.length > 0 ? `${items.length} item${items.length !== 1 ? 's' : ''} no carrinho` : 'Nenhum item no carrinho'}
+                </div>
+                <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Ponto de Venda</h1>
+            </div>
 
-            <div className="grid grid-3" style={{ gap: 'var(--spacing-lg)', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 360px', gap: '16px', alignItems: 'start' }}>
                 {/* Left: Product Search */}
-                <div style={{ gridColumn: 'span 2' }}>
-                    <Card title="Buscar Produtos">
-                        <Input
-                            ref={searchInputRef}
-                            placeholder="Digite o nome ou código de barras..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onKeyDown={handleSearchKeyDown}
-                            icon={<Search size={20} />}
-                            autoFocus
-                        />
-
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Busca */}
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Search size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Buscar Produtos</span>
+                        </div>
+                        <div style={{ padding: '14px 16px' }}>
+                            <Input
+                                ref={searchInputRef}
+                                placeholder="Digite o nome ou código de barras..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={handleSearchKeyDown}
+                                icon={<Search size={18} />}
+                                autoFocus
+                            />
+                        </div>
                         {filteredProducts.length > 0 && (
-                            <div style={{
-                                marginTop: 'var(--spacing-md)',
-                                maxHeight: '400px',
-                                overflowY: 'auto',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: 'var(--radius-md)'
-                            }}>
+                            <div style={{ borderTop: '1px solid var(--color-border)', maxHeight: '360px', overflowY: 'auto' }}>
                                 {filteredProducts.map((product, index) => (
                                     <div
                                         key={product.id}
                                         onClick={() => handleProductSelect(product)}
                                         style={{
-                                            padding: 'var(--spacing-md)',
+                                            padding: '12px 16px',
                                             borderBottom: '1px solid var(--color-divider)',
                                             cursor: 'pointer',
-                                            transition: 'background var(--transition-fast)',
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
                                             background: index === selectedIndex ? 'var(--color-bg-hover)' : 'transparent'
                                         }}
-                                        onMouseEnter={(e) => {
-                                            if (index !== selectedIndex) e.currentTarget.style.background = 'var(--color-bg-hover)'
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            if (index !== selectedIndex) e.currentTarget.style.background = 'transparent'
-                                        }}
+                                        onMouseEnter={(e) => { if (index !== selectedIndex) e.currentTarget.style.background = 'var(--color-bg-hover)'; }}
+                                        onMouseLeave={(e) => { if (index !== selectedIndex) e.currentTarget.style.background = 'transparent'; }}
                                     >
                                         <div>
-                                            <div style={{ fontWeight: 600 }}>{product.name}</div>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                                            <div style={{ fontWeight: 600, fontSize: '14px' }}>{product.name}</div>
+                                            <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
                                                 {product.barcode || 'Sem código'}
                                             </div>
-                                            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px' }}>
-                                                    Disponível Atacado: <strong>{Math.max(0, Number(product.stock || 0) - Number(product.reservedStock || 0))}</strong> {product.unitOfMeasure || 'UN'}
+                                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px', flexWrap: 'wrap' }}>
+                                                <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#10b98112', color: '#10b981', fontSize: '11px', fontWeight: 600 }}>
+                                                    Atac: <strong>{Math.max(0, Number(product.stock || 0) - Number(product.reservedStock || 0))}</strong> {product.unitOfMeasure || 'UN'}
                                                 </span>
-                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-info)' }}>
-                                                    Disponível Mercearia: <strong>{Math.max(0, Number(product.coldStock || 0) - Number(product.reservedColdStock || 0))}</strong> {product.coldUnit || product.unitOfMeasure || 'UN'}
+                                                <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#3b82f612', color: '#3b82f6', fontSize: '11px', fontWeight: 600 }}>
+                                                    Merc: <strong>{Math.max(0, Number(product.coldStock || 0) - Number(product.reservedColdStock || 0))}</strong> {product.coldUnit || product.unitOfMeasure || 'UN'}
                                                 </span>
-                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-warning)' }}>
-                                                    Reservado Pré-venda (Atacado): <strong>{Number(product.reservedStock || 0)}</strong>
-                                                </span>
-                                                <span style={{ padding: '2px 6px', borderRadius: '6px', background: 'var(--color-bg-secondary)', fontSize: '12px', color: 'var(--color-warning)' }}>
-                                                    Reservado Pré-venda (Mercearia): <strong>{Number(product.reservedColdStock || 0)}</strong>
-                                                </span>
+                                                {Number(product.reservedStock || 0) > 0 && (
+                                                    <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#f59e0b12', color: '#f59e0b', fontSize: '11px', fontWeight: 600 }}>
+                                                        Res. Atac: {Number(product.reservedStock || 0)}
+                                                    </span>
+                                                )}
+                                                {Number(product.reservedColdStock || 0) > 0 && (
+                                                    <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#f59e0b12', color: '#f59e0b', fontSize: '11px', fontWeight: 600 }}>
+                                                        Res. Merc: {Number(product.reservedColdStock || 0)}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Atacado</div>
-                                            <div style={{ fontWeight: 700, color: 'var(--color-success)' }}>
-                                                {getWholesalePrice(product) === null ? '-' : formatCurrency(getWholesalePrice(product))}
+                                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Atacado</div>
+                                            <div style={{ fontWeight: 700, color: '#22c55e', fontSize: '14px' }}>
+                                                {getWholesalePrice(product) === null ? '—' : formatCurrency(getWholesalePrice(product))}
                                             </div>
-                                            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>Mercearia</div>
-                                            <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                                                {getColdPrice(product) === null ? '-' : formatCurrency(getColdPrice(product))}
+                                            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: 600, marginTop: '4px' }}>Mercearia</div>
+                                            <div style={{ fontWeight: 700, color: '#6366f1', fontSize: '14px' }}>
+                                                {getColdPrice(product) === null ? '—' : formatCurrency(getColdPrice(product))}
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </Card>
+                    </div>
 
-                    <div style={{ marginTop: 'var(--spacing-lg)' }}>
-                        <Card title="Itens do Carrinho">
+                    {/* Carrinho */}
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ShoppingCart size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Itens do Carrinho</span>
+                        </div>
                             {items.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: 'var(--spacing-xl)', color: 'var(--color-text-secondary)' }}>
                                     <ShoppingCart size={48} style={{ marginBottom: 'var(--spacing-md)', opacity: 0.5 }} />
@@ -1239,178 +1247,119 @@ const SalesPage = () => {
                                     ))}
                                 </div>
                             )}
-                        </Card>
                     </div>
                 </div>
 
                 {/* Right: Totals & Actions */}
-                <div>
-                    <Card>
-                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Resumo</h3>
-
+                <div style={{ position: 'sticky', top: '80px' }}>
+                    <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <FileText size={15} color="var(--color-text-muted)" />
+                            <span style={{ fontWeight: 700, fontSize: '14px' }}>Resumo da Venda</span>
+                        </div>
+                        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {tableId && (
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'var(--spacing-sm)',
-                                    padding: 'var(--spacing-sm) var(--spacing-md)',
-                                    background: 'rgba(245, 158, 11, 0.1)',
-                                    border: '1px solid var(--color-warning)',
-                                    borderRadius: 'var(--radius-md)',
-                                    marginBottom: 'var(--spacing-md)',
-                                    fontSize: 'var(--font-size-sm)',
-                                    fontWeight: 600,
-                                    color: 'var(--color-warning)'
-                                }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(245,158,11,0.1)', border: '1px solid var(--color-warning)', borderRadius: '10px', fontSize: '13px', fontWeight: 600, color: 'var(--color-warning)' }}>
                                     ☕ Mesa: {customer?.name || 'Sem nome'}
                                 </div>
                             )}
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>Subtotal</span>
-                                <span>{formatCurrency(totals.subtotal)}</span>
-                            </div>
-
-                            {(totals.discount > 0 || totals.itemsDiscount > 0) && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)', color: 'var(--color-success)' }}>
-                                    <span>Desconto</span>
-                                    <span>-{formatCurrency(totals.discount + totals.itemsDiscount)}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Subtotal</span>
+                                    <span style={{ fontWeight: 600 }}>{formatCurrency(totals.subtotal)}</span>
                                 </div>
-                            )}
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
-                                <span style={{ color: 'var(--color-text-secondary)' }}>Taxa de entrega</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                                    <div style={{ width: 140 }}>
-                                        <CurrencyInput
-                                            name="deliveryFeeValue"
-                                            value={Number(deliveryFee?.value || 0)}
-                                            onChange={(e) => {
-                                                const raw = e?.target?.value;
-                                                const value = raw === '' ? 0 : Number(raw || 0);
-                                                if (!Number.isFinite(value) || value <= 0) {
-                                                    setDeliveryFee({ mode: 'none', rateId: null, description: '', value: 0 });
-                                                    return;
-                                                }
-                                                setDeliveryFee(prev => ({
-                                                    mode: 'manual',
-                                                    rateId: null,
-                                                    description: String(prev?.description || '').trim() || 'Entrega',
-                                                    value
-                                                }));
-                                            }}
-                                            placeholder="0,00"
-                                            className="no-margin"
-                                        />
+                                {(totals.discount > 0 || totals.itemsDiscount > 0) && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#22c55e' }}>
+                                        <span style={{ fontSize: '13px' }}>Desconto</span>
+                                        <span style={{ fontWeight: 600 }}>-{formatCurrency(totals.discount + totals.itemsDiscount)}</span>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        icon={<Truck size={16} />}
-                                        onClick={openDeliveryFeeModal}
-                                        title="Configurar taxa de entrega"
-                                    />
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Taxa de entrega</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <div style={{ width: 120 }}>
+                                            <CurrencyInput
+                                                name="deliveryFeeValue"
+                                                value={Number(deliveryFee?.value || 0)}
+                                                onChange={(e) => {
+                                                    const raw = e?.target?.value;
+                                                    const value = raw === '' ? 0 : Number(raw || 0);
+                                                    if (!Number.isFinite(value) || value <= 0) {
+                                                        setDeliveryFee({ mode: 'none', rateId: null, description: '', value: 0 });
+                                                        return;
+                                                    }
+                                                    setDeliveryFee(prev => ({
+                                                        mode: 'manual',
+                                                        rateId: null,
+                                                        description: String(prev?.description || '').trim() || 'Entrega',
+                                                        value
+                                                    }));
+                                                }}
+                                                placeholder="0,00"
+                                                className="no-margin"
+                                            />
+                                        </div>
+                                        <button onClick={openDeliveryFeeModal} title="Configurar taxa" style={{ padding: '6px', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                            <Truck size={15} />
+                                        </button>
+                                    </div>
+                                </div>
+                                {Number(totals.deliveryFeeValue || 0) > 0 && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>Produtos</span>
+                                        <span style={{ fontWeight: 600 }}>{formatCurrency(totals.productsTotal || 0)}</span>
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--color-border)', marginTop: '4px' }}>
+                                    <span style={{ fontSize: '16px', fontWeight: 700 }}>Total</span>
+                                    <span style={{ fontSize: '22px', fontWeight: 800, color: '#22c55e', letterSpacing: '-0.5px' }}>{formatCurrency(totals.total)}</span>
                                 </div>
                             </div>
 
-                            {Number(totals.deliveryFeeValue || 0) > 0 && (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-xs)' }}>
-                                    <span style={{ color: 'var(--color-text-secondary)' }}>Produtos</span>
-                                    <span>{formatCurrency(totals.productsTotal || 0)}</span>
+                            {/* Cliente */}
+                            <div>
+                                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Cliente</div>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div style={{ flex: 1, padding: '8px 12px', background: 'var(--color-bg-primary)', borderRadius: '10px', border: '1px solid var(--color-border)', fontSize: '13px', fontWeight: 600 }}>
+                                        {customer ? customer.name : 'Cliente Padrão'}
+                                    </div>
+                                    <Button variant="secondary" icon={<User size={15} />} onClick={() => setCustomerSelectionOpen(true)} />
+                                    {customer && <Button variant="ghost" icon={<X size={15} />} onClick={() => setCustomer(null)} />}
                                 </div>
-                            )}
-
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                marginTop: 'var(--spacing-md)',
-                                paddingTop: 'var(--spacing-md)',
-                                borderTop: '1px solid var(--color-border)',
-                                fontSize: 'var(--font-size-xl)',
-                                fontWeight: 700
-                            }}>
-                                <span>Total</span>
-                                <span>{formatCurrency(totals.total)}</span>
                             </div>
-                        </div>
 
-                        <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-                            <label style={{ display: 'block', marginBottom: 'var(--spacing-xs)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Cliente
-                            </label>
-                            <div style={{ display: 'flex', gap: 'var(--spacing-xs)' }}>
-                                <div style={{
-                                    flex: 1,
-                                    padding: '8px 12px',
-                                    background: 'var(--color-bg-input)',
-                                    borderRadius: 'var(--radius-md)',
-                                    border: '1px solid var(--color-border)',
-                                    fontSize: 'var(--font-size-sm)'
-                                }}>
-                                    {customer ? customer.name : 'Cliente Padrão'}
-                                </div>
+                            {/* Ações */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <Button
-                                    variant="secondary"
-                                    icon={<User size={16} />}
-                                    onClick={() => setCustomerSelectionOpen(true)}
-                                />
-                                {customer && (
-                                    <Button
-                                        variant="ghost"
-                                        icon={<X size={16} />}
-                                        onClick={() => setCustomer(null)}
-                                    />
-                                )}
-                            </div>
-                        </div>
-
-
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-                            <Button
-                                variant="success"
-                                size="lg"
-                                icon={<CreditCard size={20} />}
-                                onClick={handleCheckout}
-                                disabled={items.length === 0 || !canFinalize}
-                            >
-                                Finalizar Venda (F2)
-                            </Button>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
-                                {canWrite && !tableId && (
-                                    <Button
-                                        variant="secondary"
-                                        icon={<Save size={18} />}
-                                        onClick={handleSavePresale}
-                                        disabled={items.length === 0}
-                                    >
-                                        Salvar (F3)
-                                    </Button>
-                                )}
-                                {canWrite && tableId && (
-                                    <Button
-                                        variant="secondary"
-                                        icon={<Save size={18} />}
-                                        onClick={handleSaveToTable}
-                                        disabled={items.length === 0}
-                                        loading={processing}
-                                    >
-                                        Salvar na Mesa
-                                    </Button>
-                                )}
-                                <Button
-                                    variant="danger"
-                                    icon={<Trash2 size={18} />}
-                                    onClick={clearCart}
-                                    disabled={items.length === 0}
+                                    variant="success"
+                                    size="lg"
+                                    icon={<CreditCard size={18} />}
+                                    onClick={handleCheckout}
+                                    disabled={items.length === 0 || !canFinalize}
                                 >
-                                    Limpar (F4)
+                                    Finalizar Venda (F2)
                                 </Button>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    {canWrite && !tableId && (
+                                        <Button variant="secondary" icon={<Save size={16} />} onClick={handleSavePresale} disabled={items.length === 0}>
+                                            Salvar (F3)
+                                        </Button>
+                                    )}
+                                    {canWrite && tableId && (
+                                        <Button variant="secondary" icon={<Save size={16} />} onClick={handleSaveToTable} disabled={items.length === 0} loading={processing}>
+                                            Salvar na Mesa
+                                        </Button>
+                                    )}
+                                    <Button variant="danger" icon={<Trash2 size={16} />} onClick={clearCart} disabled={items.length === 0}>
+                                        Limpar (F4)
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </Card>
+                    </div>
                 </div>
             </div>
 

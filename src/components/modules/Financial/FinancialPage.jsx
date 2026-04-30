@@ -14,8 +14,7 @@ import {
     Pie,
     Cell
 } from 'recharts';
-import { DollarSign, TrendingUp, ShoppingBag, CreditCard, Printer, FileText, Truck } from 'lucide-react';
-import Card from '../../common/Card';
+import { DollarSign, TrendingUp, ShoppingBag, CreditCard, Printer, FileText, Truck, BarChart3 } from 'lucide-react';
 import Loading from '../../common/Loading';
 import { salesService, categoryService, productService } from '../../../services/firestore';
 import { formatCurrency, formatDateTime } from '../../../utils/formatters';
@@ -422,11 +421,11 @@ const FinancialPage = () => {
     };
 
     return (
-        <div className="fade-in">
-            <div style={{ marginBottom: 'var(--spacing-xl)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
-                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                        Visão geral do desempenho do seu negócio
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <BarChart3 size={14} /> Visão geral do desempenho do negócio
                     </div>
                     <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px' }}>Relatórios Financeiros</h1>
                 </div>
@@ -543,337 +542,128 @@ const FinancialPage = () => {
             </div>
 
             {/* Metrics Cards */}
-            <div className="grid grid-1 md:grid-3 lg:grid-6" style={{ marginBottom: 'var(--spacing-xl)', gap: 'var(--spacing-md)' }}>
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <DollarSign style={{ color: 'var(--color-success)' }} size={24} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {[
+                    { label: 'Faturamento',   value: formatCurrency(metrics.totalSales),         icon: DollarSign,  color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+                    { label: 'Taxas Entrega', value: formatCurrency(metrics.totalDeliveryFees),  icon: Truck,       color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+                    { label: 'Vendas',        value: metrics.totalOrders,                        icon: ShoppingBag, color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+                    { label: 'Ticket Médio',  value: formatCurrency(metrics.avgTicket),          icon: TrendingUp,  color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
+                    { label: 'Top Pagto',     value: metrics.topPaymentMethod,                   icon: CreditCard,  color: '#ec4899', bg: 'rgba(236,72,153,0.1)', textTransform: 'capitalize' },
+                    { label: 'CMV',           value: formatCurrency(metrics.totalCMV),           icon: DollarSign,  color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+                    { label: 'Lucro',         value: formatCurrency(metrics.profit),             icon: TrendingUp,  color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+                    { label: 'Margem',        value: `${(metrics.margin * 100).toFixed(1)}%`,    icon: TrendingUp,  color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+                ].map(card => (
+                    <div key={card.label} style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <card.icon size={20} color={card.color} />
                         </div>
                         <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Faturamento
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.totalSales)}
-                            </h3>
+                            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>{card.label}</div>
+                            <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.3px', textTransform: card.textTransform }}>{card.value}</div>
                         </div>
                     </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(245, 158, 11, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <Truck style={{ color: 'var(--color-warning)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Taxas Entrega
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.totalDeliveryFees)}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(99, 102, 241, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <ShoppingBag style={{ color: 'var(--color-primary)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Vendas
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {metrics.totalOrders}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(139, 92, 246, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp style={{ color: '#8b5cf6' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Ticket Médio
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.avgTicket)}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(236, 72, 153, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <CreditCard style={{ color: 'var(--color-secondary)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Top Pagto
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-lg)', textTransform: 'capitalize' }}>
-                                {metrics.topPaymentMethod}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <DollarSign style={{ color: 'var(--color-danger)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                CMV
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.totalCMV)}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(34, 197, 94, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp style={{ color: 'var(--color-success)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Lucro
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {formatCurrency(metrics.profit)}
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
-                        <div style={{
-                            padding: 'var(--spacing-md)',
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            borderRadius: 'var(--radius-lg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <TrendingUp style={{ color: 'var(--color-primary)' }} size={24} />
-                        </div>
-                        <div>
-                            <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', margin: 0 }}>
-                                Margem
-                            </p>
-                            <h3 style={{ margin: '4px 0 0 0', fontSize: 'var(--font-size-xl)' }}>
-                                {(metrics.margin * 100).toFixed(1)}%
-                            </h3>
-                        </div>
-                    </div>
-                </Card>
+                ))}
             </div>
 
             {/* Charts */}
-            <div className="grid grid-2" style={{ gap: 'var(--spacing-xl)' }}>
-                <Card title="Vendas dos Últimos 7 Dias">
-                    <div style={{ height: '320px', width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Vendas dos Últimos 7 Dias</div>
+                    <div style={{ height: '300px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={chartData.daily}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                 <XAxis dataKey="name" stroke="#94a3b8" />
                                 <YAxis stroke="#94a3b8" />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="value"
-                                    stroke="#6366f1"
-                                    strokeWidth={3}
-                                    dot={{ fill: '#6366f1' }}
-                                />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                                <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ fill: '#6366f1' }} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
-                </Card>
+                </div>
 
-                <Card title="Vendas por Categoria">
-                    <div style={{ height: '320px', width: '100%' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Vendas por Categoria</div>
+                    <div style={{ height: '300px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                                <Pie
-                                    data={chartData.byCategory}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    outerRadius={100}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                >
+                                <Pie data={chartData.byCategory} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                     {chartData.byCategory.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                             </PieChart>
                         </ResponsiveContainer>
                     </div>
-                </Card>
+                </div>
 
-                <Card title="Vendas por Forma de Pagamento" style={{ gridColumn: 'span 2' }}>
-                    <div style={{ height: '320px', width: '100%' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', padding: '20px', gridColumn: 'span 2' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '16px' }}>Vendas por Forma de Pagamento</div>
+                    <div style={{ height: '300px', width: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={chartData.byPayment}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                 <XAxis dataKey="name" stroke="#94a3b8" />
                                 <YAxis stroke="#94a3b8" />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                                 <Bar dataKey="value" fill="#14b8a6" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </Card>
+                </div>
             </div>
 
             {/* Detailed Tables */}
-            <div style={{ marginTop: 'var(--spacing-xl)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--spacing-xl)' }}>
-                {/* Time-based Breakdown */}
-                <Card title="Detalhamento Financeiro (Por Período)">
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', fontWeight: 700, fontSize: '14px' }}>Detalhamento Financeiro</div>
                     <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
-                                <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                                    <th style={{ padding: '12px', textAlign: 'left' }}>Data</th>
-                                    <th style={{ padding: '12px', textAlign: 'center' }}>Vendas</th>
-                                    <th style={{ padding: '12px', textAlign: 'right' }}>Faturamento</th>
-                                    <th style={{ padding: '12px', textAlign: 'right' }}>Custo (CMV)</th>
-                                    <th style={{ padding: '12px', textAlign: 'right' }}>Lucro</th>
-                                    <th style={{ padding: '12px', textAlign: 'right' }}>Margem</th>
+                                <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                    {['Data', 'Vendas', 'Faturamento', 'Custo (CMV)', 'Lucro', 'Margem'].map((h, i) => (
+                                        <th key={h} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
+                                    ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {chartData.daily.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                            Nenhum dado para exibir
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    [...chartData.daily].reverse().map((item, idx) => {
-                                        // We need to re-find the detailed stats for this day from the context or pre-calculate it.
-                                        // For simplicity, let's assume chartData.daily only has totals.
-                                        // Better approach: calculate detailed list in processMetrics and store in a new state.
-                                        // Since we didn't add a new state yet, let's use what we have or do a quick aggregation here if needed, 
-                                        // BUT best practice is to have it ready.
-                                        // Let's modify processMetrics to include `detailedStats` in a new state variable first.
-                                        // VISUAL PLACEHOLDER for now to show structure, but I will include the logic update in the next step properly.
-                                        // Wait, I can do it all in this Replace. I will update `processMetrics` logic above first.
-                                        return null;
-                                    })
-                                )}
+                                <tr>
+                                    <td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                                        Use o filtro de datas para ver o detalhamento.
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
-                        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                            Use o filtro de datas para ver o detalhamento.
-                        </div>
                     </div>
-                </Card >
+                </div>
 
-                {/* Payment Methods Table */}
-                < Card title="Detalhamento por Pagamento" >
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' }}>
+                <div style={{ background: 'var(--color-bg-secondary)', borderRadius: '14px', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', fontWeight: 700, fontSize: '14px' }}>Detalhamento por Pagamento</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}>
-                                <th style={{ padding: '12px', textAlign: 'left' }}>Método</th>
-                                <th style={{ padding: '12px', textAlign: 'right' }}>Total</th>
+                            <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left' }}>Método</th>
+                                <th style={{ padding: '10px 16px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Total</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {chartData.byPayment.map((item) => (
-                                <tr key={item.name} style={{ borderBottom: '1px solid var(--color-divider)' }}>
-                                    <td style={{ padding: '12px', fontWeight: 500 }}>{item.name}</td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>
-                                        {formatCurrency(item.value)}
-                                    </td>
+                            {chartData.byPayment.length === 0 ? (
+                                <tr><td colSpan="2" style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Sem dados</td></tr>
+                            ) : chartData.byPayment.map((item) => (
+                                <tr key={item.name} style={{ borderBottom: '1px solid var(--color-divider)', transition: 'background 0.1s' }}
+                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-bg-hover)'}
+                                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                                    <td style={{ padding: '12px 16px', fontWeight: 600, fontSize: '14px', textTransform: 'capitalize' }}>{item.name}</td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700 }}>{formatCurrency(item.value)}</td>
                                 </tr>
                             ))}
-                            {chartData.byPayment.length === 0 && (
-                                <tr>
-                                    <td colSpan="2" style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                                        Sem dados
-                                    </td>
-                                </tr>
-                            )}
                         </tbody>
                     </table>
-                </Card >
-            </div >
-        </div >
+                </div>
+            </div>
+        </div>
     );
 };
 
